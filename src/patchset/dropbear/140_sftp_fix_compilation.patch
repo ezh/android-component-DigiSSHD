@@ -1,0 +1,58 @@
+diff -rupN a/sftp-server/misc.c b/sftp-server/misc.c
+--- a/sftp-server/misc.c	2011-12-07 17:30:02.586026246 +0400
++++ b/sftp-server/misc.c	2011-12-07 17:30:02.684025258 +0400
+@@ -206,7 +206,9 @@ pwcopy(struct passwd *pw)
+ 
+ 	copy->pw_name = xstrdup(pw->pw_name);
+ 	copy->pw_passwd = xstrdup(pw->pw_passwd);
++#ifdef HAVE_GECOS
+ 	copy->pw_gecos = xstrdup(pw->pw_gecos);
++#endif
+ 	copy->pw_uid = pw->pw_uid;
+ 	copy->pw_gid = pw->pw_gid;
+ #ifdef HAVE_PW_EXPIRE_IN_PASSWD
+diff -rupN a/sftp-server/openbsd-compat/bsd-misc.c b/sftp-server/openbsd-compat/bsd-misc.c
+--- a/sftp-server/openbsd-compat/bsd-misc.c	2011-12-07 17:30:02.589026220 +0400
++++ b/sftp-server/openbsd-compat/bsd-misc.c	2011-12-07 17:30:02.684025258 +0400
+@@ -29,6 +29,7 @@
+ #include <signal.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <fcntl.h>
+ 
+ #include "xmalloc.h"
+ 
+@@ -199,6 +200,8 @@ tcsendbreak(int fd, int duration)
+ }
+ #endif /* HAVE_TCSENDBREAK */
+ 
++/* Conflicts with bionic *
++/*
+ mysig_t
+ mysignal(int sig, mysig_t act)
+ {
+@@ -225,6 +228,7 @@ mysignal(int sig, mysig_t act)
+ 	return (signal(sig, act));
+ #endif
+ }
++*/
+ 
+ #ifndef HAVE_STRDUP
+ char *
+diff -rupN a/sftp-server/openbsd-compat/bsd-misc.h b/sftp-server/openbsd-compat/bsd-misc.h
+--- a/sftp-server/openbsd-compat/bsd-misc.h	2011-12-07 17:30:02.589026220 +0400
++++ b/sftp-server/openbsd-compat/bsd-misc.h	2011-12-07 17:30:02.685025247 +0400
+@@ -90,10 +90,12 @@ void unsetenv(const char *);
+ #endif
+ 
+ /* wrapper for signal interface */
+-typedef void (*mysig_t)(int);
++// conflicts with bionic
++/* typedef void (*mysig_t)(int);
+ mysig_t mysignal(int sig, mysig_t act);
+ 
+ #define signal(a,b) mysignal(a,b)
++*/
+ 
+ #ifndef HAVE_ISBLANK
+ int	isblank(int);

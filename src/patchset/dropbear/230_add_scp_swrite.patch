@@ -1,0 +1,12 @@
+diff -rNup a/scp.c b/scp.c
+--- a/scp.c	2011-11-08 16:48:15.000000000 +0400
++++ b/scp.c	2011-12-07 21:51:49.844024204 +0400
+@@ -70,6 +70,8 @@
+  *
+  */
+ 
++#define S_IWRITE 0200
++
+ #include "includes.h"
+ /*RCSID("$OpenBSD: scp.c,v 1.130 2006/01/31 10:35:43 djm Exp $");*/
+ 

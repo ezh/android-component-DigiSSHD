@@ -1,0 +1,15 @@
+diff -rupN a/svr-session.c b/svr-session.c
+--- a/svr-session.c	2011-12-07 18:05:39.755392032 +0400
++++ b/svr-session.c	2011-12-07 18:05:39.884390779 +0400
+@@ -135,7 +135,10 @@ void svr_dropbear_exit(int exitcode, con
+ 
+ 	char fmtbuf[300];
+ 
+-	if (!sessinitdone) {
++	if (exitflag) {
++		snprintf(fmtbuf, sizeof(fmtbuf),
++			"Exiting normally");
++	} else if (!sessinitdone) {
+ 		/* before session init */
+ 		snprintf(fmtbuf, sizeof(fmtbuf), 
+ 				"Premature exit: %s", format);

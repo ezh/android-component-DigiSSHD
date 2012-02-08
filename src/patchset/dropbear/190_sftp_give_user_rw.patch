@@ -1,0 +1,111 @@
+diff -rupN a/runopts.h b/runopts.h
+--- a/runopts.h	2011-12-07 18:07:12.927481994 +0400
++++ b/runopts.h	2011-12-07 18:07:13.078480519 +0400
+@@ -60,6 +60,8 @@ typedef struct svr_runopts {
+ 	char * dsskeyfile;
+ 	char * bannerfile;
+ 	char * forcedhomepath;
++
++	int fake_permissions;
+ #ifdef ENABLE_SVR_MASTER_PASSWORD
+ 	char * master_password;
+ #endif
+diff -rupN a/sftp-server/sftp-server.c b/sftp-server/sftp-server.c
+--- a/sftp-server/sftp-server.c	2011-12-07 18:07:12.893482328 +0400
++++ b/sftp-server/sftp-server.c	2011-12-07 18:07:13.078480519 +0400
+@@ -73,6 +73,9 @@ u_int version;
+ /* Disable writes */
+ int readonly;
+ 
++/* Fake permissions, always give user rw */
++int fake_permissions;
++
+ /* portable attributes, etc. */
+ 
+ typedef struct Stat Stat;
+@@ -700,6 +703,8 @@ process_do_stat(int do_lstat)
+ 		status = errno_to_portable(errno);
+ 	} else {
+ 		stat_to_attrib(&st, &a);
++		if (fake_permissions)
++			a.perm |= (S_IRUSR | S_IWUSR);
+ 		send_attrib(id, &a);
+ 		status = SSH2_FX_OK;
+ 	}
+@@ -1390,7 +1395,7 @@ sftp_server_usage(void)
+ 	extern char *__progname;
+ 
+ 	fprintf(stderr,
+-	    "usage: %s [-ehR] [-f log_facility] [-l log_level] [-u umask]\n",
++	    "usage: %s [-ehRU] [-f log_facility] [-l log_level] [-u umask]\n",
+ 	    __progname);
+ 	exit(1);
+ }
+@@ -1411,7 +1416,8 @@ sftp_server_main(int argc, char **argv,
+ 	__progname = ssh_get_progname(argv[0]);
+ 	log_init(__progname, log_level, log_facility, log_stderr);
+ 
+-	while (!skipargs && (ch = getopt(argc, argv, "f:l:u:cehR")) != -1) {
++    fake_permissions = 0;
++	while (!skipargs && (ch = getopt(argc, argv, "f:l:u:cehRU")) != -1) {
+ 		switch (ch) {
+ 		case 'R':
+ 			readonly = 1;
+@@ -1444,6 +1450,9 @@ sftp_server_main(int argc, char **argv,
+ 				fatal("Invalid umask \"%s\"", optarg);
+ 			(void)umask((mode_t)mask);
+ 			break;
++		case 'U': /* Fake permissions */
++			fake_permissions = 1;
++			break;
+ 		case 'h':
+ 		default:
+ 			sftp_server_usage();
+diff -rupN a/svr-chansession.c b/svr-chansession.c
+--- a/svr-chansession.c	2011-12-07 18:07:12.929481975 +0400
++++ b/svr-chansession.c	2011-12-07 18:07:13.078480519 +0400
+@@ -628,7 +628,13 @@ static int sessioncommand(struct Channel
+ #ifdef SFTPSERVER_PATH
+ 			if ((cmdlen == 4) && strncmp(chansess->cmd, "sftp", 4) == 0) {
+ 				m_free(chansess->cmd);
+-				chansess->cmd = m_strdup(SFTPSERVER_PATH);
++				if (svr_opts.fake_permissions) {
++					char *cmd = m_malloc(sizeof(SFTPSERVER_PATH) + 3);
++					strcpy(cmd, SFTPSERVER_PATH);
++					chansess->cmd = strcat(cmd, " -U");
++				} else {
++				    chansess->cmd = m_strdup(SFTPSERVER_PATH);
++                }
+ 			} else 
+ #endif
+ 			{
+diff -rupN a/svr-runopts.c b/svr-runopts.c
+--- a/svr-runopts.c	2011-12-07 18:07:12.930481966 +0400
++++ b/svr-runopts.c	2011-12-07 18:08:40.140630968 +0400
+@@ -61,6 +61,7 @@ static void printhelp(const char * progn
+ 					"-m		Don't display the motd on login\n"
+ #endif
+ 					"-w		Disallow root logins\n"
++					"-U		Fake user RW permissions in SFTP\n"
+ #if defined(ENABLE_SVR_PASSWORD_AUTH) || defined(ENABLE_SVR_PAM_AUTH)
+ 					"-s		Disable password logins\n"
+ 					"-g		Disable password logins for root\n"
+@@ -116,6 +117,8 @@ void svr_getopts(int argc, char ** argv)
+ 	svr_opts.rsakeyfile = NULL;
+ 	svr_opts.dsskeyfile = NULL;
+ 	svr_opts.bannerfile = NULL;
++
++	svr_opts.fake_permissions = 0;
+ #ifdef ENABLE_SVR_MASTER_PASSWORD
+ 	svr_opts.master_password = NULL;
+ #endif
+@@ -248,6 +251,9 @@ void svr_getopts(int argc, char ** argv)
+ 					svr_opts.norootpass = 1;
+ 					break;
+ #endif
++				case 'U':
++					svr_opts.fake_permissions = 1;
++					break;
+ #ifdef ENABLE_SVR_MASTER_PASSWORD
+ 				case 'Y':
+ 					next = &master_password_arg;

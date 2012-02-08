@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ ~ DigiSSHD - DigiINETD component for Android Platform
+ ~ Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
+ ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ ~
+ ~ This code is free software; you can redistribute it and/or modify it
+ ~ under the terms of the GNU General Public License version 3 or any later
+ ~ version, as published by the Free Software Foundation.
+ ~
+ ~ This code is distributed in the hope that it will be useful, but WITHOUT
+ ~ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ ~ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ ~ version 2 for more details (a copy is included in the LICENSE file that
+ ~ accompanied this code).
+ ~
+ ~ You should have received a copy of the GNU General Public License version
+ ~ 3 along with this work; if not, write to the Free Software Foundation,
+ ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ ~
+ -->
+ <resources>
+
+    <color name="white">#fff</color>
+    <color name="black">#000</color>
+    <color name="red">#c6360a</color>
+    <color name="green">#688f2b</color>
+    <color name="orange">#f48905</color>
+    <color name="dark_blue">#003366</color>
+    <color name="grey">#888888</color>
+    <color name="search_plate">#D1EEEE</color>
+    <color name="plate_background">#2c82c0</color>
+    <color name="plate_extra_background">#e4e4e4</color>
+    <color name="stroke">#807e77</color>
+    <color name="stroke_light">#ffffff</color>
+    <color name="list_divider">#DBDBDB</color>
+    <color name="header_background">#CFCFCF</color>
+    <color name="actionbar_divider">#3D3D3D</color>
+    <color name="actionbar_background_start">#212121</color>
+    <color name="actionbar_background_end">#292929</color>
+
+</resources>

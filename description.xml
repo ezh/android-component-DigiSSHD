@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bundle>
+	<application>
+		<name>openssh</name>
+		<version>5.9p1</version>
+		<link>http://www.openssh.com/</link>
+		<description>provide sftp service</description>
+	</application>
+	<application>
+		<name>dropbear</name>
+		<version>2011.54</version>
+		<description>provide ssh service</description>
+		<link>http://matt.ucc.asn.au/dropbear/dropbear.html</link>
+	</application>
+</bundle>

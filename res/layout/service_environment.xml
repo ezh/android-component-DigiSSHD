@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ ~ DigiSSHD - DigiINETD component for Android Platform
+ ~ Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
+ ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ ~
+ ~ This code is free software; you can redistribute it and/or modify it
+ ~ under the terms of the GNU General Public License version 3 or any later
+ ~ version, as published by the Free Software Foundation.
+ ~
+ ~ This code is distributed in the hope that it will be useful, but WITHOUT
+ ~ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ ~ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ ~ version 2 for more details (a copy is included in the LICENSE file that
+ ~ accompanied this code).
+ ~
+ ~ You should have received a copy of the GNU General Public License version
+ ~ 3 along with this work; if not, write to the Free Software Foundation,
+ ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ ~
+ -->
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="#ff0000"
+    android:stretchColumns="*" >
+
+    <TableRow
+        android:layout_margin="2dip"
+        android:background="#00ff00" >
+
+        <Button
+            android:id="@+id/service_environment_reinstall_button"
+            style="@style/ButtonNormalTextWithIcon"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onClickReInstall"
+            android:text="@string/service_environment_reinstall" >
+        </Button>
+
+        <Button
+            android:id="@+id/service_environment_copytoclipboard_button"
+            style="@style/ButtonNormalTextWithIcon"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onClickCopyToClipboard"
+            android:text="@string/service_environment_copytoclipboard" >
+        </Button>
+    </TableRow>
+
+</TableLayout>

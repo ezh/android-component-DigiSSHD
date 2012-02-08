@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ ~ DigiSSHD - DigiINETD component for Android Platform
+ ~ Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
+ ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ ~
+ ~ This code is free software; you can redistribute it and/or modify it
+ ~ under the terms of the GNU General Public License version 3 or any later
+ ~ version, as published by the Free Software Foundation.
+ ~
+ ~ This code is distributed in the hope that it will be useful, but WITHOUT
+ ~ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ ~ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ ~ version 2 for more details (a copy is included in the LICENSE file that
+ ~ accompanied this code).
+ ~
+ ~ You should have received a copy of the GNU General Public License version
+ ~ 3 along with this work; if not, write to the Free Software Foundation,
+ ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ ~
+ -->
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.digimead.digi.inetd.sshd"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk android:minSdkVersion="7" />
+
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name" >
+        <activity
+            android:name=".SSHDActivity"
+            android:label="@string/app_name" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="org.digimead.digi.inetd.component.activity" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".service.TabActivity"
+            android:label="@string/app_name_service" >
+        </activity>
+        <activity
+            android:name=".comm.TabActivity"
+            android:label="@string/app_name_comm" >
+        </activity>
+        <activity
+            android:name=".info.TabActivity"
+            android:label="@string/app_name_info" >
+        </activity>
+        <activity
+            android:name=".service.FilterAddActivity"
+            android:label="@string/app_name_filter_add" >
+        </activity>
+        <activity
+            android:name=".service.FilterRemoveActivity"
+            android:label="@string/app_name_filter_remove" >
+        </activity>
+        <service android:name=".SSHDService">
+            <intent-filter>
+                <action android:name="org.digimead.digi.inetd.component.service" />
+            </intent-filter>
+        </service>
+        
+        <uses-library
+            android:name="scala.actors"
+            android:required="true" />
+        <uses-library
+            android:name="scala.library"
+            android:required="true" />
+        <uses-library
+            android:name="scala.collection"
+            android:required="true" />
+        <uses-library
+            android:name="scala.collection.mutable"
+            android:required="true" />
+        <uses-library
+            android:name="scala.collection.immutable"
+            android:required="true" />
+        <uses-library
+            android:name="slf4j-android-1.6.1-RC1"
+            android:required="true" />
+        <uses-library
+            android:name="CWAC-MergeAdapter"
+            android:required="true" />
+        <uses-library
+            android:name="CWAC-SackOfViewsAdapter"
+            android:required="true" />
+    </application>
+
+</manifest>

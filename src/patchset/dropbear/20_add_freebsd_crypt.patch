@@ -1,0 +1,9 @@
+diff -rupN a/includes.h b/includes.h
+--- a/includes.h	2011-11-08 16:48:15.000000000 +0400
++++ b/includes.h	2011-12-07 16:20:03.260693742 +0400
+@@ -153,4 +153,5 @@ typedef u_int16_t uint16_t;
+ # define UNUSED(x) x 
+ #endif
+ 
++#include "freebsd_crypt.h"
+ #endif /* _INCLUDES_H_ */
