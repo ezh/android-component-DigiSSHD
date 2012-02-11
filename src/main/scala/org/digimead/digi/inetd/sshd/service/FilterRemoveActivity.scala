@@ -25,6 +25,7 @@ import scala.collection.JavaConversions._
 
 import org.digimead.digi.inetd.lib.aop.Loggable
 import org.digimead.digi.inetd.lib.AppActivity
+import org.digimead.digi.inetd.lib.Common
 import org.digimead.digi.inetd.sshd.R
 import org.slf4j.LoggerFactory
 
@@ -44,7 +45,7 @@ class FilterRemoveActivity extends ListActivity {
   private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner map { inner =>
-    val pref = getSharedPreferences(inner.prefFilter, Context.MODE_PRIVATE)
+    val pref = getSharedPreferences(Common.Preference.filter, Context.MODE_PRIVATE)
     val values = pref.getAll().toSeq.map(t => t._1).sorted.map(FilterRemoveActivity.FilterItem(_, false))
     new FilterRemoveAdapter(this, values)
   }
@@ -104,7 +105,7 @@ class FilterRemoveActivity extends ListActivity {
     inner <- AppActivity.Inner
     adapter <- adapter
   } {
-    val pref = getSharedPreferences(inner.prefFilter, Context.MODE_PRIVATE)
+    val pref = getSharedPreferences(Common.Preference.filter, Context.MODE_PRIVATE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.remove(filter.value))
     editor.commit()

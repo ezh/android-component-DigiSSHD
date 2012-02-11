@@ -28,14 +28,14 @@ import java.io.InputStreamReader
 import org.digimead.digi.inetd.lib.aop.Loggable
 import org.digimead.digi.inetd.lib.AppActivity
 import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.lib.ServiceBase
+import org.digimead.digi.inetd.lib.base.Service
 import org.digimead.digi.inetd.IINETDComponent
 import org.slf4j.LoggerFactory
 
 import android.content.Intent
 import android.os.IBinder
 
-class SSHDService extends ServiceBase {
+class SSHDService extends Service {
   private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
   private lazy val binder = new IINETDComponent.Stub() {
     log.debug("binder alive")
@@ -91,7 +91,7 @@ class SSHDService extends ServiceBase {
         }
       }
     } getOrElse false
-    @Loggable
+    @Loggable(result = false)
     def getExecutable(id: Int, workdir: String): java.util.List[_] = {
       for {
         inner <- AppActivity.Inner

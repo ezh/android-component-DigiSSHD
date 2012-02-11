@@ -25,28 +25,31 @@ import org.digimead.digi.inetd.lib.aop.Loggable;
 
 privileged public final aspect AspectLogging extends
 		org.digimead.digi.inetd.lib.aop.Logging {
-	public pointcut loggingNonVoid() : execution(@Loggable !void *(..));
+	public pointcut loggingNonVoid(Loggable loggable) : execution(@Loggable !void *(..)) && @annotation(loggable);
 
-	public pointcut loggingVoid() : execution(@Loggable void *(..));
+	public pointcut loggingVoid(Loggable loggable) : execution(@Loggable void *(..)) && @annotation(loggable);
 
-	public pointcut logging() : loggingVoid() || loggingNonVoid();
+	public pointcut logging(Loggable loggable) : loggingVoid(loggable) || loggingNonVoid(loggable);
 
-	before() : logging() {
+	before(final Loggable loggable) : logging(loggable) {
 		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
 			enteringMethod(thisJoinPoint);
 	}
 
-	after() returning(Object result) : loggingNonVoid() {
+	after(final Loggable loggable) returning(final Object result) : loggingNonVoid(loggable) {
 		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
-			leavingMethod(thisJoinPoint, result);
+			if (loggable.result())
+				leavingMethod(thisJoinPoint, result);
+			else
+				leavingMethod(thisJoinPoint);
 	}
 
-	after() returning() : loggingVoid() {
+	after(final Loggable loggable) returning() : loggingVoid(loggable) {
 		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
 			leavingMethod(thisJoinPoint);
 	}
 
-	after() throwing(Exception ex) : logging() {
+	after(final Loggable loggable) throwing(final Exception ex) : logging(loggable) {
 		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
 			leavingMethodException(thisJoinPoint, ex);
 	}

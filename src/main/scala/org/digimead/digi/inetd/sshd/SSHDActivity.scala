@@ -22,7 +22,7 @@
 package org.digimead.digi.inetd.sshd
 
 import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.ActivityBase
+import org.digimead.digi.inetd.lib.base.Activity
 import org.digimead.digi.inetd.lib.Android
 import org.digimead.digi.inetd.lib.AppActivity
 import org.digimead.digi.inetd.lib.AppService
@@ -46,7 +46,7 @@ import android.widget.TabHost
 import android.widget.TextView
 import android.widget.ToggleButton
 
-class SSHDActivity extends android.app.TabActivity with ActivityBase {
+class SSHDActivity extends android.app.TabActivity with Activity {
   private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
   private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
   private lazy val toggleStartStop = findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton]
