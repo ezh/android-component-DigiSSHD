@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,11 +19,11 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.service
+package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
 
-import org.digimead.digi.inetd.sshd.R
+import org.digimead.digi.ctrl.sshd.R
 
 import android.content.Context
 import android.view.LayoutInflater

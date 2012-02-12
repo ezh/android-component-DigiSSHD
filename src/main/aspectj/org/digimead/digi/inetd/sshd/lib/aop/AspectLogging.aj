@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,12 +19,12 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.lib.aop;
+package org.digimead.digi.ctrl.sshd.lib.aop;
 
-import org.digimead.digi.inetd.lib.aop.Loggable;
+import org.digimead.digi.ctrl.lib.aop.Loggable;
 
 privileged public final aspect AspectLogging extends
-		org.digimead.digi.inetd.lib.aop.Logging {
+		org.digimead.digi.ctrl.lib.aop.Logging {
 	public pointcut loggingNonVoid(Loggable loggable) : execution(@Loggable !void *(..)) && @annotation(loggable);
 
 	public pointcut loggingVoid(Loggable loggable) : execution(@Loggable void *(..)) && @annotation(loggable);
@@ -32,12 +32,12 @@ privileged public final aspect AspectLogging extends
 	public pointcut logging(Loggable loggable) : loggingVoid(loggable) || loggingNonVoid(loggable);
 
 	before(final Loggable loggable) : logging(loggable) {
-		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
+		if (org.digimead.digi.ctrl.lib.aop.Logging.enabled())
 			enteringMethod(thisJoinPoint);
 	}
 
 	after(final Loggable loggable) returning(final Object result) : loggingNonVoid(loggable) {
-		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
+		if (org.digimead.digi.ctrl.lib.aop.Logging.enabled())
 			if (loggable.result())
 				leavingMethod(thisJoinPoint, result);
 			else
@@ -45,12 +45,12 @@ privileged public final aspect AspectLogging extends
 	}
 
 	after(final Loggable loggable) returning() : loggingVoid(loggable) {
-		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
+		if (org.digimead.digi.ctrl.lib.aop.Logging.enabled())
 			leavingMethod(thisJoinPoint);
 	}
 
 	after(final Loggable loggable) throwing(final Exception ex) : logging(loggable) {
-		if (org.digimead.digi.inetd.lib.aop.Logging.enabled())
+		if (org.digimead.digi.ctrl.lib.aop.Logging.enabled())
 			leavingMethodException(thisJoinPoint, ex);
 	}
 }

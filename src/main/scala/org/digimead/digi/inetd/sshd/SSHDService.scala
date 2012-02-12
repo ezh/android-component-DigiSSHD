@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,25 +19,25 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd
+package org.digimead.digi.ctrl.sshd
 
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 
-import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.AppActivity
-import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.lib.base.Service
-import org.digimead.digi.inetd.IINETDComponent
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.AppActivity
+import org.digimead.digi.ctrl.lib.Common
+import org.digimead.digi.ctrl.lib.base.Service
+import org.digimead.digi.ctrl.ICtrlComponent
 import org.slf4j.LoggerFactory
 
 import android.content.Intent
 import android.os.IBinder
 
 class SSHDService extends Service {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
-  private lazy val binder = new IINETDComponent.Stub() {
+  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+  private lazy val binder = new ICtrlComponent.Stub() {
     log.debug("binder alive")
     @Loggable
     def uid() = android.os.Process.myUid()

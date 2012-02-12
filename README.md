@@ -1,7 +1,7 @@
 DigiSSHD
 ========
 
-This is a [DigiINETD](http://github.com/ezh/android-DigiINETD) component that contain SSH native binary for INETD and UI to tune service options. It is based on __latest__ stable version of [Dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html) __v2011.54__ SSH Server and [OpenSSH](http://www.openssh.com/) __v5.9p1__ SFTP Server
+This is a [DigiControl](http://github.com/ezh/android-DigiControl) component that contain SSH native binary for INETD and UI to tune service options. It is based on __latest__ stable version of [Dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html) __v2011.54__ SSH Server and [OpenSSH](http://www.openssh.com/) __v5.9p1__ SFTP Server
 
 Source code contains no Dropbear or OpenSSH code, because we avoid duplication of open-source software that is available for everyone. There are a patchset that apply to unpacked source before compilation in src/patchset
 

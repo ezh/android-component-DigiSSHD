@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,13 +19,13 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.info
+package org.digimead.digi.ctrl.sshd.info
 
-import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.AppActivity
-import org.digimead.digi.inetd.lib.AppService
-import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.sshd.R
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.AppActivity
+import org.digimead.digi.ctrl.lib.AppService
+import org.digimead.digi.ctrl.lib.Common
+import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 
 import com.commonsware.cwac.merge.MergeAdapter
@@ -46,7 +46,7 @@ import android.widget.ListView
 import android.widget.TextView
 
 class TabActivity extends ListActivity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
+  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
   private val adapter = new MergeAdapter()
   private var interfaces = Seq(TabActivity.InterfaceItem(null, null)) // null is "pending..." item, handled at InterfaceAdapter
   private lazy val interfaceAdapter = new InterfaceAdapter(this, () => { interfaces })

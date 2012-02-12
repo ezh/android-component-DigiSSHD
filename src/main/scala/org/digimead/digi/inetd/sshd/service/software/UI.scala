@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,15 +19,15 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.service.software
+package org.digimead.digi.ctrl.sshd.service.software
 
 import java.net.URL
 
 import scala.xml.XML
 
-import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.AppActivity
-import org.digimead.digi.inetd.sshd.R
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.AppActivity
+import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 
 import android.content.Context
@@ -38,8 +38,8 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 
-class UI(ctx: org.digimead.digi.inetd.sshd.service.TabActivity) {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
+class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
+  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val adapter = new UI.Adapter(ctx, getAppSeq)
   header.setText(ctx.getString(R.string.service_software))

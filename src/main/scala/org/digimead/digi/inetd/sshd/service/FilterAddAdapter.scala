@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,10 +19,10 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.service
+package org.digimead.digi.ctrl.sshd.service
 
-import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.sshd.R
+import org.digimead.digi.ctrl.lib.Common
+import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 
 import android.content.Context
@@ -37,7 +37,7 @@ class FilterAddAdapter(context: FilterAddActivity, values: () => Seq[String],
   private val resource: Int = android.R.layout.simple_expandable_list_item_1,
   private val fieldId: Int = android.R.id.text1)
   extends ArrayAdapter[String](context, resource, fieldId) {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
+  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
   private var skipLongClickClick = -1
   private var availableFilters = Seq[(String, Boolean)]() // Value, isPending
   private var pendingFilters = Seq[String]()

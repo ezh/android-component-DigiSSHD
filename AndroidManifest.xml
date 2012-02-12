@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- ~ DigiSSHD - DigiINETD component for Android Platform
+ ~ DigiSSHD - DigiControl component for Android Platform
  ~ Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  ~
@@ -20,7 +20,7 @@
  ~
  -->
  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.digimead.digi.inetd.sshd"
+    package="org.digimead.digi.ctrl.sshd"
     android:versionCode="1"
     android:versionName="1.0" >
 
@@ -42,7 +42,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter>
-                <action android:name="org.digimead.digi.inetd.component.activity" />
+                <action android:name="org.digimead.digi.ctrl.component.activity" />
 
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
@@ -69,7 +69,7 @@
         </activity>
         <service android:name=".SSHDService">
             <intent-filter>
-                <action android:name="org.digimead.digi.inetd.component.service" />
+                <action android:name="org.digimead.digi.ctrl.component.service" />
             </intent-filter>
         </service>
         

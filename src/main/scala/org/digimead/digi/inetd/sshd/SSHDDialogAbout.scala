@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,9 +19,9 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd
+package org.digimead.digi.ctrl.sshd
 
-import org.digimead.digi.inetd.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.aop.Loggable
 
 import android.app.AlertDialog
 import android.app.Dialog

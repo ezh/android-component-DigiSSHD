@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,14 +19,14 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.service
+package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
 
-import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.AppActivity
-import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.sshd.R
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.AppActivity
+import org.digimead.digi.ctrl.lib.Common
+import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 
 import android.app.Activity
@@ -49,7 +49,7 @@ import android.widget.TextView
 import android.widget.Toast
 
 class FilterAddActivity extends ListActivity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
+  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner.map(inner =>
     new FilterAddAdapter(this, () => {

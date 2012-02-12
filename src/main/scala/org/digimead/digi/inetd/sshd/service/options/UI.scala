@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,11 +19,11 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd.service.options
+package org.digimead.digi.ctrl.sshd.service.options
 
-import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.sshd.R
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.Common
+import org.digimead.digi.ctrl.sshd.R
 
 import android.content.Context
 import android.view.View
@@ -31,7 +31,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 
-class UI(ctx: org.digimead.digi.inetd.sshd.service.TabActivity) {
+class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
     UI.Item(Common.Option.service_asroot, ctx))
@@ -49,7 +49,7 @@ class UI(ctx: org.digimead.digi.inetd.sshd.service.TabActivity) {
 
 object UI {
   case class Item(option: Common.Option.OptVal, ctx: Context)
-  class Adapter(ctx: org.digimead.digi.inetd.sshd.service.TabActivity, values: Seq[Item])
+  class Adapter(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity, values: Seq[Item])
     extends ArrayAdapter[Item](ctx, android.R.layout.simple_list_item_multiple_choice, android.R.id.text1) {
     values.foreach(add(_))
     ctx.lv.post(new Runnable { def run = notifyDataSetChanged() })

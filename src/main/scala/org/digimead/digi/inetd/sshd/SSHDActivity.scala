@@ -1,5 +1,5 @@
 /*
- * DigiSSHD - DigiINETD component for Android Platform
+ * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -19,17 +19,17 @@
  *
  */
 
-package org.digimead.digi.inetd.sshd
+package org.digimead.digi.ctrl.sshd
 
-import org.digimead.digi.inetd.lib.aop.Loggable
-import org.digimead.digi.inetd.lib.base.Activity
-import org.digimead.digi.inetd.lib.Android
-import org.digimead.digi.inetd.lib.AppActivity
-import org.digimead.digi.inetd.lib.AppService
-import org.digimead.digi.inetd.lib.Common
-import org.digimead.digi.inetd.sshd.comm.TabActivity
-import org.digimead.digi.inetd.sshd.info.TabActivity
-import org.digimead.digi.inetd.sshd.service.TabActivity
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.Activity
+import org.digimead.digi.ctrl.lib.Android
+import org.digimead.digi.ctrl.lib.AppActivity
+import org.digimead.digi.ctrl.lib.AppService
+import org.digimead.digi.ctrl.lib.Common
+import org.digimead.digi.ctrl.sshd.comm.TabActivity
+import org.digimead.digi.ctrl.sshd.info.TabActivity
+import org.digimead.digi.ctrl.sshd.service.TabActivity
 import org.slf4j.LoggerFactory
 
 import android.app.Dialog
@@ -47,7 +47,7 @@ import android.widget.TextView
 import android.widget.ToggleButton
 
 class SSHDActivity extends android.app.TabActivity with Activity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.inetd", "o.d.d.i"))
+  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
   private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
   private lazy val toggleStartStop = findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton]
   private val receiver = new BroadcastReceiver() {
@@ -77,8 +77,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 
     // Create an Intent to launch an Activity for the tab (to be reused)
     // Initialize a TabSpec for each tab and add it to the TabHost
-    intent = new Intent().setClass(this, classOf[org.digimead.digi.inetd.sshd.service.TabActivity])
-    spec = tabHost.newTabSpec(classOf[org.digimead.digi.inetd.sshd.service.TabActivity].getName()).setIndicator("Service",
+    intent = new Intent().setClass(this, classOf[org.digimead.digi.ctrl.sshd.service.TabActivity])
+    spec = tabHost.newTabSpec(classOf[org.digimead.digi.ctrl.sshd.service.TabActivity].getName()).setIndicator("Service",
       res.getDrawable(R.drawable.ic_tab_settings_service))
       .setContent(intent)
     tabHost.addTab(spec)
@@ -97,7 +97,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 
     tabHost.setOnTabChangedListener(new OnTabChangeListener() {
       def onTabChanged(tab: String) = tab match {
-        case id if id == classOf[org.digimead.digi.inetd.sshd.service.TabActivity].getName() =>
+        case id if id == classOf[org.digimead.digi.ctrl.sshd.service.TabActivity].getName() =>
           setTitle(R.string.app_name_service)
         case id if id == classOf[comm.TabActivity].getName() =>
           setTitle(R.string.app_name_comm)
