@@ -1,5 +1,5 @@
-DigiSSHD
-========
+![DigiSSHD Logo](https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-hdpi/ic_launcher.png) DigiSSHD
+========================================================================================================================
 
 This is a [DigiControl](http://github.com/ezh/android-DigiControl) component that contain SSH native binary for INETD and UI to tune service options. It is based on __latest__ stable version of [Dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html) __v2011.54__ SSH Server and [OpenSSH](http://www.openssh.com/) __v5.9p1__ SFTP Server
 
