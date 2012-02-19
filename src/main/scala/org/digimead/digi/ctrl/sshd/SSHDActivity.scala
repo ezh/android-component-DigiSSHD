@@ -115,9 +115,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         inner ! AppActivity.Message.PrepareEnvironment(this, true, true, (success) => {
           if (inner.getStatus().state != Common.State.Broken)
             if (success)
-              AppActivity.Status(Common.State.Passive, Android.getString(this, "status_ready"))
+              AppActivity.Status(Common.State.Passive, Android.getString(this, "status_ready").
+                  getOrElse("Ready"))
             else
-              AppActivity.Status(Common.State.Broken, Android.getString(this, "status_error"))
+              AppActivity.Status(Common.State.Broken, Android.getString(this, "status_error").
+                  getOrElse("Error"))
         })
     }
   }
