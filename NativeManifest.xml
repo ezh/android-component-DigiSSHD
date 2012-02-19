@@ -5,7 +5,7 @@
 		<version>5.9p1</version>
 		<project>http://www.openssh.com/</project>
 		<description>provide sftp service</description>
-		<license>BSD license</license>
+		<license>BSD</license>
 		<origin>OpenSSH is developed as part of the security conscious OpenBSD project, which is led by Theo de Raadt</origin>
 	</application>
 	<application>
@@ -13,7 +13,7 @@
 		<version>2011.54</version>
 		<project>http://matt.ucc.asn.au/dropbear/dropbear.html</project>
 		<description>provide ssh service</description>
-		<license>MIT-style license</license>
+		<license>MIT</license>
 		<origin>Dropbear is a software package written by Matt Johnston</origin>
 	</application>
 </manifest>

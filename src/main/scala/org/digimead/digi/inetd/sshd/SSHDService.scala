@@ -36,7 +36,6 @@ import scala.xml._
 import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import java.util.Locale
-import org.digimead.digi.ctrl.lib.info.ComponentInfo.IconType
 
 class SSHDService extends Service {
   protected val log = Logging.getLogger(this)
@@ -156,12 +155,13 @@ object SSHDService extends Logging {
         val env = Seq()
         val state = Common.State.Active
         val name = executable
+        val version = (block \ "version").text
         val description = (block \ "description").text
         val origin = (block \ "origin").text
         val license = (block \ "license").text
         val project = (block \ "project").text
         executableID += 1
-        new Common.ServiceEnvironment(id, commandLine, port, env, state, name, description, origin, license, project)
+        new Common.ServiceEnvironment(id, commandLine, port, env, state, name, version, description, origin, license, project)
       })
     }) getOrElse Seq()
   } catch {
@@ -175,11 +175,21 @@ object SSHDService extends Logging {
       inner <- AppActivity.Inner
       appManifest <- inner.applicationManifest
     } yield {
-      val extractor = (icons: Seq[(IconType, String)]) => {
+      val extractor = (icons: Seq[(ComponentInfo.IconType, String)]) => {
         icons.map {
           case (iconType, url) =>
-            log.g_a_s_e("we want " + iconType + " at " + url)
-            None
+            iconType match {
+              case icon: ComponentInfo.Thumbnail.type =>
+                None
+              case icon: ComponentInfo.LDPI.type =>
+                None
+              case icon: ComponentInfo.MDPI.type =>
+                None
+              case icon: ComponentInfo.HDPI.type =>
+                None
+              case icon: ComponentInfo.XHDPI.type =>
+                None
+            }
         }
       }
       ComponentInfo(appManifest, locale, localeLanguage, extractor)
