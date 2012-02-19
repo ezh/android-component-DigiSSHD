@@ -24,25 +24,31 @@ package org.digimead.digi.ctrl.sshd
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.AppActivity
 import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.lib.base.Service
 import org.digimead.digi.ctrl.ICtrlComponent
 import org.slf4j.LoggerFactory
-
 import android.content.Intent
 import android.os.IBinder
+import scala.xml._
+import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.info.ComponentInfo
+import java.util.Locale
+import org.digimead.digi.ctrl.lib.info.ComponentInfo.IconType
 
 class SSHDService extends Service {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+  protected val log = Logging.getLogger(this)
   private lazy val binder = new ICtrlComponent.Stub() {
     log.debug("binder alive")
     @Loggable
+    def info(): java.util.List[_] =
+      SSHDService.getComponentInfo().map(Common.serializeToList(_)) getOrElse null
+    @Loggable
     def uid() = android.os.Process.myUid()
     @Loggable
-    def size() = 1
+    def size() = 2
     @Loggable
     def pre(id: Int, workdir: String) = {
       for {
@@ -92,21 +98,8 @@ class SSHDService extends Service {
       }
     } getOrElse false
     @Loggable(result = false)
-    def getExecutable(id: Int, workdir: String): java.util.List[_] = {
-      for {
-        inner <- AppActivity.Inner
-        appNativePath <- inner.appNativePath
-      } yield {
-        assert(id == 0)
-        val dropbear = new File(appNativePath, "dropbear")
-        val r = new Common.ServiceEnvironment(0, Array(
-          dropbear.getAbsolutePath(), "-i", "-E", "-F",
-          "-d", workdir + "/dropbear_dss_host_key",
-          "-r", workdir + "/dropbear_rsa_host_key",
-          "-Y", "123"), 2222)
-        Common.serializeToList(r)
-      }
-    } getOrElse null
+    def executable(id: Int, workdir: String): java.util.List[_] =
+      SSHDService.getServiceEnvironments(workdir).find(_.id == id).map(Common.serializeToList(_)) getOrElse null
     @Loggable
     def post(id: Int, workdir: String): Boolean = {
       log.debug("post(...)")
@@ -123,4 +116,98 @@ class SSHDService extends Service {
   override def onRebind(intent: Intent) = super.onRebind(intent)
   @Loggable
   override def onUnbind(intent: Intent): Boolean = super.onUnbind(intent)
+}
+
+object SSHDService extends Logging {
+  protected val log = Logging.getLogger(this)
+  val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
+  val localeLanguage = Locale.getDefault().getLanguage()
+  @Loggable
+  def getServiceEnvironments(workdir: String): Seq[Common.ServiceEnvironment] = try {
+    val executables = Seq("dropbear", "openssh")
+    (for {
+      inner <- AppActivity.Inner
+      appNativePath <- inner.appNativePath
+      xml <- inner.nativeManifest
+    } yield {
+      var executableID = 0
+      executables.map(executable => {
+        // get or throw block
+        val block = (xml \\ "application").find(app => (app \ "name").text == executable).get
+        val id = executableID
+        val commandLine = executable match {
+          case "dropbear" =>
+            val dropbear = new File(appNativePath, executable)
+            val masterPassword = Option("123")
+            val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
+            Some(Seq(dropbear.getAbsolutePath(),
+              "-i", // Start for inetd
+              "-E", // Log to stderr rather than syslog
+              "-F", // Don't fork into background
+              "-d", workdir + "/dropbear_dss_host_key", // Use dsskeyfile for the dss host key
+              "-r", workdir + "/dropbear_rsa_host_key") ++ // Use rsakeyfile for the rsa host key
+              masterPasswordOption) // Enable master password to any account
+          case "openssh" => None
+        }
+        val port = executable match {
+          case "dropbear" => Some(2222)
+          case "openssh" => None
+        }
+        val env = Seq()
+        val state = Common.State.Active
+        val name = executable
+        val description = (block \ "description").text
+        val origin = (block \ "origin").text
+        val license = (block \ "license").text
+        val project = (block \ "project").text
+        executableID += 1
+        new Common.ServiceEnvironment(id, commandLine, port, env, state, name, description, origin, license, project)
+      })
+    }) getOrElse Seq()
+  } catch {
+    case e =>
+      log.error(e.getMessage, e)
+      Seq()
+  }
+  @Loggable
+  def getComponentInfo(): Option[ComponentInfo] = {
+    for {
+      inner <- AppActivity.Inner
+      appManifest <- inner.applicationManifest
+    } yield {
+      val extractor = (icons: Seq[(IconType, String)]) => {
+        icons.map {
+          case (iconType, url) =>
+            log.g_a_s_e("we want " + iconType + " at " + url)
+            None
+        }
+      }
+      ComponentInfo(appManifest, locale, localeLanguage, extractor)
+    }
+  } getOrElse None
+  /*    val id = 
+      val name = 
+        val version = 
+  case class ComponentInfo(id, name, version, description,
+    val project: String, // Uri Not Serializable
+    val thumb: Option[Array[Byte]], // Bitmap Not Serializable
+    val origin: String,
+    val license: String,
+    val email: String,
+    val iconHDPI: Array[Byte], // Bitmap Not Serializable
+    val iconLDPI: Array[Byte], // Bitmap Not Serializable
+    val iconMDPI: Array[Byte], // Bitmap Not Serializable
+    val iconXHDPI: Array[Byte], // Bitmap Not Serializable
+    val market: String,
+    val componentPackage: String) extends java.io.Serializable {
+    def getDescription(): String = {
+      Seq("Name: " + name,
+        "Version: " + version,
+        "Description: " + description,
+        "Project: " + project,
+        "Market: " + market,
+        "License: " + license,
+        "E-Mail: " + email,
+        "Origin: " + origin).mkString("\n")
+    }*/
 }

@@ -22,13 +22,11 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.AppActivity
 import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
-
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
@@ -47,9 +45,10 @@ import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import org.digimead.digi.ctrl.lib.aop.Logging
 
-class FilterAddActivity extends ListActivity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+class FilterAddActivity extends ListActivity with Logging {
+  protected val log = Logging.getLogger(this)
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner.map(inner =>
     new FilterAddAdapter(this, () => {

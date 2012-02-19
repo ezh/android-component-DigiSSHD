@@ -22,18 +22,14 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import java.util.ArrayList
-
 import scala.collection.JavaConversions._
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.Android
 import org.digimead.digi.ctrl.lib.AppActivity
 import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
-
 import com.commonsware.cwac.merge.MergeAdapter
-
 import android.app.Activity
 import android.app.ListActivity
 import android.content.Context
@@ -47,23 +43,26 @@ import android.widget.ListView
 import android.widget.TableLayout
 import android.widget.TextView
 import android.widget.Toast
+import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.sshd.service.software.{ UI => SWUI }
+import org.digimead.digi.ctrl.sshd.service.options.{ UI => OPTUI }
 
-class TabActivity extends ListActivity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+class TabActivity extends ListActivity with Logging {
+  protected val log = Logging.getLogger(this)
   private[service] val adapter = new MergeAdapter()
   private lazy val interfaceAdapter = new ArrayAdapter[TabActivity.InterfaceItem](this, android.R.layout.simple_list_item_checked, new ArrayList[TabActivity.InterfaceItem]())
   private[service] lazy val lv = getListView()
   private var interfaceRemoveButton: Button = null
-  private var uiSoftware: software.UI = null
-  private var uiOptions: options.UI = null
+  private var uiSoftware: SWUI = null
+  private var uiOptions:OPTUI = null
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.service)
     buildUIInterfaces(adapter)
-    uiOptions = new options.UI(this)
+    uiOptions = new OPTUI(this)
     buildUIEnvironment(adapter)
-    uiSoftware = new software.UI(this)
+    uiSoftware = new SWUI(this)
     setListAdapter(adapter)
     getListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE)
     updateButtonState()
@@ -136,12 +135,12 @@ class TabActivity extends ListActivity {
   def onClickReInstall(v: View) = AppActivity.Inner.foreach {
     inner =>
       log.info("reinstall files/force prepare evironment")
-      Toast.makeText(this, Android.getString(this, "reinstall"), Common.Constant.toastTimeout).show()
+      Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), Common.Constant.toastTimeout).show()
       inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
         runOnUiThread(new Runnable() {
           def run = if (success)
             Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
-              "reinstall_complete"), Common.Constant.toastTimeout).show()
+              "reinstall_complete").getOrElse("reinstall complete"), Common.Constant.toastTimeout).show()
         }))
   }
   @Loggable

@@ -24,7 +24,6 @@ package org.digimead.digi.ctrl.sshd.service
 import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
-
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -32,12 +31,13 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
+import org.digimead.digi.ctrl.lib.aop.Logging
 
 class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemoveActivity.FilterItem],
   private val resource: Int = android.R.layout.simple_list_item_1,
   private val fieldId: Int = android.R.id.text1)
-  extends ArrayAdapter[String](context, resource, fieldId) {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+  extends ArrayAdapter[String](context, resource, fieldId) with Logging {
+  protected val log = Logging.getLogger(this)
   private val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
   private var separatorPos = values.length
   private val separator = inflater.inflate(R.layout.header, context.getListView(), false).asInstanceOf[TextView]

@@ -22,14 +22,11 @@
 package org.digimead.digi.ctrl.sshd.service.software
 
 import java.net.URL
-
 import scala.xml.XML
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.AppActivity
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
-
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -37,9 +34,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.sshd.service.TabActivity
 
-class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+class UI(ctx: TabActivity) extends Logging {
+  protected val log = Logging.getLogger(this)
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val adapter = new UI.Adapter(ctx, getAppSeq)
   header.setText(ctx.getString(R.string.service_software))
@@ -57,11 +56,10 @@ class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
     ctx.startActivity(i)
   }
   @Loggable
-  def getAppSeq(): Seq[UI.Item] = AppActivity.Inner.flatMap(_.appNativeDescription).map {
-    appNativeDescription =>
+  def getAppSeq(): Seq[UI.Item] = AppActivity.Inner.flatMap(_.nativeManifest).map {
+    nativeManifest =>
       try {
-        val xml = XML.loadFile(appNativeDescription)
-        (for (app <- xml \\ "application") yield {
+        (for (app <- nativeManifest \\ "application") yield {
           try {
             val item = UI.Item((app \ "name").text, (app \ "version").text, (app \ "description").text, new URL((app \ "link").text))
             log.debug("add item " + item)

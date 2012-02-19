@@ -34,7 +34,7 @@ import android.widget.TextView
 class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
-    UI.Item(Common.Option.service_asroot, ctx))
+    UI.Item(Common.Option.AsRoot, ctx))
   private val adapter = new UI.Adapter(ctx, options)
   header.setText(ctx.getString(R.string.service_options))
   ctx.adapter.addView(header)

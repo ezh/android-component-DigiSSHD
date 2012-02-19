@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component>
+<manifest>
 	<id>DigiSSH</id>
 	<name>DigiSSH</name>
 	<version>0.1</version>
@@ -7,7 +7,7 @@
 	<description lang="ru">Secure Shell сервер</description>
 	<project>http://github.com/ezh/android-component-DigiSSHD</project>
 	<thumb>http://github.com/ezh/android-component-DigiSSHD/raw/master/src/resources/device-2012-02-12-183721.png</thumb>
-	<copyright>Alexey Aksenov</copyright>
+	<origin>Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights	reserved.</origin>
 	<license>GPLv3</license>
 	<email>alexey.ezh@gmail.com</email>
 	<icon-hdpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-hdpi/ic_launcher.png</icon-hdpi>
@@ -16,4 +16,4 @@
 	<icon-xhdpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-xhdpi/ic_launcher.png</icon-xhdpi>
 	<market>market://details?id=this.is.app</market>
 	<package-name>org.digimead.digi.ctrl.sshd</package-name>
-</component>
+</manifest>

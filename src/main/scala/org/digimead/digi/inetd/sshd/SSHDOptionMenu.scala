@@ -24,11 +24,12 @@ package org.digimead.digi.ctrl.sshd
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
 import org.digimead.digi.ctrl.lib.Common
-
 import android.content.Intent
 import android.net.Uri
+import org.digimead.digi.ctrl.lib.aop.Logging
 
-object SSHDOptionMenu {
+object SSHDOptionMenu extends Logging {
+  protected val log = Logging.getLogger(this)
   @Loggable
   def onClickAbout(activity: SSHDActivity): Boolean = {
     activity.showDialog(activity.dialogAbout.id)

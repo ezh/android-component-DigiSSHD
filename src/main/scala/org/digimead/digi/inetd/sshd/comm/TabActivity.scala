@@ -23,15 +23,15 @@ package org.digimead.digi.ctrl.sshd.comm
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.sshd.R
-
 import com.commonsware.cwac.merge.MergeAdapter
-
 import android.app.ListActivity
 import android.os.Bundle
 import android.view.View
 import android.widget.ListView
+import org.digimead.digi.ctrl.lib.aop.Logging
 
-class TabActivity extends ListActivity {
+class TabActivity extends ListActivity with Logging {
+  protected val log = Logging.getLogger(this)
   private[comm] val adapter = new MergeAdapter()
   private[comm] lazy val lv = getListView()
   private var uiOptions: options.UI = null

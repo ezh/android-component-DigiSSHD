@@ -27,9 +27,7 @@ import org.digimead.digi.ctrl.lib.AppService
 import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
-
 import com.commonsware.cwac.merge.MergeAdapter
-
 import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ListActivity
@@ -44,9 +42,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ListView
 import android.widget.TextView
+import org.digimead.digi.ctrl.lib.aop.Logging
 
-class TabActivity extends ListActivity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+class TabActivity extends ListActivity with Logging {
+  protected val log = Logging.getLogger(this)
   private val adapter = new MergeAdapter()
   private var interfaces = Seq(TabActivity.InterfaceItem(null, null)) // null is "pending..." item, handled at InterfaceAdapter
   private lazy val interfaceAdapter = new InterfaceAdapter(this, () => { interfaces })

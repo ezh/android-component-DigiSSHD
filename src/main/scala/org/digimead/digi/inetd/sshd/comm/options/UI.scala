@@ -34,8 +34,8 @@ import android.widget.TextView
 class UI(ctx: org.digimead.digi.ctrl.sshd.comm.TabActivity) {
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
-    UI.Item(Common.Option.comm_confirmation, ctx),
-    UI.Item(Common.Option.comm_writelog, ctx))
+    UI.Item(Common.Option.CommConfirmation, ctx),
+    UI.Item(Common.Option.CommWriteLog, ctx))
   private val adapter = new UI.Adapter(ctx, options)
   header.setText(ctx.getString(R.string.comm_options))
   ctx.adapter.addView(header)

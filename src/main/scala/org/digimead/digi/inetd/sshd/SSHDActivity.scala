@@ -31,7 +31,6 @@ import org.digimead.digi.ctrl.sshd.comm.TabActivity
 import org.digimead.digi.ctrl.sshd.info.TabActivity
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 import org.slf4j.LoggerFactory
-
 import android.app.Dialog
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -45,9 +44,10 @@ import android.widget.TabHost.OnTabChangeListener
 import android.widget.TabHost
 import android.widget.TextView
 import android.widget.ToggleButton
+import org.digimead.digi.ctrl.lib.aop.Logging
 
 class SSHDActivity extends android.app.TabActivity with Activity {
-  private val log = LoggerFactory.getLogger(getClass.getName().replaceFirst("org.digimead.digi.ctrl", "o.d.d.c"))
+  protected val log = Logging.getLogger(this)
   private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
   private lazy val toggleStartStop = findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton]
   private val receiver = new BroadcastReceiver() {
@@ -113,11 +113,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppActivity.Inner map {
       inner =>
         inner ! AppActivity.Message.PrepareEnvironment(this, true, true, (success) => {
-          if (inner.getStatus().state != Common.State.error)
+          if (inner.getStatus().state != Common.State.Broken)
             if (success)
-              AppActivity.Status(Common.State.ready, Android.getString(this, "status_ready"))
+              AppActivity.Status(Common.State.Passive, Android.getString(this, "status_ready"))
             else
-              AppActivity.Status(Common.State.error, Android.getString(this, "status_error"))
+              AppActivity.Status(Common.State.Broken, Android.getString(this, "status_error"))
         })
     }
   }
@@ -161,14 +161,14 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   def updateStatus() = AppActivity.Inner foreach {
     inner =>
       inner.getStatus() match {
-        case AppActivity.Status(Common.State.initializing, message, callback) =>
+        case AppActivity.Status(Common.State.Initializing, message, callback) =>
           statusText.setText(getString(R.string.status_initializing))
-        case AppActivity.Status(Common.State.ready, message, callback) =>
+        case AppActivity.Status(Common.State.Passive, message, callback) =>
           statusText.setText(getString(R.string.status_ready))
-        case AppActivity.Status(Common.State.active, message, callback) =>
+        case AppActivity.Status(Common.State.Active, message, callback) =>
         // TODO
         //        statusText.setText(getString(R.string.st))
-        case AppActivity.Status(Common.State.error, message, callback) =>
+        case AppActivity.Status(Common.State.Broken, message, callback) =>
           val errorMessage = getString(R.string.status_error).format(message.asInstanceOf[String])
           statusText.setText(errorMessage)
       }
