@@ -39,73 +39,7 @@ import java.util.Locale
 
 class SSHDService extends Service {
   protected val log = Logging.getLogger(this)
-  private lazy val binder = new ICtrlComponent.Stub() {
-    log.debug("binder alive")
-    @Loggable
-    def info(): java.util.List[_] =
-      SSHDService.getComponentInfo().map(Common.serializeToList(_)) getOrElse null
-    @Loggable
-    def uid() = android.os.Process.myUid()
-    @Loggable
-    def size() = 2
-    @Loggable
-    def pre(id: Int, workdir: String) = {
-      for {
-        inner <- AppActivity.Inner
-        appNativePath <- inner.appNativePath
-      } yield {
-        assert(id == 0)
-        val privateKeysPath = new File(workdir)
-        val rsa_key = new File(privateKeysPath, "dropbear_rsa_host_key")
-        val dss_key = new File(privateKeysPath, "dropbear_dss_host_key")
-        if (rsa_key.exists() && dss_key.exists()) {
-          true
-        } else {
-          log.debug("private key path: " + privateKeysPath)
-          val dropbearkey = new File(appNativePath, "dropbearkey").getAbsolutePath()
-          def generateKey(args: Array[String]): Boolean = {
-            log.debug("generate " + args(1) + " key")
-            val p = Runtime.getRuntime().exec(dropbearkey +: args)
-            val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
-            p.waitFor()
-            val retcode = p.exitValue()
-            if (retcode != 0) {
-              var error = err.readLine()
-              while (error != null) {
-                log.error(dropbearkey + " error: " + error)
-                error = err.readLine()
-              }
-              false
-            } else
-              true
-          }
-          try {
-            if (rsa_key.exists())
-              rsa_key.delete()
-            if (dss_key.exists())
-              dss_key.delete()
-            generateKey(Array("-t", "rsa", "-f", rsa_key.getAbsolutePath())) &&
-              generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath())) &&
-              Common.execChmod("o+r", rsa_key) &&
-              Common.execChmod("o+r", dss_key)
-          } catch {
-            case e =>
-              log.error(e.getMessage(), e)
-              false
-          }
-        }
-      }
-    } getOrElse false
-    @Loggable(result = false)
-    def executable(id: Int, workdir: String): java.util.List[_] =
-      SSHDService.getServiceEnvironments(workdir).find(_.id == id).map(Common.serializeToList(_)) getOrElse null
-    @Loggable
-    def post(id: Int, workdir: String): Boolean = {
-      log.debug("post(...)")
-      assert(id == 0)
-      true
-    }
-  }
+  private lazy val binder = new SSHDService.Binder
   log.debug("alive")
   @Loggable
   override def onCreate() = super.onCreate()
@@ -195,6 +129,74 @@ object SSHDService extends Logging {
       ComponentInfo(appManifest, locale, localeLanguage, extractor)
     }
   } getOrElse None
+  class Binder extends ICtrlComponent.Stub with Logging {
+    protected val log = Logging.getLogger(this)
+    log.debug("binder alive")
+    @Loggable(result = false)
+    def info(): java.util.List[_] =
+      SSHDService.getComponentInfo().map(Common.serializeToList(_)) getOrElse null
+    @Loggable(result = false)
+    def uid() = android.os.Process.myUid()
+    @Loggable(result = false)
+    def size() = 2
+    @Loggable(result = false)
+    def pre(id: Int, workdir: String) = {
+      for {
+        inner <- AppActivity.Inner
+        appNativePath <- inner.appNativePath
+      } yield {
+        assert(id == 0)
+        val privateKeysPath = new File(workdir)
+        val rsa_key = new File(privateKeysPath, "dropbear_rsa_host_key")
+        val dss_key = new File(privateKeysPath, "dropbear_dss_host_key")
+        if (rsa_key.exists() && dss_key.exists()) {
+          true
+        } else {
+          log.debug("private key path: " + privateKeysPath)
+          val dropbearkey = new File(appNativePath, "dropbearkey").getAbsolutePath()
+          def generateKey(args: Array[String]): Boolean = {
+            log.debug("generate " + args(1) + " key")
+            val p = Runtime.getRuntime().exec(dropbearkey +: args)
+            val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
+            p.waitFor()
+            val retcode = p.exitValue()
+            if (retcode != 0) {
+              var error = err.readLine()
+              while (error != null) {
+                log.error(dropbearkey + " error: " + error)
+                error = err.readLine()
+              }
+              false
+            } else
+              true
+          }
+          try {
+            if (rsa_key.exists())
+              rsa_key.delete()
+            if (dss_key.exists())
+              dss_key.delete()
+            generateKey(Array("-t", "rsa", "-f", rsa_key.getAbsolutePath())) &&
+              generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath())) &&
+              Common.execChmod("o+r", rsa_key) &&
+              Common.execChmod("o+r", dss_key)
+          } catch {
+            case e =>
+              log.error(e.getMessage(), e)
+              false
+          }
+        }
+      }
+    } getOrElse false
+    @Loggable(result = false)
+    def executable(id: Int, workdir: String): java.util.List[_] =
+      SSHDService.getServiceEnvironments(workdir).find(_.id == id).map(Common.serializeToList(_)) getOrElse null
+    @Loggable(result = false)
+    def post(id: Int, workdir: String): Boolean = {
+      log.debug("post(...)")
+      assert(id == 0)
+      true
+    }
+  }
   /*    val id = 
       val name = 
         val version = 
