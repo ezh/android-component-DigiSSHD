@@ -54,7 +54,7 @@ object SSHDService extends Logging {
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
   @Loggable
-  def getServiceEnvironments(workdir: String): Seq[Common.ServiceEnvironment] = try {
+  def getExecutableEnvironments(workdir: String): Seq[Common.ExecutableEnvironment] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
       inner <- AppActivity.Inner
@@ -93,7 +93,7 @@ object SSHDService extends Logging {
         val license = (block \ "license").text
         val project = (block \ "project").text
         executableID += 1
-        new Common.ServiceEnvironment(id, commandLine, port, env, state, name, version, description, origin, license, project)
+        new Common.ExecutableEnvironment(id, commandLine, port, env, state, name, version, description, origin, license, project)
       })
     }) getOrElse Seq()
   } catch {
@@ -186,7 +186,7 @@ object SSHDService extends Logging {
     } getOrElse false
     @Loggable(result = false)
     def executable(id: Int, workdir: String): java.util.List[_] =
-      SSHDService.getServiceEnvironments(workdir).find(_.id == id).map(Common.serializeToList(_)) getOrElse null
+      SSHDService.getExecutableEnvironments(workdir).find(_.id == id).map(Common.serializeToList(_)) getOrElse null
     @Loggable(result = false)
     def post(id: Int, workdir: String): Boolean = {
       log.debug("post(...)")
