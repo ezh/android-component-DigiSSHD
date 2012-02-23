@@ -48,7 +48,6 @@ import android.widget.Toast
 import org.digimead.digi.ctrl.lib.aop.Logging
 
 class FilterAddActivity extends ListActivity with Logging {
-  protected val log = Logging.getLogger(this)
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner.map(inner =>
     new FilterAddAdapter(this, () => {

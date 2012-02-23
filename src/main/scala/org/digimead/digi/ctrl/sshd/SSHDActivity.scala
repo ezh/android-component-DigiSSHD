@@ -47,7 +47,6 @@ import android.widget.ToggleButton
 import org.digimead.digi.ctrl.lib.aop.Logging
 
 class SSHDActivity extends android.app.TabActivity with Activity {
-  protected val log = Logging.getLogger(this)
   private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
   private lazy val toggleStartStop = findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton]
   private val receiver = new BroadcastReceiver() {
@@ -113,12 +112,12 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppActivity.Inner map {
       inner =>
         inner ! AppActivity.Message.PrepareEnvironment(this, true, true, (success) => {
-          if (inner.getStatus().state != Common.State.Broken)
+          if (inner.state.get.code != Common.State.Broken)
             if (success)
-              AppActivity.Status(Common.State.Passive, Android.getString(this, "status_ready").
+              AppActivity.State(Common.State.Passive, Android.getString(this, "status_ready").
                   getOrElse("Ready"))
             else
-              AppActivity.Status(Common.State.Broken, Android.getString(this, "status_error").
+              AppActivity.State(Common.State.Broken, Android.getString(this, "status_error").
                   getOrElse("Error"))
         })
     }
@@ -162,15 +161,15 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   def updateStatus() = AppActivity.Inner foreach {
     inner =>
-      inner.getStatus() match {
-        case AppActivity.Status(Common.State.Initializing, message, callback) =>
+      inner.state.get match {
+        case AppActivity.State(Common.State.Initializing, message, callback) =>
           statusText.setText(getString(R.string.status_initializing))
-        case AppActivity.Status(Common.State.Passive, message, callback) =>
+        case AppActivity.State(Common.State.Passive, message, callback) =>
           statusText.setText(getString(R.string.status_ready))
-        case AppActivity.Status(Common.State.Active, message, callback) =>
+        case AppActivity.State(Common.State.Active, message, callback) =>
         // TODO
         //        statusText.setText(getString(R.string.st))
-        case AppActivity.Status(Common.State.Broken, message, callback) =>
+        case AppActivity.State(Common.State.Broken, message, callback) =>
           val errorMessage = getString(R.string.status_error).format(message.asInstanceOf[String])
           statusText.setText(errorMessage)
       }
@@ -178,7 +177,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   def onStatusClick(v: View) = AppActivity.Inner foreach {
     inner =>
-      inner.getStatus().onClickCallback match {
+      inner.state.get.onClickCallback match {
         case cb: Function0[_] => cb()
         case _ =>
       }

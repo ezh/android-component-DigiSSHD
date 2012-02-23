@@ -45,7 +45,6 @@ import android.widget.TextView
 import org.digimead.digi.ctrl.lib.aop.Logging
 
 class TabActivity extends ListActivity with Logging {
-  protected val log = Logging.getLogger(this)
   private val adapter = new MergeAdapter()
   private var interfaces = Seq(TabActivity.InterfaceItem(null, null)) // null is "pending..." item, handled at InterfaceAdapter
   private lazy val interfaceAdapter = new InterfaceAdapter(this, () => { interfaces })

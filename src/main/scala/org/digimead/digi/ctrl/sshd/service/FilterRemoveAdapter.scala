@@ -37,7 +37,6 @@ class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemov
   private val resource: Int = android.R.layout.simple_list_item_1,
   private val fieldId: Int = android.R.id.text1)
   extends ArrayAdapter[String](context, resource, fieldId) with Logging {
-  protected val log = Logging.getLogger(this)
   private val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
   private var separatorPos = values.length
   private val separator = inflater.inflate(R.layout.header, context.getListView(), false).asInstanceOf[TextView]

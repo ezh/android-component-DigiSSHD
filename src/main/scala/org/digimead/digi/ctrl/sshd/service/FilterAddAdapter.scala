@@ -37,7 +37,6 @@ class FilterAddAdapter(context: FilterAddActivity, values: () => Seq[String],
   private val resource: Int = android.R.layout.simple_expandable_list_item_1,
   private val fieldId: Int = android.R.id.text1)
   extends ArrayAdapter[String](context, resource, fieldId) with Logging {
-  protected val log = Logging.getLogger(this)
   private var skipLongClickClick = -1
   private var availableFilters = Seq[(String, Boolean)]() // Value, isPending
   private var pendingFilters = Seq[String]()

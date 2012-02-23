@@ -48,7 +48,6 @@ import org.digimead.digi.ctrl.sshd.service.software.{ UI => SWUI }
 import org.digimead.digi.ctrl.sshd.service.options.{ UI => OPTUI }
 
 class TabActivity extends ListActivity with Logging {
-  protected val log = Logging.getLogger(this)
   private[service] val adapter = new MergeAdapter()
   private lazy val interfaceAdapter = new ArrayAdapter[TabActivity.InterfaceItem](this, android.R.layout.simple_list_item_checked, new ArrayList[TabActivity.InterfaceItem]())
   private[service] lazy val lv = getListView()

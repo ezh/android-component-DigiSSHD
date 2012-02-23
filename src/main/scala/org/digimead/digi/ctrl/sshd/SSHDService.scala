@@ -38,7 +38,6 @@ import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import java.util.Locale
 
 class SSHDService extends Service {
-  protected val log = Logging.getLogger(this)
   private lazy val binder = new SSHDService.Binder
   log.debug("alive")
   @Loggable
@@ -52,7 +51,6 @@ class SSHDService extends Service {
 }
 
 object SSHDService extends Logging {
-  protected val log = Logging.getLogger(this)
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
   @Loggable
@@ -130,7 +128,6 @@ object SSHDService extends Logging {
     }
   } getOrElse None
   class Binder extends ICtrlComponent.Stub with Logging {
-    protected val log = Logging.getLogger(this)
     log.debug("binder alive")
     @Loggable(result = false)
     def info(): java.util.List[_] =

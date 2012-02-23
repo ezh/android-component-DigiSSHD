@@ -29,7 +29,6 @@ import android.net.Uri
 import org.digimead.digi.ctrl.lib.aop.Logging
 
 object SSHDOptionMenu extends Logging {
-  protected val log = Logging.getLogger(this)
   @Loggable
   def onClickAbout(activity: SSHDActivity): Boolean = {
     activity.showDialog(activity.dialogAbout.id)

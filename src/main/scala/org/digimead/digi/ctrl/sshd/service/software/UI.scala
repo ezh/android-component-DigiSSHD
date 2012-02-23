@@ -38,7 +38,6 @@ import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 class UI(ctx: TabActivity) extends Logging {
-  protected val log = Logging.getLogger(this)
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val adapter = new UI.Adapter(ctx, getAppSeq)
   header.setText(ctx.getString(R.string.service_software))

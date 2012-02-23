@@ -41,7 +41,6 @@ import android.widget.ListView
 import org.digimead.digi.ctrl.lib.aop.Logging
 
 class FilterRemoveActivity extends ListActivity with Logging {
-  protected val log = Logging.getLogger(this)
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner map { inner =>
     val pref = getSharedPreferences(Common.Preference.filter, Context.MODE_PRIVATE)
