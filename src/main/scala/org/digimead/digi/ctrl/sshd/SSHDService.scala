@@ -36,6 +36,7 @@ import scala.xml._
 import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import java.util.Locale
+import org.digimead.digi.ctrl.lib.AppCache
 
 class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
@@ -107,24 +108,31 @@ object SSHDService extends Logging {
       inner <- AppActivity.Inner
       appManifest <- inner.applicationManifest
     } yield {
-      val extractor = (icons: Seq[(ComponentInfo.IconType, String)]) => {
-        icons.map {
-          case (iconType, url) =>
-            iconType match {
-              case icon: ComponentInfo.Thumbnail.type =>
-                None
-              case icon: ComponentInfo.LDPI.type =>
-                None
-              case icon: ComponentInfo.MDPI.type =>
-                None
-              case icon: ComponentInfo.HDPI.type =>
-                None
-              case icon: ComponentInfo.XHDPI.type =>
-                None
+      AppCache !? AppCache.Message.GetByID(0, appManifest.hashCode.toString) match {
+        case Some(info) =>
+          Some(info.asInstanceOf[ComponentInfo])
+        case None =>
+          val extractor = (icons: Seq[(ComponentInfo.IconType, String)]) => {
+            icons.map {
+              case (iconType, url) =>
+                iconType match {
+                  case icon: ComponentInfo.Thumbnail.type =>
+                    None
+                  case icon: ComponentInfo.LDPI.type =>
+                    None
+                  case icon: ComponentInfo.MDPI.type =>
+                    None
+                  case icon: ComponentInfo.HDPI.type =>
+                    None
+                  case icon: ComponentInfo.XHDPI.type =>
+                    None
+                }
             }
-        }
+          }
+          val result = ComponentInfo(appManifest, locale, localeLanguage, extractor)
+          result.foreach(r => AppCache ! AppCache.Message.UpdateByID(0, appManifest.hashCode.toString, r))
+          result
       }
-      ComponentInfo(appManifest, locale, localeLanguage, extractor)
     }
   } getOrElse None
   class Binder extends ICtrlComponent.Stub with Logging {
@@ -194,29 +202,4 @@ object SSHDService extends Logging {
       true
     }
   }
-  /*    val id = 
-      val name = 
-        val version = 
-  case class ComponentInfo(id, name, version, description,
-    val project: String, // Uri Not Serializable
-    val thumb: Option[Array[Byte]], // Bitmap Not Serializable
-    val origin: String,
-    val license: String,
-    val email: String,
-    val iconHDPI: Array[Byte], // Bitmap Not Serializable
-    val iconLDPI: Array[Byte], // Bitmap Not Serializable
-    val iconMDPI: Array[Byte], // Bitmap Not Serializable
-    val iconXHDPI: Array[Byte], // Bitmap Not Serializable
-    val market: String,
-    val componentPackage: String) extends java.io.Serializable {
-    def getDescription(): String = {
-      Seq("Name: " + name,
-        "Version: " + version,
-        "Description: " + description,
-        "Project: " + project,
-        "Market: " + market,
-        "License: " + license,
-        "E-Mail: " + email,
-        "Origin: " + origin).mkString("\n")
-    }*/
 }
