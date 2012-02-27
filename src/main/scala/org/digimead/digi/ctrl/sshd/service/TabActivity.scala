@@ -150,7 +150,7 @@ class TabActivity extends ListActivity with Logging {
   @Loggable
   private def updateInterfaceAdapter() = AppActivity.Inner.foreach {
     inner =>
-      val pref = getSharedPreferences(Common.Preference.filter, Context.MODE_PRIVATE)
+      val pref = getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
       val values = pref.getAll().toSeq.map(t => (t._1, t._2.asInstanceOf[Boolean])).sorted
       interfaceAdapter.clear()
       if (values.nonEmpty)
@@ -203,7 +203,7 @@ object TabActivity {
         AppActivity.Inner.foreach {
           inner =>
             _state = newState
-            val pref = _context.getSharedPreferences(Common.Preference.filter, Context.MODE_PRIVATE)
+            val pref = _context.getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
             val editor = pref.edit()
             editor.putBoolean(_value, _state)
             editor.commit()

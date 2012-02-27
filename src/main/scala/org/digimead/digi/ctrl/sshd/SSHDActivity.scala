@@ -52,7 +52,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private val receiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = {
       intent.getAction() match {
-        case Common.Intent.update =>
+        case Common.Intent.Update =>
           updateStatus()
         case _ =>
           log.error("skip unknown intent " + intent + " with context " + context)
@@ -131,7 +131,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppService.Inner map {
       inner =>
         val filter = new IntentFilter()
-        filter.addAction(Common.Intent.update)
+        filter.addAction(Common.Intent.Update)
         registerReceiver(receiver, filter)
         inner.bind(this)
     }

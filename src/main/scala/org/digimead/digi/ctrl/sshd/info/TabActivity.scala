@@ -52,7 +52,7 @@ class TabActivity extends ListActivity with Logging {
     @Loggable
     def onReceive(context: Context, intent: Intent) = {
       intent.getAction() match {
-        case Common.Intent.update =>
+        case Common.Intent.Update =>
           log.error("UPPDATE2!!! " + context)
           updatedInterfaceList()
         case _ =>
@@ -74,7 +74,7 @@ class TabActivity extends ListActivity with Logging {
   }
   @Loggable
   override def onResume() {
-    registerReceiver(receiver, new IntentFilter(Common.Intent.update))
+    registerReceiver(receiver, new IntentFilter(Common.Intent.Update))
     super.onResume()
     updatedInterfaceList()
   }
