@@ -25,9 +25,6 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.AppActivity
-import org.digimead.digi.ctrl.lib.Common
-import org.digimead.digi.ctrl.lib.base.Service
 import org.digimead.digi.ctrl.ICtrlComponent
 import org.slf4j.LoggerFactory
 import android.content.Intent
@@ -36,7 +33,12 @@ import scala.xml._
 import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import java.util.Locale
-import org.digimead.digi.ctrl.lib.AppCache
+import org.digimead.digi.ctrl.lib.Service
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.base.AppCache
+import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.util.Common
 
 class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
@@ -55,7 +57,7 @@ object SSHDService extends Logging {
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
   @Loggable
-  def getExecutableEnvironments(workdir: String): Seq[Common.ExecutableEnvironment] = try {
+  def getExecutableEnvironments(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
       inner <- AppActivity.Inner
@@ -86,7 +88,7 @@ object SSHDService extends Logging {
           case "openssh" => None
         }
         val env = Seq()
-        val state = Common.State.Active
+        val state = DState.Active
         val name = executable
         val version = (block \ "version").text
         val description = (block \ "description").text
@@ -94,7 +96,7 @@ object SSHDService extends Logging {
         val license = (block \ "license").text
         val project = (block \ "project").text
         executableID += 1
-        new Common.ExecutableEnvironment(id, commandLine, port, env, state, name, version, description, origin, license, project)
+        new ExecutableInfo(id, commandLine, port, env, state, name, version, description, origin, license, project)
       })
     }) getOrElse Seq()
   } catch {

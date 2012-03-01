@@ -21,7 +21,6 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import android.content.Context
@@ -32,6 +31,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 class FilterAddAdapter(context: FilterAddActivity, values: () => Seq[String],
   private val resource: Int = android.R.layout.simple_expandable_list_item_1,
@@ -76,7 +76,7 @@ class FilterAddAdapter(context: FilterAddActivity, values: () => Seq[String],
           pendingFilters = pendingFilters :+ item
           availableFilters = availableFilters.updated(availablePos, (item, true))
           notifyDataSetChanged()
-          Toast.makeText(context, context.getString(R.string.service_filter_select).format(item), Common.Constant.toastTimeout).show()
+          Toast.makeText(context, context.getString(R.string.service_filter_select).format(item), DConstant.toastTimeout).show()
         } else if (pendingPos != -1) {
           log.debug("pending item click at position " + pendingPos)
           if (availablePos != -1)
@@ -84,7 +84,7 @@ class FilterAddAdapter(context: FilterAddActivity, values: () => Seq[String],
           val (l1, l2) = pendingFilters splitAt pendingPos
           pendingFilters = l1 ++ (l2 drop 1)
           notifyDataSetChanged()
-          Toast.makeText(context, context.getString(R.string.service_filter_remove).format(item), Common.Constant.toastTimeout).show()
+          Toast.makeText(context, context.getString(R.string.service_filter_remove).format(item), DConstant.toastTimeout).show()
         } else {
           log.error("unknown item click at position " + position)
         }

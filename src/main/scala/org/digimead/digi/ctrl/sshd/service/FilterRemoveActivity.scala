@@ -23,8 +23,6 @@ package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.AppActivity
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import android.app.Activity
@@ -39,11 +37,13 @@ import android.view.View
 import android.widget.Button
 import android.widget.ListView
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 
 class FilterRemoveActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner map { inner =>
-    val pref = getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
+    val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
     val values = pref.getAll().toSeq.map(t => t._1).sorted.map(FilterRemoveActivity.FilterItem(_, false))
     new FilterRemoveAdapter(this, values)
   }
@@ -103,7 +103,7 @@ class FilterRemoveActivity extends ListActivity with Logging {
     inner <- AppActivity.Inner
     adapter <- adapter
   } {
-    val pref = getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
+    val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.remove(filter.value))
     editor.commit()

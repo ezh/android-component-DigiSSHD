@@ -19,39 +19,43 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.comm.sessions
+package org.digimead.digi.ctrl.sshd.comm
 
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.sshd.R
-
+import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.sshd.R
+import com.commonsware.cwac.merge.MergeAdapter
 
-class UI(ctx: org.digimead.digi.ctrl.sshd.comm.TabActivity) {
-  private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
+class OptionUI(context: org.digimead.digi.ctrl.sshd.comm.TabActivity) {
+  private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
-    UI.Item("1!!!!!"),
-    UI.Item("2!!!!!"))
-  private val adapter = new UI.Adapter(ctx, options)
-  header.setText(ctx.getString(R.string.comm_sessions))
-  ctx.adapter.addView(header)
-  ctx.adapter.addAdapter(adapter)
+    OptionUI.Item(DOption.CommConfirmation, context),
+    OptionUI.Item(DOption.CommWriteLog, context))
+  private val adapter = new OptionUI.Adapter(context, options)
+  def appendTo(adapter: MergeAdapter) {
+    header.setText(context.getString(R.string.comm_option_block))
+    adapter.addView(header)
+    adapter.addAdapter(this.adapter)
+  }
   @Loggable
-  def onListItemClick(item: UI.Item) = {
+  def onListItemClick(item: OptionUI.Item) = {
     /*    val i = new Intent(Intent.ACTION_VIEW);
     i.setData(Uri.parse(item.link.toString()))
     ctx.startActivity(i)*/
   }
 }
 
-object UI {
-  case class Item(session: String)
-  class Adapter(ctx: org.digimead.digi.ctrl.sshd.comm.TabActivity, values: Seq[Item])
-    extends ArrayAdapter[Item](ctx, android.R.layout.simple_list_item_1, android.R.id.text1) {
+object OptionUI {
+  case class Item(option: DOption.OptVal, ctx: Context)
+  class Adapter(context: org.digimead.digi.ctrl.sshd.comm.TabActivity, values: Seq[Item])
+    extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_multiple_choice, android.R.id.text1) {
     values.foreach(add(_))
-    ctx.lv.post(new Runnable { def run = notifyDataSetChanged() })
+    context.runOnUiThread(new Runnable { def run = notifyDataSetChanged() })
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val view = super.getView(position, convertView, parent)
       //      val item = getItem(position)

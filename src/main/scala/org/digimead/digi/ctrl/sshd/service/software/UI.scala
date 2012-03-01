@@ -24,7 +24,6 @@ package org.digimead.digi.ctrl.sshd.service.software
 import java.net.URL
 import scala.xml.XML
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.AppActivity
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import android.content.Context
@@ -36,6 +35,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.sshd.service.TabActivity
+import org.digimead.digi.ctrl.lib.base.AppActivity
 
 class UI(ctx: TabActivity) extends Logging {
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]

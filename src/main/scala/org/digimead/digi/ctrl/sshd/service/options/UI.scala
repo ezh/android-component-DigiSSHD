@@ -22,19 +22,18 @@
 package org.digimead.digi.ctrl.sshd.service.options
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
-
 import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import org.digimead.digi.ctrl.lib.declaration.DOption
 
 class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
   private val header = ctx.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
-    UI.Item(Common.Option.AsRoot, ctx))
+    UI.Item(DOption.AsRoot, ctx))
   private val adapter = new UI.Adapter(ctx, options)
   header.setText(ctx.getString(R.string.service_options))
   ctx.adapter.addView(header)
@@ -48,7 +47,7 @@ class UI(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity) {
 }
 
 object UI {
-  case class Item(option: Common.Option.OptVal, ctx: Context)
+  case class Item(option: DOption.OptVal, ctx: Context)
   class Adapter(ctx: org.digimead.digi.ctrl.sshd.service.TabActivity, values: Seq[Item])
     extends ArrayAdapter[Item](ctx, android.R.layout.simple_list_item_multiple_choice, android.R.id.text1) {
     values.foreach(add(_))

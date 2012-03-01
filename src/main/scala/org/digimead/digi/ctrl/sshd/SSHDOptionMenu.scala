@@ -23,10 +23,10 @@ package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
-import org.digimead.digi.ctrl.lib.Common
 import android.content.Intent
 import android.net.Uri
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 object SSHDOptionMenu extends Logging {
   @Loggable
@@ -37,7 +37,7 @@ object SSHDOptionMenu extends Logging {
   @Loggable
   def onClickMarket(activity: SSHDActivity): Boolean = {
     try {
-      val intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=pname:" + Common.Constant.marketPackage))
+      val intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=pname:" + DConstant.marketPackage))
       intent.addCategory(Intent.CATEGORY_BROWSABLE)
       activity.startActivity(intent)
     } catch {

@@ -22,9 +22,6 @@
 package org.digimead.digi.ctrl.sshd.info
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.AppActivity
-import org.digimead.digi.ctrl.lib.AppService
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import com.commonsware.cwac.merge.MergeAdapter
@@ -43,6 +40,10 @@ import android.view.ViewGroup
 import android.widget.ListView
 import android.widget.TextView
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.util.Common
 
 class TabActivity extends ListActivity with Logging {
   private val adapter = new MergeAdapter()
@@ -52,7 +53,7 @@ class TabActivity extends ListActivity with Logging {
     @Loggable
     def onReceive(context: Context, intent: Intent) = {
       intent.getAction() match {
-        case Common.Intent.Update =>
+        case DIntent.Update =>
           log.error("UPPDATE2!!! " + context)
           updatedInterfaceList()
         case _ =>
@@ -74,7 +75,7 @@ class TabActivity extends ListActivity with Logging {
   }
   @Loggable
   override def onResume() {
-    registerReceiver(receiver, new IntentFilter(Common.Intent.Update))
+    registerReceiver(receiver, new IntentFilter(DIntent.Update))
     super.onResume()
     updatedInterfaceList()
   }

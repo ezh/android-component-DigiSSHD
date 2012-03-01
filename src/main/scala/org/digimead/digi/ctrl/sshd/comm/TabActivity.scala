@@ -31,27 +31,38 @@ import android.widget.ListView
 import org.digimead.digi.ctrl.lib.aop.Logging
 
 class TabActivity extends ListActivity with Logging {
-  private[comm] val adapter = new MergeAdapter()
-  private[comm] lazy val lv = getListView()
-  private var uiOptions: options.UI = null
-  private var uiSessions: sessions.UI = null
+  private lazy val adapter = new MergeAdapter()
+  private lazy val lv = getListView()
+  private lazy val optionUI = new OptionUI(this)
+  private lazy val sessionUI = new SessionUI(this)
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.service)
-    uiOptions = new options.UI(this)
-    uiSessions = new sessions.UI(this)
+    optionUI appendTo adapter
+    sessionUI appendTo adapter
     setListAdapter(adapter)
     getListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE)
   }
   @Loggable
+  override def onResume() {
+    sessionUI.onResume()
+    super.onResume()
+  }
+  @Loggable
+  override def onPause() {
+    sessionUI.onPause()
+    super.onPause()
+  }
+  @Loggable
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
     adapter.getItem(position) match {
-      case item: options.UI.Item =>
-        uiOptions.onListItemClick(item)
-      case item: sessions.UI.Item =>
-        uiSessions.onListItemClick(item)
-      case _ =>
+      case item: OptionUI.Item =>
+        optionUI.onListItemClick(item)
+      case item =>
+        log.g_a_s_e("!!! click " + item)
+      //        uiSessions.onListItemClick(item)
+      //      case _ =>
     }
   }
 }

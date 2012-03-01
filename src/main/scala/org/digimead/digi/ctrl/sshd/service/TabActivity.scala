@@ -24,9 +24,6 @@ package org.digimead.digi.ctrl.sshd.service
 import java.util.ArrayList
 import scala.collection.JavaConversions._
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.Android
-import org.digimead.digi.ctrl.lib.AppActivity
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import com.commonsware.cwac.merge.MergeAdapter
@@ -46,6 +43,11 @@ import android.widget.Toast
 import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.sshd.service.software.{ UI => SWUI }
 import org.digimead.digi.ctrl.sshd.service.options.{ UI => OPTUI }
+import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 
 class TabActivity extends ListActivity with Logging {
   private[service] val adapter = new MergeAdapter()
@@ -100,10 +102,10 @@ class TabActivity extends ListActivity with Logging {
         lv.isItemChecked(position) match {
           case true =>
             interfaceItem.state = true
-            Toast.makeText(this, getString(R.string.service_filter_enabled).format(interfaceItem), Common.Constant.toastTimeout).show()
+            Toast.makeText(this, getString(R.string.service_filter_enabled).format(interfaceItem), DConstant.toastTimeout).show()
           case false =>
             interfaceItem.state = false
-            Toast.makeText(this, getString(R.string.service_filter_disabled).format(interfaceItem), Common.Constant.toastTimeout).show()
+            Toast.makeText(this, getString(R.string.service_filter_disabled).format(interfaceItem), DConstant.toastTimeout).show()
         }
       case item: software.UI.Item =>
         uiSoftware.onListItemClick(item)
@@ -134,12 +136,12 @@ class TabActivity extends ListActivity with Logging {
   def onClickReInstall(v: View) = AppActivity.Inner.foreach {
     inner =>
       log.info("reinstall files/force prepare evironment")
-      Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), Common.Constant.toastTimeout).show()
+      Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
       inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
         runOnUiThread(new Runnable() {
           def run = if (success)
             Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
-              "reinstall_complete").getOrElse("reinstall complete"), Common.Constant.toastTimeout).show()
+              "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
         }))
   }
   @Loggable
@@ -150,7 +152,7 @@ class TabActivity extends ListActivity with Logging {
   @Loggable
   private def updateInterfaceAdapter() = AppActivity.Inner.foreach {
     inner =>
-      val pref = getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
+      val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
       val values = pref.getAll().toSeq.map(t => (t._1, t._2.asInstanceOf[Boolean])).sorted
       interfaceAdapter.clear()
       if (values.nonEmpty)
@@ -203,7 +205,7 @@ object TabActivity {
         AppActivity.Inner.foreach {
           inner =>
             _state = newState
-            val pref = _context.getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
+            val pref = _context.getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
             val editor = pref.edit()
             editor.putBoolean(_value, _state)
             editor.commit()

@@ -22,11 +22,6 @@
 package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.Activity
-import org.digimead.digi.ctrl.lib.Android
-import org.digimead.digi.ctrl.lib.AppActivity
-import org.digimead.digi.ctrl.lib.AppService
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.comm.TabActivity
 import org.digimead.digi.ctrl.sshd.info.TabActivity
 import org.digimead.digi.ctrl.sshd.service.TabActivity
@@ -45,6 +40,13 @@ import android.widget.TabHost
 import android.widget.TextView
 import android.widget.ToggleButton
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.Activity
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.declaration.DIntent
 
 class SSHDActivity extends android.app.TabActivity with Activity {
   private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
@@ -52,7 +54,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private val receiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = {
       intent.getAction() match {
-        case Common.Intent.Update =>
+        case DIntent.Update =>
           updateStatus()
         case _ =>
           log.error("skip unknown intent " + intent + " with context " + context)
@@ -112,12 +114,12 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppActivity.Inner map {
       inner =>
         inner ! AppActivity.Message.PrepareEnvironment(this, true, true, (success) => {
-          if (inner.state.get.code != Common.State.Broken)
+          if (inner.state.get.code != DState.Broken)
             if (success)
-              AppActivity.State(Common.State.Passive, Android.getString(this, "status_ready").
+              AppActivity.State(DState.Passive, Android.getString(this, "status_ready").
                   getOrElse("Ready"))
             else
-              AppActivity.State(Common.State.Broken, Android.getString(this, "status_error").
+              AppActivity.State(DState.Broken, Android.getString(this, "status_error").
                   getOrElse("Error"))
         })
     }
@@ -131,7 +133,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppService.Inner map {
       inner =>
         val filter = new IntentFilter()
-        filter.addAction(Common.Intent.Update)
+        filter.addAction(DIntent.Update)
         registerReceiver(receiver, filter)
         inner.bind(this)
     }
@@ -162,14 +164,14 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   def updateStatus() = AppActivity.Inner foreach {
     inner =>
       inner.state.get match {
-        case AppActivity.State(Common.State.Initializing, message, callback) =>
+        case AppActivity.State(DState.Initializing, message, callback) =>
           statusText.setText(getString(R.string.status_initializing))
-        case AppActivity.State(Common.State.Passive, message, callback) =>
+        case AppActivity.State(DState.Passive, message, callback) =>
           statusText.setText(getString(R.string.status_ready))
-        case AppActivity.State(Common.State.Active, message, callback) =>
+        case AppActivity.State(DState.Active, message, callback) =>
         // TODO
         //        statusText.setText(getString(R.string.st))
-        case AppActivity.State(Common.State.Broken, message, callback) =>
+        case AppActivity.State(DState.Broken, message, callback) =>
           val errorMessage = getString(R.string.status_error).format(message.asInstanceOf[String])
           statusText.setText(errorMessage)
       }

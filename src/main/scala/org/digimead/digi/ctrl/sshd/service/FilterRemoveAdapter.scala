@@ -21,7 +21,6 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import android.content.Context
@@ -32,6 +31,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemoveActivity.FilterItem],
   private val resource: Int = android.R.layout.simple_list_item_1,
@@ -64,7 +64,7 @@ class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemov
       values(selected).pending = true
       separatorPos -= 1
       update()
-      Toast.makeText(context, context.getString(R.string.service_filter_select).format(values(selected).value), Common.Constant.toastTimeout).show()
+      Toast.makeText(context, context.getString(R.string.service_filter_select).format(values(selected).value), DConstant.toastTimeout).show()
     } else if (position > separatorPos) {
       log.debug("pending item click at position " + position)
       val want = position - separatorPos
@@ -77,7 +77,7 @@ class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemov
       values(selected).pending = false
       separatorPos += 1
       update()
-      Toast.makeText(context, context.getString(R.string.service_filter_select).format(values(selected).value), Common.Constant.toastTimeout).show()
+      Toast.makeText(context, context.getString(R.string.service_filter_select).format(values(selected).value), DConstant.toastTimeout).show()
     }
   }
   def getPending() = values.filter(_.pending == true)

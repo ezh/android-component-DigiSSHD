@@ -23,8 +23,6 @@ package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.AppActivity
-import org.digimead.digi.ctrl.lib.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.slf4j.LoggerFactory
 import android.app.Activity
@@ -46,12 +44,17 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 class FilterAddActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = AppActivity.Inner.map(inner =>
     new FilterAddAdapter(this, () => {
-      val alreadyInUse = getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
+      val alreadyInUse = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
       predefinedFilters().diff(alreadyInUse) // drop "already in use" values
     }))
   private lazy val inflater = getLayoutInflater()
@@ -94,7 +97,7 @@ class FilterAddActivity extends ListActivity with Logging {
   @Loggable
   override def onResume() {
     super.onResume()
-    registerReceiver(receiver, new IntentFilter(Common.Intent.Update))
+    registerReceiver(receiver, new IntentFilter(DIntent.Update))
   }
   @Loggable
   override def onPause() {
@@ -161,10 +164,10 @@ class FilterAddActivity extends ListActivity with Logging {
         headerIP4.getText.toString.replaceFirst("^$", "*")
       if (item == "*:*.*.*.*") {
         log.info("filter *:*.*.*.* is illegal")
-        Toast.makeText(this, getString(R.string.service_filter_illegal).format(item), Common.Constant.toastTimeout).show()
+        Toast.makeText(this, getString(R.string.service_filter_illegal).format(item), DConstant.toastTimeout).show()
       } else if (adapter.exists(item)) {
         log.info("filter " + item + " already exists")
-        Toast.makeText(this, getString(R.string.service_filter_exists).format(item), Common.Constant.toastTimeout).show()
+        Toast.makeText(this, getString(R.string.service_filter_exists).format(item), DConstant.toastTimeout).show()
       } else {
         adapter.addPending(item)
         runOnUiThread(new Runnable {
@@ -176,7 +179,7 @@ class FilterAddActivity extends ListActivity with Logging {
               footerApply.setEnabled(true)
           }
         })
-        Toast.makeText(this, getString(R.string.service_filter_select).format(item), Common.Constant.toastTimeout).show()
+        Toast.makeText(this, getString(R.string.service_filter_select).format(item), DConstant.toastTimeout).show()
       }
   }
   @Loggable
@@ -230,7 +233,7 @@ class FilterAddActivity extends ListActivity with Logging {
     inner <- AppActivity.Inner
     adapter <- adapter
   } {
-    val pref = getSharedPreferences(Common.Preference.Filter, Context.MODE_PRIVATE)
+    val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.putBoolean(filter, true))
     editor.commit()
