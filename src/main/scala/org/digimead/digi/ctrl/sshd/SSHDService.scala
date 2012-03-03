@@ -104,44 +104,11 @@ object SSHDService extends Logging {
       log.error(e.getMessage, e)
       Seq()
   }
-  @Loggable
-  def getComponentInfo(): Option[ComponentInfo] = {
-    for {
-      inner <- AppActivity.Inner
-      appManifest <- inner.applicationManifest
-    } yield {
-      AppCache !? AppCache.Message.GetByID(0, appManifest.hashCode.toString) match {
-        case Some(info) =>
-          Some(info.asInstanceOf[ComponentInfo])
-        case None =>
-          val extractor = (icons: Seq[(ComponentInfo.IconType, String)]) => {
-            icons.map {
-              case (iconType, url) =>
-                iconType match {
-                  case icon: ComponentInfo.Thumbnail.type =>
-                    None
-                  case icon: ComponentInfo.LDPI.type =>
-                    None
-                  case icon: ComponentInfo.MDPI.type =>
-                    None
-                  case icon: ComponentInfo.HDPI.type =>
-                    None
-                  case icon: ComponentInfo.XHDPI.type =>
-                    None
-                }
-            }
-          }
-          val result = ComponentInfo(appManifest, locale, localeLanguage, extractor)
-          result.foreach(r => AppCache ! AppCache.Message.UpdateByID(0, appManifest.hashCode.toString, r))
-          result
-      }
-    }
-  } getOrElse None
   class Binder extends ICtrlComponent.Stub with Logging {
     log.debug("binder alive")
     @Loggable(result = false)
     def info(): java.util.List[_] =
-      SSHDService.getComponentInfo().map(Common.serializeToList(_)) getOrElse null
+      AppActivity.Inner.flatMap(_.getComponentInfo(locale, localeLanguage)).map(Common.serializeToList(_)) getOrElse null
     @Loggable(result = false)
     def uid() = android.os.Process.myUid()
     @Loggable(result = false)

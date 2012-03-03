@@ -45,8 +45,10 @@ import com.commonsware.cwac.merge.MergeAdapter
 class SessionUI(context: org.digimead.digi.ctrl.sshd.comm.TabActivity) extends Logging {
   private val updateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = {
-      if (intent.getData.getAuthority == DConstant.SessionAuthority)
+      if (intent.getData.getAuthority == DConstant.SessionAuthority) {
+        log.debug("receive session update " + intent.toUri(0))
         onIntentUpdate(intent)
+      }
     }
   }
   private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
@@ -65,6 +67,7 @@ class SessionUI(context: org.digimead.digi.ctrl.sshd.comm.TabActivity) extends L
     updateFilter.addAction(DIntent.Update)
     updateFilter.addDataScheme("code")
     context.registerReceiver(updateReceiver, updateFilter, DPermission.Base, null)
+    future { updateCursor }
   }
   @Loggable
   def onPause() {
