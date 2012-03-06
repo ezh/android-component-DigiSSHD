@@ -11,6 +11,7 @@ AndroidManifest.xml.*
 .cache
 .manager
 *.class
+*.lib
 .svnignore
 .gitignore
 target*

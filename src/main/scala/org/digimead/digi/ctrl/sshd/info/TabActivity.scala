@@ -155,11 +155,8 @@ class TabActivity extends ListActivity with Logging {
       null
   }
   @Loggable
-  private def updatedInterfaceList() = for {
-    innerApp <- AppActivity.Inner
-    innerSrv <- AppService.Inner
-  } {
-    interfaces = Common.listInterfaces().map(i => TabActivity.InterfaceItem(i, innerSrv.getInterfaceStatus(i, innerApp.filters())))
+  private def updatedInterfaceList() = {
+    interfaces = Common.listInterfaces().map(i => TabActivity.InterfaceItem(i, AppService.Inner.getInterfaceStatus(i, AppActivity.Inner.filters())))
     runOnUiThread(new Runnable() { def run = interfaceAdapter.notifyDataSetChanged(true) })
   }
 }

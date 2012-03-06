@@ -24,21 +24,22 @@ package org.digimead.digi.ctrl.sshd
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import java.util.Locale
+
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.Service
 import org.digimead.digi.ctrl.ICtrlComponent
-import org.slf4j.LoggerFactory
+
 import android.content.Intent
 import android.os.IBinder
-import scala.xml._
-import org.digimead.digi.ctrl.lib.aop.Logging
-import org.digimead.digi.ctrl.lib.info.ComponentInfo
-import java.util.Locale
-import org.digimead.digi.ctrl.lib.Service
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.info.ExecutableInfo
-import org.digimead.digi.ctrl.lib.base.AppCache
-import org.digimead.digi.ctrl.lib.declaration.DState
-import org.digimead.digi.ctrl.lib.util.Common
 
 class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
@@ -60,9 +61,8 @@ object SSHDService extends Logging {
   def getExecutableEnvironments(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
-      inner <- AppActivity.Inner
-      appNativePath <- inner.appNativePath
-      xml <- inner.nativeManifest
+      appNativePath <- AppActivity.Inner.appNativePath
+      xml <- AppActivity.Inner.nativeManifest
     } yield {
       var executableID = 0
       executables.map(executable => {
@@ -96,7 +96,8 @@ object SSHDService extends Logging {
         val license = (block \ "license").text
         val project = (block \ "project").text
         executableID += 1
-        new ExecutableInfo(id, commandLine, port, env, state, name, version, description, origin, license, project)
+        new ExecutableInfo(id)
+        //        new ExecutableInfo(id, commandLine.getOrElse(Seq()), port.getOrElse(-1), env, state.id, name, version, description, origin, license, project)
       })
     }) getOrElse Seq()
   } catch {
@@ -108,7 +109,7 @@ object SSHDService extends Logging {
     log.debug("binder alive")
     @Loggable(result = false)
     def info(): java.util.List[_] =
-      AppActivity.Inner.flatMap(_.getComponentInfo(locale, localeLanguage)).map(Common.serializeToList(_)) getOrElse null
+      AppActivity.Inner.getComponentInfo(locale, localeLanguage).map(Common.serializeToList(_)) getOrElse null
     @Loggable(result = false)
     def uid() = android.os.Process.myUid()
     @Loggable(result = false)
@@ -116,8 +117,7 @@ object SSHDService extends Logging {
     @Loggable(result = false)
     def pre(id: Int, workdir: String) = {
       for {
-        inner <- AppActivity.Inner
-        appNativePath <- inner.appNativePath
+        appNativePath <- AppActivity.Inner.appNativePath
       } yield {
         assert(id == 0)
         val privateKeysPath = new File(workdir)
@@ -162,8 +162,8 @@ object SSHDService extends Logging {
       }
     } getOrElse false
     @Loggable(result = false)
-    def executable(id: Int, workdir: String): java.util.List[_] =
-      SSHDService.getExecutableEnvironments(workdir).find(_.id == id).map(Common.serializeToList(_)) getOrElse null
+    def executable(id: Int, workdir: String): ExecutableInfo =
+      SSHDService.getExecutableEnvironments(workdir).find(_.id == id).getOrElse(null)
     @Loggable(result = false)
     def post(id: Int, workdir: String): Boolean = {
       log.debug("post(...)")

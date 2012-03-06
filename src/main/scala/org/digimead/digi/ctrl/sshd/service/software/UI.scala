@@ -55,7 +55,7 @@ class UI(ctx: TabActivity) extends Logging {
     ctx.startActivity(i)
   }
   @Loggable
-  def getAppSeq(): Seq[UI.Item] = AppActivity.Inner.flatMap(_.nativeManifest).map {
+  def getAppSeq(): Seq[UI.Item] = AppActivity.Inner.nativeManifest.map {
     nativeManifest =>
       try {
         (for (app <- nativeManifest \\ "application") yield {

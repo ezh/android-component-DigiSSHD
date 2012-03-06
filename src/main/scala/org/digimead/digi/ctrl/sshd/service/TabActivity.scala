@@ -55,7 +55,7 @@ class TabActivity extends ListActivity with Logging {
   private[service] lazy val lv = getListView()
   private var interfaceRemoveButton: Button = null
   private var uiSoftware: SWUI = null
-  private var uiOptions:OPTUI = null
+  private var uiOptions: OPTUI = null
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -133,16 +133,15 @@ class TabActivity extends ListActivity with Logging {
     startActivityForResult(new Intent(this, classOf[FilterRemoveActivity]), TabActivity.FILTER_REQUEST)
   }
   @Loggable
-  def onClickReInstall(v: View) = AppActivity.Inner.foreach {
-    inner =>
-      log.info("reinstall files/force prepare evironment")
-      Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
-      inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
-        runOnUiThread(new Runnable() {
-          def run = if (success)
-            Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
-              "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
-        }))
+  def onClickReInstall(v: View) = {
+    log.info("reinstall files/force prepare evironment")
+    Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
+    AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
+      runOnUiThread(new Runnable() {
+        def run = if (success)
+          Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
+            "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
+      }))
   }
   @Loggable
   def onClickCopyToClipboard(v: View) = {
@@ -150,41 +149,39 @@ class TabActivity extends ListActivity with Logging {
     Common.copyPreparedFilesToClipboard(this)
   }
   @Loggable
-  private def updateInterfaceAdapter() = AppActivity.Inner.foreach {
-    inner =>
-      val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
-      val values = pref.getAll().toSeq.map(t => (t._1, t._2.asInstanceOf[Boolean])).sorted
-      interfaceAdapter.clear()
-      if (values.nonEmpty)
-        values.foreach(t => interfaceAdapter.add(TabActivity.InterfaceItem(t._1, t._2, this)))
-      else
-        interfaceAdapter.add(TabActivity.InterfaceItem(null, true, this))
-      lv.post(new Runnable {
-        def run = {
-          interfaceAdapter.notifyDataSetChanged()
-          var pos = 1
-          if (values.nonEmpty)
-            for (t <- values) {
-              if (t._2)
-                lv.setItemChecked(pos, true)
-              pos += 1
-            }
-          else
-            lv.setItemChecked(pos, true) // all interfaces always checked
-        }
-      })
+  private def updateInterfaceAdapter() = {
+    val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
+    val values = pref.getAll().toSeq.map(t => (t._1, t._2.asInstanceOf[Boolean])).sorted
+    interfaceAdapter.clear()
+    if (values.nonEmpty)
+      values.foreach(t => interfaceAdapter.add(TabActivity.InterfaceItem(t._1, t._2, this)))
+    else
+      interfaceAdapter.add(TabActivity.InterfaceItem(null, true, this))
+    lv.post(new Runnable {
+      def run = {
+        interfaceAdapter.notifyDataSetChanged()
+        var pos = 1
+        if (values.nonEmpty)
+          for (t <- values) {
+            if (t._2)
+              lv.setItemChecked(pos, true)
+            pos += 1
+          }
+        else
+          lv.setItemChecked(pos, true) // all interfaces always checked
+      }
+    })
   }
   @Loggable
-  private def updateButtonState() = AppActivity.Inner.foreach {
-    inner =>
-      lv.post(new Runnable {
-        def run = {
-          if (inner.filters().isEmpty)
-            interfaceRemoveButton.setEnabled(false)
-          else
-            interfaceRemoveButton.setEnabled(true)
-        }
-      })
+  private def updateButtonState() = {
+    lv.post(new Runnable {
+      def run = {
+        if (AppActivity.Inner.filters().isEmpty)
+          interfaceRemoveButton.setEnabled(false)
+        else
+          interfaceRemoveButton.setEnabled(true)
+      }
+    })
   }
 }
 
@@ -201,15 +198,13 @@ object TabActivity {
     def state_=(newState: Boolean): Unit = synchronized {
       if (_value == null)
         return
-      if (newState != _state)
-        AppActivity.Inner.foreach {
-          inner =>
-            _state = newState
-            val pref = _context.getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
-            val editor = pref.edit()
-            editor.putBoolean(_value, _state)
-            editor.commit()
-        }
+      if (newState != _state) {
+        _state = newState
+        val pref = _context.getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
+        val editor = pref.edit()
+        editor.putBoolean(_value, _state)
+        editor.commit()
+      }
     }
   }
 }

@@ -52,11 +52,10 @@ import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 class FilterAddActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
-  private lazy val adapter = AppActivity.Inner.map(inner =>
-    new FilterAddAdapter(this, () => {
-      val alreadyInUse = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
-      predefinedFilters().diff(alreadyInUse) // drop "already in use" values
-    }))
+  private lazy val adapter = new FilterAddAdapter(this, () => {
+    val alreadyInUse = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
+    predefinedFilters().diff(alreadyInUse) // drop "already in use" values
+  })
   private lazy val inflater = getLayoutInflater()
   private lazy val headerInterface = findViewById(R.id.service_filter_header_interface).asInstanceOf[TextView]
   private lazy val headerIP1 = findViewById(R.id.service_filter_header_ip1).asInstanceOf[TextView]
@@ -66,10 +65,8 @@ class FilterAddActivity extends ListActivity with Logging {
   private lazy val footerApply = findViewById(R.id.service_filter_footer_apply).asInstanceOf[Button]
   private val receiver = new BroadcastReceiver() {
     @Loggable
-    def onReceive(context: Context, intent: Intent) = adapter foreach {
-      adapter =>
-        runOnUiThread(new Runnable { def run = adapter.notifyDataSetChanged(true) })
-    }
+    def onReceive(context: Context, intent: Intent) =
+      runOnUiThread(new Runnable { def run = adapter.notifyDataSetChanged(true) })
   }
   log.debug("alive")
   /** Called when the activity is first created. */
@@ -81,14 +78,11 @@ class FilterAddActivity extends ListActivity with Logging {
     getListView().addHeaderView(header, null, false)
     val footer = inflater.inflate(R.layout.service_filter_footer, null)
     getListView().addFooterView(footer, null, false)
-    adapter.foreach {
-      adapter =>
-        setListAdapter(adapter)
-        registerForContextMenu(getListView())
-        // 1st time run
-        if (savedInstanceState == null)
-          runOnUiThread(new Runnable { def run = adapter.notifyDataSetChanged(true) })
-    }
+    setListAdapter(adapter)
+    registerForContextMenu(getListView())
+    // 1st time run
+    if (savedInstanceState == null)
+      runOnUiThread(new Runnable { def run = adapter.notifyDataSetChanged(true) })
   }
   @Loggable
   override def onStart() {
@@ -109,78 +103,72 @@ class FilterAddActivity extends ListActivity with Logging {
     super.onDestroy()
   }
   @Loggable
-  override protected def onSaveInstanceState(savedInstanceState: Bundle) = adapter foreach {
-    adapter =>
-      savedInstanceState.putStringArray(FilterAddActivity.STATE_PENDING, adapter.getPending.toArray)
-      savedInstanceState.putString(FilterAddActivity.STATE_HTEXT1, headerInterface.getText.toString)
-      savedInstanceState.putString(FilterAddActivity.STATE_HTEXT2, headerIP1.getText.toString)
-      savedInstanceState.putString(FilterAddActivity.STATE_HTEXT3, headerIP2.getText.toString)
-      savedInstanceState.putString(FilterAddActivity.STATE_HTEXT4, headerIP3.getText.toString)
-      savedInstanceState.putString(FilterAddActivity.STATE_HTEXT5, headerIP4.getText.toString)
-      super.onSaveInstanceState(savedInstanceState)
+  override protected def onSaveInstanceState(savedInstanceState: Bundle) = {
+    savedInstanceState.putStringArray(FilterAddActivity.STATE_PENDING, adapter.getPending.toArray)
+    savedInstanceState.putString(FilterAddActivity.STATE_HTEXT1, headerInterface.getText.toString)
+    savedInstanceState.putString(FilterAddActivity.STATE_HTEXT2, headerIP1.getText.toString)
+    savedInstanceState.putString(FilterAddActivity.STATE_HTEXT3, headerIP2.getText.toString)
+    savedInstanceState.putString(FilterAddActivity.STATE_HTEXT4, headerIP3.getText.toString)
+    savedInstanceState.putString(FilterAddActivity.STATE_HTEXT5, headerIP4.getText.toString)
+    super.onSaveInstanceState(savedInstanceState)
   }
   @Loggable
   override protected def onRestoreInstanceState(savedInstanceState: Bundle) = {
     super.onRestoreInstanceState(savedInstanceState)
-    adapter foreach {
-      adapter =>
-        runOnUiThread(new Runnable {
-          def run = {
-            adapter.setPending(savedInstanceState.getStringArray(FilterAddActivity.STATE_PENDING))
-            if (adapter.getPending.isEmpty)
-              footerApply.setEnabled(false)
-            else
-              footerApply.setEnabled(true)
-          }
-          headerInterface.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT1))
-          headerIP1.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT2))
-          headerIP2.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT3))
-          headerIP3.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT4))
-          headerIP4.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT5))
-          adapter.notifyDataSetChanged()
-        })
-    }
+    runOnUiThread(new Runnable {
+      def run = {
+        adapter.setPending(savedInstanceState.getStringArray(FilterAddActivity.STATE_PENDING))
+        if (adapter.getPending.isEmpty)
+          footerApply.setEnabled(false)
+        else
+          footerApply.setEnabled(true)
+      }
+      headerInterface.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT1))
+      headerIP1.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT2))
+      headerIP2.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT3))
+      headerIP3.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT4))
+      headerIP4.setText(savedInstanceState.getString(FilterAddActivity.STATE_HTEXT5))
+      adapter.notifyDataSetChanged()
+    })
   }
   @Loggable
-  override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = adapter foreach {
-    adapter =>
+  override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
+    runOnUiThread(new Runnable {
+      def run = {
+        adapter.itemClick(position)
+        if (adapter.getPending.isEmpty)
+          footerApply.setEnabled(false)
+        else
+          footerApply.setEnabled(true)
+      }
+    })
+  }
+  @Loggable
+  def addCustomFilter(v: View) = {
+    val item: String = headerInterface.getText.toString.replaceFirst("^$", "*") + ":" +
+      headerIP1.getText.toString.replaceFirst("^$", "*") + "." +
+      headerIP2.getText.toString.replaceFirst("^$", "*") + "." +
+      headerIP3.getText.toString.replaceFirst("^$", "*") + "." +
+      headerIP4.getText.toString.replaceFirst("^$", "*")
+    if (item == "*:*.*.*.*") {
+      log.info("filter *:*.*.*.* is illegal")
+      Toast.makeText(this, getString(R.string.service_filter_illegal).format(item), DConstant.toastTimeout).show()
+    } else if (adapter.exists(item)) {
+      log.info("filter " + item + " already exists")
+      Toast.makeText(this, getString(R.string.service_filter_exists).format(item), DConstant.toastTimeout).show()
+    } else {
+      adapter.addPending(item)
       runOnUiThread(new Runnable {
         def run = {
-          adapter.itemClick(position)
+          adapter.notifyDataSetChanged()
           if (adapter.getPending.isEmpty)
             footerApply.setEnabled(false)
           else
             footerApply.setEnabled(true)
         }
       })
-  }
-  @Loggable
-  def addCustomFilter(v: View) = adapter foreach {
-    adapter =>
-      val item: String = headerInterface.getText.toString.replaceFirst("^$", "*") + ":" +
-        headerIP1.getText.toString.replaceFirst("^$", "*") + "." +
-        headerIP2.getText.toString.replaceFirst("^$", "*") + "." +
-        headerIP3.getText.toString.replaceFirst("^$", "*") + "." +
-        headerIP4.getText.toString.replaceFirst("^$", "*")
-      if (item == "*:*.*.*.*") {
-        log.info("filter *:*.*.*.* is illegal")
-        Toast.makeText(this, getString(R.string.service_filter_illegal).format(item), DConstant.toastTimeout).show()
-      } else if (adapter.exists(item)) {
-        log.info("filter " + item + " already exists")
-        Toast.makeText(this, getString(R.string.service_filter_exists).format(item), DConstant.toastTimeout).show()
-      } else {
-        adapter.addPending(item)
-        runOnUiThread(new Runnable {
-          def run = {
-            adapter.notifyDataSetChanged()
-            if (adapter.getPending.isEmpty)
-              footerApply.setEnabled(false)
-            else
-              footerApply.setEnabled(true)
-          }
-        })
-        Toast.makeText(this, getString(R.string.service_filter_select).format(item), DConstant.toastTimeout).show()
-      }
+      Toast.makeText(this, getString(R.string.service_filter_select).format(item), DConstant.toastTimeout).show()
+    }
   }
   @Loggable
   def applySelectedFilters(v: View) {
@@ -188,26 +176,25 @@ class FilterAddActivity extends ListActivity with Logging {
     showDialog(0) // apply?
   }
   @Loggable
-  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) = adapter foreach {
-    adapter =>
-      if (v.getId() == android.R.id.list) {
-        val info = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
-        runOnUiThread(new Runnable {
-          def run = {
-            adapter.itemLongClick(info.position)
-            val item = adapter.getItem(info.position - 1)
-            if (item != null) {
-              val Array(interface, ip) = item.split(":")
-              val Array(ip1, ip2, ip3, ip4) = ip.split("""\.""")
-              headerInterface.setText(interface.replaceAll("""\*""", ""))
-              headerIP1.setText(ip1.replaceAll("""\*""", ""))
-              headerIP2.setText(ip2.replaceAll("""\*""", ""))
-              headerIP3.setText(ip3.replaceAll("""\*""", ""))
-              headerIP4.setText(ip4.replaceAll("""\*""", ""))
-            }
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) = {
+    if (v.getId() == android.R.id.list) {
+      val info = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
+      runOnUiThread(new Runnable {
+        def run = {
+          adapter.itemLongClick(info.position)
+          val item = adapter.getItem(info.position - 1)
+          if (item != null) {
+            val Array(interface, ip) = item.split(":")
+            val Array(ip1, ip2, ip3, ip4) = ip.split("""\.""")
+            headerInterface.setText(interface.replaceAll("""\*""", ""))
+            headerIP1.setText(ip1.replaceAll("""\*""", ""))
+            headerIP2.setText(ip2.replaceAll("""\*""", ""))
+            headerIP3.setText(ip3.replaceAll("""\*""", ""))
+            headerIP4.setText(ip4.replaceAll("""\*""", ""))
           }
-        })
-      }
+        }
+      })
+    }
   }
   @Loggable
   override protected def onCreateDialog(id: Int): Dialog = {
@@ -229,10 +216,7 @@ class FilterAddActivity extends ListActivity with Logging {
       create()
   }
   @Loggable
-  private def onSubmit() = for {
-    inner <- AppActivity.Inner
-    adapter <- adapter
-  } {
+  private def onSubmit() = {
     val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.putBoolean(filter, true))

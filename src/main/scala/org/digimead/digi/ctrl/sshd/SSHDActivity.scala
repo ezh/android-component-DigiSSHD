@@ -111,18 +111,15 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 
     tabHost.setCurrentTab(2)
 
-    AppActivity.Inner map {
-      inner =>
-        inner ! AppActivity.Message.PrepareEnvironment(this, true, true, (success) => {
-          if (inner.state.get.code != DState.Broken)
-            if (success)
-              AppActivity.State(DState.Passive, Android.getString(this, "status_ready").
-                  getOrElse("Ready"))
-            else
-              AppActivity.State(DState.Broken, Android.getString(this, "status_error").
-                  getOrElse("Error"))
-        })
-    }
+    AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(this, true, true, (success) => {
+      if (AppActivity.Inner.state.get.code != DState.Broken)
+        if (success)
+          AppActivity.State(DState.Passive, Android.getString(this, "status_ready").
+            getOrElse("Ready"))
+        else
+          AppActivity.State(DState.Broken, Android.getString(this, "status_error").
+            getOrElse("Error"))
+    })
   }
   @Loggable
   override def onStart() {
@@ -130,24 +127,17 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   override def onResume() {
-    AppService.Inner map {
-      inner =>
-        val filter = new IntentFilter()
-        filter.addAction(DIntent.Update)
-        registerReceiver(receiver, filter)
-        inner.bind(this)
-    }
-
+    val filter = new IntentFilter()
+    filter.addAction(DIntent.Update)
+    registerReceiver(receiver, filter)
+    AppService.Inner.bind(this)
     super.onResume()
   }
   @Loggable
   override def onPause() {
     super.onPause()
-    AppService.Inner map {
-      inner =>
-        inner.unbind()
-        unregisterReceiver(receiver)
-    }
+    AppService.Inner.unbind()
+    unregisterReceiver(receiver)
   }
   @Loggable
   override def onDestroy() {
@@ -161,28 +151,26 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       App.serviceStop()*/
   }
   @Loggable
-  def updateStatus() = AppActivity.Inner foreach {
-    inner =>
-      inner.state.get match {
-        case AppActivity.State(DState.Initializing, message, callback) =>
-          statusText.setText(getString(R.string.status_initializing))
-        case AppActivity.State(DState.Passive, message, callback) =>
-          statusText.setText(getString(R.string.status_ready))
-        case AppActivity.State(DState.Active, message, callback) =>
-        // TODO
-        //        statusText.setText(getString(R.string.st))
-        case AppActivity.State(DState.Broken, message, callback) =>
-          val errorMessage = getString(R.string.status_error).format(message.asInstanceOf[String])
-          statusText.setText(errorMessage)
-      }
+  def updateStatus() = {
+    AppActivity.Inner.state.get match {
+      case AppActivity.State(DState.Initializing, message, callback) =>
+        statusText.setText(getString(R.string.status_initializing))
+      case AppActivity.State(DState.Passive, message, callback) =>
+        statusText.setText(getString(R.string.status_ready))
+      case AppActivity.State(DState.Active, message, callback) =>
+      // TODO
+      //        statusText.setText(getString(R.string.st))
+      case AppActivity.State(DState.Broken, message, callback) =>
+        val errorMessage = getString(R.string.status_error).format(message.asInstanceOf[String])
+        statusText.setText(errorMessage)
+    }
   }
   @Loggable
-  def onStatusClick(v: View) = AppActivity.Inner foreach {
-    inner =>
-      inner.state.get.onClickCallback match {
-        case cb: Function0[_] => cb()
-        case _ =>
-      }
+  def onStatusClick(v: View) = {
+    AppActivity.Inner.state.get.onClickCallback match {
+      case cb: Function0[_] => cb()
+      case _ =>
+    }
   }
   @Loggable
   def onUpdateServiceIntent() {
