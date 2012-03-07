@@ -21,11 +21,20 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import scala.actors.Futures.future
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.Activity
 import org.digimead.digi.ctrl.sshd.comm.TabActivity
 import org.digimead.digi.ctrl.sshd.info.TabActivity
 import org.digimead.digi.ctrl.sshd.service.TabActivity
-import org.slf4j.LoggerFactory
+
 import android.app.Dialog
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -39,14 +48,6 @@ import android.widget.TabHost.OnTabChangeListener
 import android.widget.TabHost
 import android.widget.TextView
 import android.widget.ToggleButton
-import org.digimead.digi.ctrl.lib.aop.Logging
-import org.digimead.digi.ctrl.lib.Activity
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.declaration.DState
-import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.lib.base.AppService
-import org.digimead.digi.ctrl.lib.declaration.DIntent
 
 class SSHDActivity extends android.app.TabActivity with Activity {
   private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
@@ -143,6 +144,17 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onDestroy() {
     super.onDestroy()
   }
+  /**
+   * latest point before complete initialization
+   * user interface already visible and it is alive
+   * now we may start processes under the hood
+   *
+   * after initialization AppActivity.LazyInit.init do nothing
+   */
+  @Loggable
+  override def onWindowFocusChanged(hasFocus: Boolean) =
+    if (hasFocus)
+      future { AppActivity.LazyInit.init }
   @Loggable
   def onStartStop(v: View) {
     /*    if (toggleStartStop.isChecked())

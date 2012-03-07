@@ -28,6 +28,7 @@ import java.util.Locale
 
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
+import scala.actors.Futures.future
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.aop.Logging
@@ -45,7 +46,10 @@ class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
   log.debug("alive")
   @Loggable
-  override def onCreate() = super.onCreate()
+  override def onCreate() = {
+    super.onCreate()
+    future { AppActivity.LazyInit.init }
+  }
   @Loggable
   override def onBind(intent: Intent): IBinder = binder
   @Loggable
@@ -96,8 +100,7 @@ object SSHDService extends Logging {
         val license = (block \ "license").text
         val project = (block \ "project").text
         executableID += 1
-        new ExecutableInfo(id)
-        //        new ExecutableInfo(id, commandLine.getOrElse(Seq()), port.getOrElse(-1), env, state.id, name, version, description, origin, license, project)
+        new ExecutableInfo(id, commandLine, port, env, state, name, version, description, origin, license, project)
       })
     }) getOrElse Seq()
   } catch {

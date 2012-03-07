@@ -21,7 +21,7 @@
  -->
  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
-    android:versionCode="1"
+    android:versionCode="1331121932"
     android:versionName="1.0" >
 
     <uses-sdk android:minSdkVersion="8" />
@@ -72,31 +72,6 @@
                 <action android:name="org.digimead.digi.ctrl.component.service" />
             </intent-filter>
         </service>
-        
-        <uses-library
-            android:name="scala.actors"
-            android:required="true" />
-        <uses-library
-            android:name="scala.library"
-            android:required="true" />
-        <uses-library
-            android:name="scala.collection"
-            android:required="true" />
-        <uses-library
-            android:name="scala.collection.mutable"
-            android:required="true" />
-        <uses-library
-            android:name="scala.collection.immutable"
-            android:required="true" />
-        <uses-library
-            android:name="slf4j-android-1.6.1-RC1"
-            android:required="true" />
-        <uses-library
-            android:name="CWAC-MergeAdapter"
-            android:required="true" />
-        <uses-library
-            android:name="CWAC-SackOfViewsAdapter"
-            android:required="true" />
     </application>
 
 </manifest>
