@@ -25,22 +25,22 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.util.Locale
-
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.aop.Logging
 import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.Service
 import org.digimead.digi.ctrl.ICtrlComponent
-
 import android.content.Intent
 import android.os.IBinder
+import org.digimead.digi.ctrl.lib.log.AndroidLogger
+import org.digimead.digi.ctrl.lib.log.FileLogger
 
 class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
@@ -61,6 +61,12 @@ class SSHDService extends Service {
 object SSHDService extends Logging {
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
+  if (true)
+    Logging.addLogger(Seq(AndroidLogger, FileLogger))
+  else
+    Logging.addLogger(FileLogger)
+  log.debug("alive")
+  
   @Loggable
   def getExecutableEnvironments(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
@@ -111,8 +117,8 @@ object SSHDService extends Logging {
   class Binder extends ICtrlComponent.Stub with Logging {
     log.debug("binder alive")
     @Loggable(result = false)
-    def info(): java.util.List[_] =
-      AppActivity.Inner.getComponentInfo(locale, localeLanguage).map(Common.serializeToList(_)) getOrElse null
+    def info(): ComponentInfo =
+      AppActivity.Inner.getComponentInfo(locale, localeLanguage).getOrElse(null)
     @Loggable(result = false)
     def uid() = android.os.Process.myUid()
     @Loggable(result = false)

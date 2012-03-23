@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -28,6 +28,9 @@ import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.base.AppService
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.log.AndroidLogger
+import org.digimead.digi.ctrl.lib.log.FileLogger
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.Activity
@@ -63,6 +66,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   var dialogAbout: SSHDDialogAbout = null
+  if (true)
+    Logging.addLogger(Seq(AndroidLogger, FileLogger))
+  else
+    Logging.addLogger(FileLogger)
   log.debug("alive")
 
   /** Called when the activity is first created. */

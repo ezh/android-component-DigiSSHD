@@ -33,7 +33,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
-import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 import org.digimead.digi.ctrl.lib.base.AppActivity
 

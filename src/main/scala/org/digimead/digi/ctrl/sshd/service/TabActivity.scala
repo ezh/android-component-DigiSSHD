@@ -40,7 +40,7 @@ import android.widget.ListView
 import android.widget.TableLayout
 import android.widget.TextView
 import android.widget.Toast
-import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.service.software.{ UI => SWUI }
 import org.digimead.digi.ctrl.sshd.service.options.{ UI => OPTUI }
 import org.digimead.digi.ctrl.lib.declaration.DConstant

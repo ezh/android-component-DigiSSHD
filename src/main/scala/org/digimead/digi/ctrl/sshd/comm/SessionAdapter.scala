@@ -28,8 +28,7 @@ import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import org.digimead.digi.ctrl.lib.aop.RichLogger.rich2plain
-import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DProvider
 import org.digimead.digi.ctrl.lib.util.Common

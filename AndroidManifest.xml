@@ -21,11 +21,13 @@
  -->
  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
-    android:versionCode="1331121932"
+    android:versionCode="1332526902"
     android:versionName="1.0" >
 
     <uses-sdk android:minSdkVersion="8" />
 
+    <uses-permission android:name="org.digimead.digi.ctrl" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

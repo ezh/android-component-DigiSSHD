@@ -28,7 +28,7 @@ import android.app.ListActivity
 import android.os.Bundle
 import android.view.View
 import android.widget.ListView
-import org.digimead.digi.ctrl.lib.aop.Logging
+import org.digimead.digi.ctrl.lib.log.Logging
 
 class TabActivity extends ListActivity with Logging {
   private lazy val adapter = new MergeAdapter()
