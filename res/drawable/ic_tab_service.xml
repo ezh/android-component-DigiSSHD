@@ -19,22 +19,11 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
  -->
- <menu xmlns:android="http://schemas.android.com/apk/res/android" >
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <item
-        android:id="@+id/menu_help"
-        android:icon="@drawable/ic_menu_help"
-        android:title="@string/menu_help"/>
-    <item
-        android:id="@+id/menu_gplay"
-        android:icon="@drawable/ic_menu_gplay"
-        android:title="@string/menu_gplay"/>
-    <item
-        android:id="@+id/menu_report"
-        android:icon="@drawable/ic_menu_report"
-        android:title="@string/menu_report"/>
-    <item
-        android:id="@+id/menu_quit"
-        android:icon="@drawable/ic_menu_quit"
-        android:title="@string/menu_quit"/>
-</menu>
+    <!-- selected state -->
+    <item android:drawable="@drawable/ic_tab_service_selected" android:state_pressed="false" android:state_selected="true"/>
+    <!-- unselected state (default) -->
+    <item android:drawable="@drawable/ic_tab_service_unselected"/>
+
+</selector>

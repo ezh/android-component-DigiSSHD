@@ -39,7 +39,7 @@
                 android:id="@+id/imageView1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_tab_settings_service_selected" />
+                android:src="@drawable/ic_tab_service_selected" />
 
             <TextView
                 android:id="@+id/textView1"
@@ -59,7 +59,7 @@
                 android:id="@+id/imageView2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_tab_settings_info_selected" />
+                android:src="@drawable/ic_tab_info_selected" />
 
             <TextView
                 android:id="@+id/textView2"
@@ -79,7 +79,7 @@
                 android:id="@+id/imageView3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_tab_settings_comm_unselected" />
+                android:src="@drawable/ic_tab_session_unselected" />
 
             <TextView
                 android:id="@+id/textView3"

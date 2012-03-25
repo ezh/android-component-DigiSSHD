@@ -18,15 +18,15 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
- <resources>
+-->
+<resources>
 
     <string name="app_name">DigiSSHD</string>
-    <string name="app_name_service">digiSSHD: Service options</string>
-    <string name="app_name_comm">digiSSHD: Communication</string>
-    <string name="app_name_info">digiSSHD: Information</string>
-    <string name="app_name_filter_add">digiSSHD: Add filter</string>
-    <string name="app_name_filter_remove">digiSSHD: Remove filter</string>
+    <string name="app_name_service">DigiSSHD: Service</string>
+    <string name="app_name_session">DigiSSHD: Sessions</string>
+    <string name="app_name_info">DigiSSHD: Information</string>
+    <string name="app_name_filter_add">DigiSSHD: Add filter</string>
+    <string name="app_name_filter_remove">DigiSSHD: Remove filter</string>
     <string name="image_description">…</string>
     <string name="info_interfaces">interfaces</string>
     <string name="info_support">support</string>
@@ -65,11 +65,18 @@
     <string name="reinstall">reinstall</string>
     <string name="reinstall_complete">reinstall_complete</string>
     <string name="copy_to_clipboard">copy_to_clipboard</string>
-    <string name="menu_about">menu_about</string>
-    <string name="menu_market">menu_market</string>
+    <string name="menu_help">Help</string>
+    <string name="menu_gplay">Google Play</string>
+    <string name="menu_report">Report</string>
+    <string name="menu_quit">Quit</string>
     <string name="dialog_about_title">dialog_about_title</string>
     <string name="dialog_about_message">dialog_about_message</string>
     <string name="comm_option_block">options</string>
     <string name="comm_session_block">session list</string>
+    <string name="no_sessions">There are no active sessions</string>
+    <string name="dialog_help_title">Help</string>
+    <string name="dialog_help_message">long tap for context menu</string>
+    <string name="dialog_exit_title">Exit</string>
+    <string name="dialog_exit_message">Do you want to exit?</string>
     
 </resources>
