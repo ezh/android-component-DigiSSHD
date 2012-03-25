@@ -22,17 +22,21 @@
 package org.digimead.digi.ctrl.sshd.info
 
 import java.util.Locale
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.block.Community
-import org.digimead.digi.ctrl.lib.block.Legal
-import org.digimead.digi.ctrl.lib.block.Support
-import org.digimead.digi.ctrl.lib.block.Thanks
+import org.digimead.digi.ctrl.lib.block.CommunityBlock
+import org.digimead.digi.ctrl.lib.block.LegalBlock
+import org.digimead.digi.ctrl.lib.block.SupportBlock
+import org.digimead.digi.ctrl.lib.block.ThanksBlock
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDActivity
+
 import com.commonsware.cwac.merge.MergeAdapter
+
 import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ListActivity
@@ -40,35 +44,25 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.text.Html
+import android.view.ContextMenu
 import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.ListView
 import android.widget.TextView
-import android.view.ContextMenu
-import android.widget.AdapterView.AdapterContextMenuInfo
-import android.view.MenuItem
 
 class TabActivity extends ListActivity with Logging {
-  private lazy val info = AppActivity.Inner.getCachedComponentInfo(TabActivity.locale, TabActivity.localeLanguage).get
-  private val adapter = new MergeAdapter()
-  private lazy val interfaceBlock = new Interface(this)
-  private lazy val supportBlock = new Support(this, Uri.parse(info.project), Uri.parse(info.project + "/issues"),
-    info.email, info.name, "+74955185377", "ezhariur")
-  private lazy val communityBlock = new Community(this, Uri.parse(info.project + "/wiki"))
-  private lazy val thanksBlock = new Thanks(this)
-  val legal = """<img src="ic_launcher">The DigiControl consists of a software program protected by copyright and other applicable
-intellectual property laws and treaties. Certain Licensed Software programs may be wholly
-or partially subject to other licenses. For details see the description of each individual package. <br/>
-Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
-  private lazy val legalBlock = new Legal(this, List(Legal.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md")))
   log.debug("alive")
 
   @Loggable
-  override def onCreate(savedInstanceState: Bundle) {
+  override def onCreate(savedInstanceState: Bundle) = synchronized {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.info)
+    TabActivity.activity = Some(this)
+
     // prepare empty view
     // interfaces
     val interfacesHeader = findViewById(Android.getId(this, "nodata_header_interface")).asInstanceOf[TextView]
@@ -87,28 +81,28 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
     val lv = getListView()
     registerForContextMenu(lv)
     lv.setLongClickable(false)
-    AppActivity.LazyInit("initialize info adapter") {
-      interfaceBlock appendTo adapter
-      communityBlock appendTo adapter
-      supportBlock appendTo adapter
-      //thanksBlock appendTo adapter
-      legalBlock appendTo adapter
-      runOnUiThread(new Runnable { def run = setListAdapter(adapter) })
-    }
+    TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
   @Loggable
-  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = for {
+    adapter <- TabActivity.adapter
+    interfaceBlock <- TabActivity.interfaceBlock
+    supportBlock <- TabActivity.supportBlock
+    communityBlock <- TabActivity.communityBlock
+    thanksBlock <- TabActivity.thanksBlock
+    legalBlock <- TabActivity.legalBlock
+  } {
     super.onCreateContextMenu(menu, v, menuInfo)
     menuInfo match {
       case info: AdapterContextMenuInfo =>
         adapter.getItem(info.position) match {
-          case item: Support.Item =>
+          case item: SupportBlock.Item =>
             supportBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: Community.Item =>
+          case item: CommunityBlock.Item =>
             communityBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: Thanks.Item =>
+          case item: ThanksBlock.Item =>
             thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: Legal.Item =>
+          case item: LegalBlock.Item =>
             legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item =>
             log.fatal("unknown item " + item)
@@ -119,21 +113,30 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem): Boolean = {
-    val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
-    adapter.getItem(info.position) match {
-      case item: Support.Item =>
-        supportBlock.onContextItemSelected(menuItem, item)
-      case item: Community.Item =>
-        communityBlock.onContextItemSelected(menuItem, item)
-      case item: Thanks.Item =>
-        thanksBlock.onContextItemSelected(menuItem, item)
-      case item: Legal.Item =>
-        legalBlock.onContextItemSelected(menuItem, item)
-      case item =>
-        log.fatal("unknown item " + item)
-        false
+    for {
+      adapter <- TabActivity.adapter
+      interfaceBlock <- TabActivity.interfaceBlock
+      supportBlock <- TabActivity.supportBlock
+      communityBlock <- TabActivity.communityBlock
+      thanksBlock <- TabActivity.thanksBlock
+      legalBlock <- TabActivity.legalBlock
+    } yield {
+      val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
+      adapter.getItem(info.position) match {
+        case item: SupportBlock.Item =>
+          supportBlock.onContextItemSelected(menuItem, item)
+        case item: CommunityBlock.Item =>
+          communityBlock.onContextItemSelected(menuItem, item)
+        case item: ThanksBlock.Item =>
+          thanksBlock.onContextItemSelected(menuItem, item)
+        case item: LegalBlock.Item =>
+          legalBlock.onContextItemSelected(menuItem, item)
+        case item =>
+          log.fatal("unknown item " + item)
+          false
+      }
     }
-  }
+  } getOrElse false
   /*  @Loggable
   override def onResume() {
     registerReceiver(receiver, new IntentFilter(DIntent.Update))
@@ -156,17 +159,24 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
     //    adapter.addAdapter(interfaceAdapter)
   }
   @Loggable
-  override def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
+  override def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
+    adapter <- TabActivity.adapter
+    interfaceBlock <- TabActivity.interfaceBlock
+    supportBlock <- TabActivity.supportBlock
+    communityBlock <- TabActivity.communityBlock
+    thanksBlock <- TabActivity.thanksBlock
+    legalBlock <- TabActivity.legalBlock
+  } {
     adapter.getItem(position) match {
-      case item: Support.Item =>
+      case item: SupportBlock.Item =>
         supportBlock.onListItemClick(l, v, item)
-      case item: Community.Item =>
+      case item: CommunityBlock.Item =>
         communityBlock.onListItemClick(l, v, item)
-      case item: Thanks.Item =>
+      case item: ThanksBlock.Item =>
         thanksBlock.onListItemClick(l, v, item)
-      case item: Legal.Item =>
+      case item: LegalBlock.Item =>
         legalBlock.onListItemClick(l, v, item)
-      case item: Interface.Item =>
+      case item: InterfaceBlock.Item =>
         showDialog(TabActivity.DIALOG_INTERFACES_ID)
       case item =>
         log.fatal("unknown item " + item)
@@ -196,10 +206,51 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   }
 }
 
-object TabActivity {
+object TabActivity extends Logging {
+  val legal = """<img src="ic_launcher">The DigiControl consists of a software program protected by copyright and other applicable
+intellectual property laws and treaties. Certain Licensed Software programs may be wholly
+or partially subject to other licenses. For details see the description of each individual package. <br/>
+Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
+  @volatile private var activity: Option[TabActivity] = None
+  @volatile private var adapter: Option[MergeAdapter] = None
+  @volatile private var interfaceBlock: Option[InterfaceBlock] = None
+  @volatile private var supportBlock: Option[SupportBlock] = None
+  @volatile private var communityBlock: Option[CommunityBlock] = None
+  @volatile private var thanksBlock: Option[ThanksBlock] = None
+  @volatile private var legalBlock: Option[LegalBlock] = None
+  private lazy val info = AppActivity.Inner.getCachedComponentInfo(TabActivity.locale, TabActivity.localeLanguage).get
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
   val DIALOG_INTERFACES_ID = 0
+  def addLazyInit = AppActivity.LazyInit("initialize info adapter") {
+    SSHDActivity.activity match {
+      case Some(activity) =>
+        adapter = Some(new MergeAdapter())
+        interfaceBlock = Some(new InterfaceBlock(activity))
+        supportBlock = Some(new SupportBlock(activity, Uri.parse(info.project), Uri.parse(info.project + "/issues"),
+          info.email, info.name, "+74955185377", "ezhariur"))
+        communityBlock = Some(new CommunityBlock(activity, Uri.parse(info.project + "/wiki")))
+        thanksBlock = Some(new ThanksBlock(activity))
+        legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md"))))
+        for {
+          adapter <- adapter
+          interfaceBlock <- interfaceBlock
+          supportBlock <- supportBlock
+          communityBlock <- communityBlock
+          thanksBlock <- thanksBlock
+          legalBlock <- legalBlock
+        } {
+          interfaceBlock appendTo (adapter)
+          supportBlock appendTo (adapter)
+          communityBlock appendTo (adapter)
+          //thanksBlock appendTo (adapter)
+          legalBlock appendTo (adapter)
+          TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+        }
+      case None =>
+        log.fatal("lost SSHDActivity context")
+    }
+  }
 }
 /*
  *   

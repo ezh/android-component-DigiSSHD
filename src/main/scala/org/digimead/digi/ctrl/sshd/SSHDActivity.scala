@@ -85,10 +85,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 
   /** Called when the activity is first created. */
   @Loggable
-  override def onCreate(savedInstanceState: Bundle) {
+  override def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
-    SSHDActivity.activity = new WeakReference(this)
+    SSHDActivity.activity = Some(this)
 
     val res = getResources() // Resource object to get Drawables
     val tabHost = getTabHost() // The activity TabHost
@@ -129,6 +129,9 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     })
 
     tabHost.setCurrentTab(2)
+    SSHDActivity.addLazyInit
+    info.TabActivity.addLazyInit
+    session.TabActivity.addLazyInit
   }
   @Loggable
   override def onStart() {
@@ -153,6 +156,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onPause() {
     super.onPause()
     SSHDActivity.consistent = false
+    SSHDActivity.focused = false
     AppService.Inner.unbind()
   }
   @Loggable
@@ -285,7 +289,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 }
 
 object SSHDActivity extends Actor with Logging {
-  private var activity = new WeakReference[SSHDActivity](null)
+  @volatile private[sshd] var activity: Option[SSHDActivity] = None
   @volatile private var focused = false
   @volatile private var consistent = false
   // null - empty, None - dialog upcoming, Some - dialog in progress
@@ -297,11 +301,11 @@ object SSHDActivity extends Actor with Logging {
   private val busyKickerF = new Runnable { def run = SSHDActivity.this ! null }
   private val busyKickerDelay = 3000
   private val busyKickerRate = 50
-  private val publicReceiver = new BroadcastReceiver() {
+  private lazy val publicReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = {
       intent.getAction() match {
         case DIntent.Update =>
-          activity.get.foreach(_.updateStatus)
+          activity.foreach(_.updateStatus)
         case _ =>
           log.error("skip unknown intent " + intent + " with context " + context)
       }
@@ -309,8 +313,8 @@ object SSHDActivity extends Actor with Logging {
   }
 
   start
-  AppActivity.LazyInit("main activity onCreate logic") {
-    activity.get.foreach {
+  def addLazyInit = AppActivity.LazyInit("main activity onCreate logic") {
+    activity.foreach {
       activity =>
         // register BroadcastReceiver
         val filter = new IntentFilter()
@@ -335,12 +339,12 @@ object SSHDActivity extends Actor with Logging {
       react {
         case msg: DMessage.IAmBusy =>
           busyCounter.incrementAndGet
-          activity.get.foreach(onBusy)
+          activity.foreach(onBusy)
         case msg: DMessage.IAmReady =>
           busyCounter.decrementAndGet
           onReady
         case null => // kick it
-          activity.get.foreach(onKick)
+          activity.foreach(onKick)
         case message: AnyRef =>
           log.error("skip unknown message " + message.getClass.getName + ": " + message)
         case message =>

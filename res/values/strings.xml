@@ -78,5 +78,9 @@
     <string name="dialog_help_message">long tap for context menu</string>
     <string name="dialog_exit_title">Exit</string>
     <string name="dialog_exit_message">Do you want to exit?</string>
-    
+    <string name="APPLICATION_GS_CLIENT_ID">ODMxNjA2MjU5NjAyLWkwaXA0Zzg3aXRic3MzOHZqZnU4aTZlNGw0bWk0NW9rLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29t</string>
+    <string name="APPLICATION_GS_CLIENT_SECRET">N0x2RFNXaTFyTXIwdk91aVZnUWsydTI5</string>
+    <string name="APPLICATION_GS_TOKEN">MS9YazNJNjBZb0VxMWlLZEU3MUgzS3JGSjZpd29OZWpZNlRsOWh5b2FSUTZF</string>
+    <string name="APPLICATION_GS_BUCKET">YW5kcm9pZC1kaWdpLXNzaGQtcmVwb3J0</string>
+
 </resources>

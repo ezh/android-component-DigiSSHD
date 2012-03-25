@@ -18,7 +18,7 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
@@ -29,5 +29,44 @@
         android:layout_width="fill_parent"
         android:layout_height="fill_parent" >
     </ListView>
+
+    <LinearLayout
+        android:id="@id/android:empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical" >
+
+        <include
+            android:id="@+id/nodata_header_interfacefilter"
+            layout="@layout/header" />
+
+        <include
+            android:id="@+id/nodata_text_interfacefilter"
+            layout="@layout/advanced_list_item" />
+
+        <include
+            android:id="@+id/nodata_header_option"
+            layout="@layout/header" />
+
+        <include
+            android:id="@+id/nodata_text_option"
+            layout="@layout/advanced_list_item" />
+
+        <include
+            android:id="@+id/nodata_header_serviceenvironment"
+            layout="@layout/header" />
+
+        <include
+            android:id="@+id/nodata_text_serviceenvironment"
+            layout="@layout/advanced_list_item" />
+
+        <include
+            android:id="@+id/nodata_header_servicesoftware"
+            layout="@layout/header" />
+
+        <include
+            android:id="@+id/nodata_text_servicesoftware"
+            layout="@layout/advanced_list_item" />
+    </LinearLayout>
 
 </LinearLayout>

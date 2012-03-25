@@ -30,29 +30,32 @@ import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.sshd.R
 import com.commonsware.cwac.merge.MergeAdapter
+import android.app.Activity
+import scala.ref.WeakReference
 
-class OptionUI(context: org.digimead.digi.ctrl.sshd.session.TabActivity) {
+class OptionBlock(context: Activity) {
+  implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
   private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
-    OptionUI.Item(DOption.CommConfirmation, context),
-    OptionUI.Item(DOption.CommWriteLog, context))
-  private val adapter = new OptionUI.Adapter(context, options)
+    OptionBlock.Item(DOption.CommConfirmation, context),
+    OptionBlock.Item(DOption.CommWriteLog, context))
+  private val adapter = new OptionBlock.Adapter(context, options)
   def appendTo(adapter: MergeAdapter) {
     header.setText(context.getString(R.string.comm_option_block))
     adapter.addView(header)
     adapter.addAdapter(this.adapter)
   }
   @Loggable
-  def onListItemClick(item: OptionUI.Item) = {
+  def onListItemClick(item: OptionBlock.Item) = {
     /*    val i = new Intent(Intent.ACTION_VIEW);
     i.setData(Uri.parse(item.link.toString()))
     ctx.startActivity(i)*/
   }
 }
 
-object OptionUI {
+object OptionBlock {
   case class Item(option: DOption.OptVal, ctx: Context)
-  class Adapter(context: org.digimead.digi.ctrl.sshd.session.TabActivity, values: Seq[Item])
+  class Adapter(context: Activity, values: Seq[Item])
     extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_multiple_choice, android.R.id.text1) {
     values.foreach(add(_))
     context.runOnUiThread(new Runnable { def run = notifyDataSetChanged() })

@@ -23,7 +23,7 @@ package org.digimead.digi.ctrl.sshd.info
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.block.Support
+import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
@@ -41,10 +41,10 @@ import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
 
-class Interface(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[Interface.Item] with Logging {
+class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  protected val items = Seq(Interface.Item(null, null)) // null is "pending..." item, handled at InterfaceAdapter
-  private lazy val adapter = new Interface.Adapter(context, () => { items })
+  protected val items = Seq(InterfaceBlock.Item(null, null)) // null is "pending..." item, handled at InterfaceAdapter
+  private lazy val adapter = new InterfaceBlock.Adapter(context, () => { items })
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
@@ -53,7 +53,7 @@ class Interface(val context: Activity)(implicit @transient val dispatcher: Dispa
     mergeAdapter.addAdapter(adapter)
   }
   @Loggable
-  def onListItemClick(l: ListView, v: View, item: Interface.Item) = {
+  def onListItemClick(l: ListView, v: View, item: InterfaceBlock.Item) = {
     /*    item match {
       case this.itemProject => // jump to project
         log.debug("open project web site at " + projectUri)
@@ -97,7 +97,7 @@ class Interface(val context: Activity)(implicit @transient val dispatcher: Dispa
     }*/
   }
   @Loggable
-  def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: Support.Item) {
+  def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SupportBlock.Item) {
     log.debug("create context menu for " + item.name)
     /*    menu.setHeaderTitle(Android.getString(context, "context_menu").getOrElse("Context Menu"))
     //inner.icon(this).map(menu.setHeaderIcon(_))
@@ -107,7 +107,7 @@ class Interface(val context: Activity)(implicit @transient val dispatcher: Dispa
       Android.getString(context, "block_support_skype_call").getOrElse("Skype call"))*/
   }
   @Loggable
-  def onContextItemSelected(menuItem: MenuItem, item: Support.Item): Boolean = {
+  def onContextItemSelected(menuItem: MenuItem, item: SupportBlock.Item): Boolean = {
     /*    menuItem.getItemId match {
       case id if id == Android.getId(context, "block_support_voice_call") =>
         log.debug("start voice call to " + voicePhone)
@@ -141,7 +141,7 @@ class Interface(val context: Activity)(implicit @transient val dispatcher: Dispa
   }
 }
 
-object Interface {
+object InterfaceBlock {
   /*  private val name = "name"
   private val description = "description"
   sealed case class Item(id: Int)(val name: String, val description: String, val icon: String = "") extends Block.Item
@@ -187,10 +187,10 @@ object Interface {
   case class Item(val value: String, val status: Option[Boolean]) extends Block.Item {
     override def toString() = value
   }
-  class Adapter(context: Activity, values: () => Seq[Interface.Item],
+  class Adapter(context: Activity, values: () => Seq[InterfaceBlock.Item],
     private val resource: Int = android.R.layout.simple_list_item_1,
     private val fieldId: Int = android.R.id.text1)
-    extends ArrayAdapter[Interface.Item](context, resource, fieldId) {
+    extends ArrayAdapter[InterfaceBlock.Item](context, resource, fieldId) {
     private lazy val icActive = context.getResources().getDrawable(R.drawable.ic_button_plus)
     private lazy val icPassive = context.getResources().getDrawable(R.drawable.ic_tab_session_selected)
     private lazy val icUnused = context.getResources().getDrawable(R.drawable.ic_tab_info_unselected)
@@ -201,13 +201,13 @@ object Interface {
       val item = getItem(position)
       text.setCompoundDrawablePadding(10)
       item match {
-        case Interface.Item(null, null) =>
+        case InterfaceBlock.Item(null, null) =>
           text.setText(context.getString(R.string.pending))
-        case Interface.Item(_, Some(true)) =>
+        case InterfaceBlock.Item(_, Some(true)) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icActive, null, null, null)
-        case Interface.Item(_, Some(false)) =>
+        case InterfaceBlock.Item(_, Some(false)) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icPassive, null, null, null)
-        case Interface.Item(_, None) =>
+        case InterfaceBlock.Item(_, None) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icUnused, null, null, null)
       }
       view

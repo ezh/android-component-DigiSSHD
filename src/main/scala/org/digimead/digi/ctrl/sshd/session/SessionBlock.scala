@@ -40,8 +40,15 @@ import org.digimead.digi.ctrl.sshd.R
 import scala.actors.Futures.future
 import scala.ref.WeakReference
 import com.commonsware.cwac.merge.MergeAdapter
+import android.app.Activity
+import org.digimead.digi.ctrl.sshd.SSHDActivity
+import scala.concurrent.SyncVar
+import android.text.Html
+import org.digimead.digi.ctrl.lib.util.Android
+import android.widget.LinearLayout
 
-class SessionUI(context: org.digimead.digi.ctrl.sshd.session.TabActivity) extends Logging {
+class SessionBlock(context: Activity) extends Logging {
+  implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
   private val updateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = {
       if (intent.getData.getAuthority == DConstant.SessionAuthority) {
@@ -50,13 +57,20 @@ class SessionUI(context: org.digimead.digi.ctrl.sshd.session.TabActivity) extend
       }
     }
   }
-  private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
-  private lazy val adapter = new SessionAdapter(context, R.layout.session_item)
+  private val header = context.getLayoutInflater.inflate(R.layout.session_header, null).asInstanceOf[LinearLayout]
+  private val adapter = {
+    val result: SyncVar[SessionAdapter] = new SyncVar
+    context.runOnUiThread(new Runnable { def run = result.set(new SessionAdapter(context, R.layout.session_item)) })
+    result.get
+  }
   private lazy val inflater = LayoutInflater.from(context)
   private var applyButton = new WeakReference[Button](null)
   private var cancelButton = new WeakReference[Button](null)
   def appendTo(adapter: MergeAdapter) {
-    header.setText(context.getString(R.string.comm_session_block))
+    val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
+    headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
+    if (this.adapter.isEmpty)
+      header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
     adapter.addView(header)
     adapter.addAdapter(this.adapter)
   }
@@ -89,9 +103,6 @@ class SessionUI(context: org.digimead.digi.ctrl.sshd.session.TabActivity) extend
       }
     })
   }
-}
-
-object SessionUI {
 }
 
 /*

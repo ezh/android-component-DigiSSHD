@@ -48,25 +48,43 @@ import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.declaration.DPreference
+import android.text.Html
+import scala.ref.WeakReference
+import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 class TabActivity extends ListActivity with Logging {
-  private[service] val adapter = new MergeAdapter()
-  private lazy val interfaceAdapter = new ArrayAdapter[TabActivity.InterfaceItem](this, android.R.layout.simple_list_item_checked, new ArrayList[TabActivity.InterfaceItem]())
-  private[service] lazy val lv = getListView()
+  private[service] lazy val lv = new WeakReference(getListView())
   private var interfaceRemoveButton: Button = null
-  private var uiSoftware: SWUI = null
-  private var uiOptions: OPTUI = null
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.service)
-    buildUIInterfaces(adapter)
-    uiOptions = new OPTUI(this)
-    buildUIEnvironment(adapter)
-    uiSoftware = new SWUI(this)
+    TabActivity.activity = Some(this)
+
+    // prepare empty view
+    // interfaceFilters
+    val interfaceFiltersHeader = findViewById(Android.getId(this, "nodata_header_interfacefilter")).asInstanceOf[TextView]
+    interfaceFiltersHeader.setText(Html.fromHtml(Android.getString(this, "block_interfacefilter_title").getOrElse("interface filters")))
+    // options
+    val optionsHeader = findViewById(Android.getId(this, "nodata_header_option")).asInstanceOf[TextView]
+    optionsHeader.setText(Html.fromHtml(Android.getString(this, "block_option_title").getOrElse("options")))
+    // serviceEnvironment
+    val serviceEnvironmentHeader = findViewById(Android.getId(this, "nodata_header_serviceenvironment")).asInstanceOf[TextView]
+    serviceEnvironmentHeader.setText(Html.fromHtml(Android.getString(this, "block_serviceenvironment_title").getOrElse("environment")))
+    // serviceSoftware
+    val serviceSoftwareHeader = findViewById(Android.getId(this, "nodata_header_servicesoftware")).asInstanceOf[TextView]
+    serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(this, "block_servicesoftware_title").getOrElse("software")))
+    // prepare active view
     setListAdapter(adapter)
     getListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE)
-    updateButtonState()
+    /*    AppActivity.LazyInit("initialize service adapter") {
+      buildUIInterfaces(adapter)
+      uiOptions = new OPTUI(this)
+      buildUIEnvironment(adapter)
+      uiSoftware = new SWUI(this)
+      updateButtonState()
+    }*/
+    TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
   @Loggable
   def buildUIInterfaces(adapter: MergeAdapter) {
@@ -99,7 +117,7 @@ class TabActivity extends ListActivity with Logging {
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
     adapter.getItem(position) match {
       case interfaceItem: TabActivity.InterfaceItem =>
-        lv.isItemChecked(position) match {
+        l.isItemChecked(position) match {
           case true =>
             interfaceItem.state = true
             Toast.makeText(this, getString(R.string.service_filter_enabled).format(interfaceItem), DConstant.toastTimeout).show()
@@ -185,9 +203,35 @@ class TabActivity extends ListActivity with Logging {
   }
 }
 
-object TabActivity {
+object TabActivity extends Logging {
+  @volatile private[service] var adapter: Option[MergeAdapter] = None
+  @volatile private var interfaceAdapter: Option[ArrayAdapter[InterfaceItem]] = None
+  @volatile private var filterBlock: Option[FilterBlock] = None
+  @volatile private var optionBlock: Option[OptionBlock] = None
+  @volatile private var environmentBlock: Option[EnvironmentBlock] = None
+  @volatile private var stateBlock: Option[StateBlock] = None
   val FILTER_REQUEST = 10000
   val DIALOG_FILTER_REMOVE_ID = 0
+  def addLazyInit = AppActivity.LazyInit("initialize session adapter") {
+    SSHDActivity.activity match {
+      case Some(activity) =>
+        adapter = Some(new MergeAdapter())
+        interfaceAdapter = Some(new ArrayAdapter[InterfaceItem](activity, android.R.layout.simple_list_item_checked, new ArrayList[InterfaceItem]()))
+        optionBlock = Some(new OptionBlock(activity))
+        sessionBlock = Some(new SessionBlock(activity))
+        for {
+          adapter <- adapter
+          optionBlock <- optionBlock
+          sessionBlock <- sessionBlock
+        } {
+          optionBlock appendTo (adapter)
+          sessionBlock appendTo (adapter)
+          TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+        }
+      case None =>
+        log.fatal("lost SSHDActivity context")
+    }
+  }
   case class InterfaceItem(_value: String, var _state: Boolean, _context: Context) {
     override def toString() =
       if (_value != null)
