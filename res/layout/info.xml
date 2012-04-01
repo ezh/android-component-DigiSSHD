@@ -42,7 +42,7 @@
 
         <include
             android:id="@+id/nodata_text_interface"
-            layout="@layout/advanced_list_item" />
+            layout="@layout/block_list_item" />
 
         <include
             android:id="@+id/nodata_header_community"
@@ -50,7 +50,7 @@
 
         <include
             android:id="@+id/nodata_text_community"
-            layout="@layout/advanced_list_item" />
+            layout="@layout/block_list_item" />
 
         <include
             android:id="@+id/nodata_header_support"
@@ -58,7 +58,7 @@
 
         <include
             android:id="@+id/nodata_text_support"
-            layout="@layout/advanced_list_item" />
+            layout="@layout/block_list_item" />
 
         <include
             android:id="@+id/nodata_header_legal"
@@ -66,7 +66,7 @@
 
         <include
             android:id="@+id/nodata_text_legal"
-            layout="@layout/advanced_list_item" />
+            layout="@layout/block_list_item" />
     </LinearLayout>
 
 </LinearLayout>

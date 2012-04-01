@@ -26,10 +26,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.Locale
 
 import scala.actors.Futures.future
 import scala.actors.Actor
-import scala.ref.WeakReference
 import scala.util.Random
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -44,11 +44,11 @@ import org.digimead.digi.ctrl.lib.declaration.DMessage
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
 import org.digimead.digi.ctrl.lib.dialog.Report
+import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.Activity
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabActivity
@@ -65,11 +65,15 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
+import android.text.util.Linkify
 import android.text.Html
+import android.view.ViewGroup.LayoutParams
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.TabHost.OnTabChangeListener
+import android.widget.ScrollView
 import android.widget.TabHost
 import android.widget.TextView
 import android.widget.ToggleButton
@@ -132,6 +136,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     SSHDActivity.addLazyInit
     info.TabActivity.addLazyInit
     session.TabActivity.addLazyInit
+    service.TabActivity.addLazyInit
   }
   @Loggable
   override def onStart() {
@@ -208,6 +213,18 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }*/
   }
   @Loggable
+  def onClickServiceFilterAdd(v: View) =
+    service.TabActivity.getActivity.foreach(_.onClickServiceFilterAdd(v))
+  @Loggable
+  def onClickServiceFilterRemove(v: View) =
+    service.TabActivity.getActivity.foreach(_.onClickServiceFilterRemove(v))
+  @Loggable
+  def onClickServiceReinstall(v: View) =
+    service.TabActivity.getActivity.foreach(_.onClickServiceReinstall(v))
+  @Loggable
+  def onClickServiceReset(v: View) =
+    service.TabActivity.getActivity.foreach(_.onClickServiceReset(v))
+  @Loggable
   def onStatusClick(v: View) = {
     AppActivity.Inner.state.get.onClickCallback match {
       case cb: Function0[_] => cb()
@@ -279,17 +296,53 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         super.onOptionsItemSelected(item)
     }
   @Loggable
-  override def onCreateDialog(id: Int): Dialog = {
-    Option(Common.onCreateDialog(id, this)).foreach(dialog => return dialog)
+  override def onCreateDialog(id: Int, args: Bundle): Dialog = {
     id match {
+      case id if id == Android.getId(this, "dialog_ComponentInfo") =>
+        val container = new ScrollView(this)
+        val message = new TextView(this)
+        container.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        message.setMovementMethod(LinkMovementMethod.getInstance())
+        message.setId(Int.MaxValue)
+        new AlertDialog.Builder(this).
+          setTitle(R.string.dialog_component_info_title).
+          setView(container).
+          setPositiveButton(android.R.string.ok, null).
+          setIcon(R.drawable.ic_launcher).
+          create()
       case id =>
         super.onCreateDialog(id)
     }
+  }
+  @Loggable
+  override def onPrepareDialog(id: Int, dialog: Dialog, args: Bundle) = {
+    id match {
+      case id if id == Android.getId(this, "dialog_ComponentInfo") =>
+        val message = dialog.findViewById(Int.MaxValue).asInstanceOf[TextView]
+        val info = args.getParcelable("info").asInstanceOf[ExecutableInfo]
+        val env = info.env.mkString("""<br/>""")
+        val s = Android.getString(this, "dialog_component_info_message").get.format(info.name,
+          info.description,
+          info.project,
+          info.license,
+          info.version,
+          info.state,
+          info.port.getOrElse("-"),
+          info.commandLine.map(_.mkString(" ")).getOrElse("-"),
+          if (env.nonEmpty) env else "-")
+        Linkify.addLinks(message, Linkify.ALL)
+        message.setText(Html.fromHtml(s))
+      case id =>
+    }
+    super.onPrepareDialog(id, dialog, args)
   }
 }
 
 object SSHDActivity extends Actor with Logging {
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
+  lazy val info = AppActivity.Inner.getCachedComponentInfo(locale, localeLanguage).get
+  val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
+  val localeLanguage = Locale.getDefault().getLanguage()
   @volatile private var focused = false
   @volatile private var consistent = false
   // null - empty, None - dialog upcoming, Some - dialog in progress
@@ -359,7 +412,7 @@ object SSHDActivity extends Actor with Logging {
       case None =>
         AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
         future {
-          val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder not implemented ;-)")
+          val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
           busyBuffer = Seq(message)
           for (i <- 1 until busySize) addDataToBusyBuffer
           busyDialog.set(activity.showDialogSafe[ProgressDialog](() =>

@@ -18,8 +18,8 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
- <resources>
+-->
+<resources>
 
     <style name="listSeparatorTextViewStyle" parent="@android:attr/listSeparatorTextViewStyle">
         <item name="android:layout_height">wrap_content</item>
@@ -71,7 +71,7 @@
     </style>
 
     <style name="ButtonNormalText" parent="@android:style/Widget.Button">
-        <item name="android:textColor">@color/black</item>
+        <item name="android:textColor">@android:color/secondary_text_dark</item>
         <item name="android:textSize">12dip</item>
         <item name="android:textStyle">bold</item>
         <!-- <item name="android:height">44dip</item> -->
@@ -84,6 +84,10 @@
     <style name="ButtonNormalTextWithIcon" parent="ButtonNormalText">
         <item name="android:drawableTop">@drawable/ic_on</item>
         <!-- <item name="android:drawableLeft">@drawable/ic_on</item> -->
+    </style>
+
+    <style name="HeaderWithDivider">
+        <item name="android:background">@drawable/divider</item>
     </style>
 
 </resources>

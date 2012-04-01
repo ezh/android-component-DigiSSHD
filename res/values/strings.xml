@@ -36,7 +36,7 @@
     <string name="service_interfaces">listener interface filters</string>
     <string name="service_options">options</string>
     <string name="pending">pending…</string>
-    <string name="all">allow all</string>
+    <string name="allow_all">any interface</string>
     <string name="interface1">interface</string>
     <string name="ip1">ip1</string>
     <string name="ip2">ip2</string>
@@ -53,11 +53,14 @@
     <string name="service_filter_exists">selection %1$s already exists</string>
     <string name="service_filter_illegal">not possible; please, remove all filter at options tab instead</string>
     <string name="service_filter_apply">apply %1$s new filter(s) to interface listener</string>
-    <string name="service_interfaces_add">add</string>
-    <string name="service_interfaces_remove">remove</string>
+    <string name="service_interface_filters_add">add</string>
+    <string name="service_interface_filters_remove">remove</string>
     <string name="service_filter_enabled">filter %1$s enabled</string>
     <string name="service_filter_disabled">filter %1$s disabled</string>
+    <string name="service_filter_enabled_all">all interfaces enabled</string>
+    <string name="service_filter_disabled_all">all interfaces disabled</string>
     <string name="service_filter_error_select">please select filter</string>
+    <string name="service_filter_unable_remove">unable to remove last filter</string>
     <string name="service_environment">service_environment</string>
     <string name="service_software">service_software</string>
     <string name="service_environment_reinstall">service_environment_reinstall</string>
@@ -78,9 +81,25 @@
     <string name="dialog_help_message">long tap for context menu</string>
     <string name="dialog_exit_title">Exit</string>
     <string name="dialog_exit_message">Do you want to exit?</string>
+    <string name="dialog_root_title">Access Permission</string>
+    <string name="dialog_root_message">Are you sure you want to grant superuser permission to native components?\n\nPlease note that your software must support this function. This option is ignored if you have a firmware with limited functionality.</string>
+    <string name="dialog_component_info_title">Component information</string>
+    <string name="dialog_component_info_message">component: &lt;font color=\'white\'>%1$s&lt;/font> &lt;br/>
+        description: &lt;font color=\'white\'>%2$s&lt;/font> &lt;br/>
+          project: &lt;font color=\'white\'>%3$s&lt;/font> &lt;br/>
+          license: &lt;font color=\'white\'>%4$s&lt;/font> &lt;br/>
+          version: &lt;font color=\'white\'>%5$s&lt;/font> &lt;br/>
+          state: &lt;font color=\'white\'>%6$s&lt;/font> &lt;br/>
+         port: &lt;font color=\'white\'>%7$s&lt;/font> &lt;br/>
+           command line: &lt;font color=\'white\'>%8$s&lt;/font> &lt;br/>
+           environment: &lt;font color=\'white\'>%9$s&lt;/font></string>
     <string name="APPLICATION_GS_CLIENT_ID">ODMxNjA2MjU5NjAyLWkwaXA0Zzg3aXRic3MzOHZqZnU4aTZlNGw0bWk0NW9rLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29t</string>
     <string name="APPLICATION_GS_CLIENT_SECRET">N0x2RFNXaTFyTXIwdk91aVZnUWsydTI5</string>
     <string name="APPLICATION_GS_TOKEN">MS9YazNJNjBZb0VxMWlLZEU3MUgzS3JGSjZpd29OZWpZNlRsOWh5b2FSUTZF</string>
     <string name="APPLICATION_GS_BUCKET">YW5kcm9pZC1kaWdpLXNzaGQtcmVwb3J0</string>
+    <string name="option_as_root_name">grant superuser permission</string>
+    <string name="option_as_root_description">run components under root account</string>
+    <string name="service_environment_reinstall">reinstall components</string>
+    <string name="service_environment_reset">reset to default</string>
 
 </resources>

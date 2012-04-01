@@ -22,9 +22,15 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
-import org.slf4j.LoggerFactory
+
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
@@ -43,17 +49,11 @@ import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 class FilterAddActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = new FilterAddAdapter(this, () => {
-    val alreadyInUse = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
+    val alreadyInUse = getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll().map(t => t._1).toSeq
     predefinedFilters().diff(alreadyInUse) // drop "already in use" values
   })
   private lazy val inflater = getLayoutInflater()
@@ -217,7 +217,7 @@ class FilterAddActivity extends ListActivity with Logging {
   }
   @Loggable
   private def onSubmit() = {
-    val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
+    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.putBoolean(filter, true))
     editor.commit()

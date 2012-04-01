@@ -66,9 +66,9 @@ object SSHDService extends Logging {
   else
     Logging.addLogger(FileLogger)
   log.debug("alive")
-  
+
   @Loggable
-  def getExecutableEnvironments(workdir: String): Seq[ExecutableInfo] = try {
+  def getExecutableInfo(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
       appNativePath <- AppActivity.Inner.appNativePath
@@ -172,7 +172,7 @@ object SSHDService extends Logging {
     } getOrElse false
     @Loggable(result = false)
     def executable(id: Int, workdir: String): ExecutableInfo =
-      SSHDService.getExecutableEnvironments(workdir).find(_.id == id).getOrElse(null)
+      SSHDService.getExecutableInfo(workdir).find(_.id == id).getOrElse(null)
     @Loggable(result = false)
     def post(id: Int, workdir: String): Boolean = {
       log.debug("post(...)")

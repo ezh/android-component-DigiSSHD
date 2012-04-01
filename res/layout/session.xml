@@ -42,7 +42,7 @@
 
         <include
             android:id="@+id/nodata_text_option"
-            layout="@layout/advanced_list_item" />
+            layout="@layout/block_list_item" />
 
         <include
             android:id="@+id/nodata_header_session"
@@ -50,7 +50,7 @@
 
         <include
             android:id="@+id/nodata_text_session"
-            layout="@layout/advanced_list_item" />
+            layout="@layout/block_list_item" />
     </LinearLayout>
 
 </LinearLayout>

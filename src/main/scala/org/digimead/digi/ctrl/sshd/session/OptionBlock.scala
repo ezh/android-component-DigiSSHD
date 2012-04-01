@@ -37,8 +37,8 @@ class OptionBlock(context: Activity) {
   implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
   private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val options = Seq(
-    OptionBlock.Item(DOption.CommConfirmation, context),
-    OptionBlock.Item(DOption.CommWriteLog, context))
+    OptionBlock.Item(DOption.ConfirmConn, context),
+    OptionBlock.Item(DOption.WriteConnLog, context))
   private val adapter = new OptionBlock.Adapter(context, options)
   def appendTo(adapter: MergeAdapter) {
     header.setText(context.getString(R.string.comm_option_block))

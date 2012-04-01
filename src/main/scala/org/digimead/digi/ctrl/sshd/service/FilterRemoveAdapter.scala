@@ -21,8 +21,10 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
+import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
-import org.slf4j.LoggerFactory
+
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -30,8 +32,6 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.declaration.DConstant
 
 class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemoveActivity.FilterItem],
   private val resource: Int = android.R.layout.simple_list_item_1,

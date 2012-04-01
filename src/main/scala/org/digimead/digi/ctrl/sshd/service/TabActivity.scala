@@ -21,36 +21,33 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
-import java.util.ArrayList
-import scala.collection.JavaConversions._
+import scala.ref.WeakReference
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.declaration.DMessage.IAmMumble
+import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.slf4j.LoggerFactory
+import org.digimead.digi.ctrl.sshd.SSHDActivity
+
 import com.commonsware.cwac.merge.MergeAdapter
+
 import android.app.Activity
 import android.app.ListActivity
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.Html
+import android.view.ContextMenu
+import android.view.MenuItem
 import android.view.View
-import android.widget.ArrayAdapter
+import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.ListView
-import android.widget.TableLayout
 import android.widget.TextView
 import android.widget.Toast
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.sshd.service.software.{ UI => SWUI }
-import org.digimead.digi.ctrl.sshd.service.options.{ UI => OPTUI }
-import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import android.text.Html
-import scala.ref.WeakReference
-import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 class TabActivity extends ListActivity with Logging {
   private[service] lazy val lv = new WeakReference(getListView())
@@ -75,84 +72,102 @@ class TabActivity extends ListActivity with Logging {
     val serviceSoftwareHeader = findViewById(Android.getId(this, "nodata_header_servicesoftware")).asInstanceOf[TextView]
     serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(this, "block_servicesoftware_title").getOrElse("software")))
     // prepare active view
-    setListAdapter(adapter)
-    getListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE)
-    /*    AppActivity.LazyInit("initialize service adapter") {
-      buildUIInterfaces(adapter)
-      uiOptions = new OPTUI(this)
-      buildUIEnvironment(adapter)
-      uiSoftware = new SWUI(this)
-      updateButtonState()
-    }*/
+    getListView.setChoiceMode(ListView.CHOICE_MODE_NONE)
+    val lv = getListView()
+    registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
   @Loggable
-  def buildUIInterfaces(adapter: MergeAdapter) {
-    val header = getLayoutInflater.inflate(R.layout.service_interface_header, getListView(), false).asInstanceOf[LinearLayout]
-    interfaceRemoveButton = header.findViewById(R.id.service_interface_remove).asInstanceOf[Button]
-    // TODO add context menu
-    adapter.addView(header)
-    adapter.addAdapter(interfaceAdapter)
-    updateInterfaceAdapter()
-  }
-  @Loggable
-  def buildUIOptions(adapter: MergeAdapter) {
-    val header = getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
-    header.setText(getString(R.string.service_options))
-    adapter.addView(header)
-  }
-  @Loggable
-  def buildUIEnvironment(adapter: MergeAdapter) {
-    val header = getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
-    header.setText(getString(R.string.service_environment))
-    val tableview = getLayoutInflater.inflate(R.layout.service_environment, null).asInstanceOf[TableLayout]
-    adapter.addView(header)
-    adapter.addView(tableview)
-  }
-  @Loggable
-  def buildUISoftware(adapter: MergeAdapter) {
-
-  }
-  @Loggable
-  override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
+  override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
+    adapter <- TabActivity.adapter
+    filterBlock <- TabActivity.filterBlock
+    optionBlock <- TabActivity.optionBlock
+    environmentBlock <- TabActivity.environmentBlock
+    componentBlock <- TabActivity.componentBlock
+  } {
     adapter.getItem(position) match {
-      case interfaceItem: TabActivity.InterfaceItem =>
-        l.isItemChecked(position) match {
-          case true =>
-            interfaceItem.state = true
-            Toast.makeText(this, getString(R.string.service_filter_enabled).format(interfaceItem), DConstant.toastTimeout).show()
-          case false =>
-            interfaceItem.state = false
-            Toast.makeText(this, getString(R.string.service_filter_disabled).format(interfaceItem), DConstant.toastTimeout).show()
+      case filterItem: FilterBlock.Item =>
+        TabActivity.filterBlock.foreach(_.onListItemClick(l, v, filterItem))
+      case optionItem: OptionBlock.Item =>
+        TabActivity.optionBlock.foreach(_.onListItemClick(l, v, optionItem))
+      case componentItem: ComponentBlock.Item =>
+        TabActivity.componentBlock.foreach(_.onListItemClick(l, v, componentItem))
+      case item =>
+        log.fatal("unknown item " + item + " at " + position)
+    }
+  }
+  @Loggable
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = for {
+    adapter <- TabActivity.adapter
+    filterBlock <- TabActivity.filterBlock
+    optionBlock <- TabActivity.optionBlock
+    environmentBlock <- TabActivity.environmentBlock
+    componentBlock <- TabActivity.componentBlock
+  } {
+    super.onCreateContextMenu(menu, v, menuInfo)
+    menuInfo match {
+      case info: AdapterContextMenuInfo =>
+        adapter.getItem(info.position) match {
+          case item: FilterBlock.Item =>
+            filterBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case item: OptionBlock.Item =>
+            optionBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case item: EnvironmentBlock.Item =>
+            environmentBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case item: ComponentBlock.Item =>
+            componentBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case item =>
+            log.fatal("unknown item " + item)
         }
-      case item: software.UI.Item =>
-        uiSoftware.onListItemClick(item)
-      case _ =>
+      case info =>
+        log.fatal("unsupported menu info " + info)
     }
   }
   @Loggable
-  override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) = {
-    // enable child elements(buttons) focus
-    for (i <- 0 until lv.getChildCount())
-      lv.getChildAt(i).requestFocusFromTouch()
-    resultCode match {
-      case Activity.RESULT_OK if requestCode == TabActivity.FILTER_REQUEST =>
-        updateInterfaceAdapter()
-        updateButtonState()
-      case _ =>
+  override def onContextItemSelected(menuItem: MenuItem): Boolean = {
+    for {
+      adapter <- TabActivity.adapter
+      filterBlock <- TabActivity.filterBlock
+      optionBlock <- TabActivity.optionBlock
+      environmentBlock <- TabActivity.environmentBlock
+      componentBlock <- TabActivity.componentBlock
+    } yield {
+      val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
+      adapter.getItem(info.position) match {
+        case item: FilterBlock.Item =>
+          filterBlock.onContextItemSelected(menuItem, item)
+        case item: OptionBlock.Item =>
+          optionBlock.onContextItemSelected(menuItem, item)
+        case item: EnvironmentBlock.Item =>
+          environmentBlock.onContextItemSelected(menuItem, item)
+        case item: ComponentBlock.Item =>
+          componentBlock.onContextItemSelected(menuItem, item)
+        case item =>
+          log.fatal("unknown item " + item)
+          false
+      }
     }
+  } getOrElse false
+  @Loggable
+  override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) = TabActivity.filterBlock.foreach {
+    filterBlock =>
+      if (resultCode == Activity.RESULT_OK && requestCode == TabActivity.FILTER_REQUEST)
+        filterBlock.updateCursor
   }
   @Loggable
-  def onFilterAdd(v: View) = {
+  def onClickServiceFilterAdd(v: View) =
     startActivityForResult(new Intent(this, classOf[FilterAddActivity]), TabActivity.FILTER_REQUEST)
+  @Loggable
+  def onClickServiceFilterRemove(v: View) = TabActivity.filterBlock.foreach {
+    filterBlock =>
+      if (filterBlock.isEmpty)
+        Toast.makeText(this, getString(R.string.service_filter_unable_remove), DConstant.toastTimeout).show()
+      else
+        startActivityForResult(new Intent(this, classOf[FilterRemoveActivity]), TabActivity.FILTER_REQUEST)
   }
   @Loggable
-  def onFilterRemove(v: View) = {
-    startActivityForResult(new Intent(this, classOf[FilterRemoveActivity]), TabActivity.FILTER_REQUEST)
-  }
-  @Loggable
-  def onClickReInstall(v: View) = {
-    log.info("reinstall files/force prepare evironment")
+  def onClickServiceReinstall(v: View) = {
+    IAmMumble("reinstall files/force prepare evironment")
     Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
     AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
       runOnUiThread(new Runnable() {
@@ -162,93 +177,44 @@ class TabActivity extends ListActivity with Logging {
       }))
   }
   @Loggable
-  def onClickCopyToClipboard(v: View) = {
-    log.info("copy path of prepared files to clipboard")
-    Common.copyPreparedFilesToClipboard(this)
-  }
-  @Loggable
-  private def updateInterfaceAdapter() = {
-    val pref = getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
-    val values = pref.getAll().toSeq.map(t => (t._1, t._2.asInstanceOf[Boolean])).sorted
-    interfaceAdapter.clear()
-    if (values.nonEmpty)
-      values.foreach(t => interfaceAdapter.add(TabActivity.InterfaceItem(t._1, t._2, this)))
-    else
-      interfaceAdapter.add(TabActivity.InterfaceItem(null, true, this))
-    lv.post(new Runnable {
-      def run = {
-        interfaceAdapter.notifyDataSetChanged()
-        var pos = 1
-        if (values.nonEmpty)
-          for (t <- values) {
-            if (t._2)
-              lv.setItemChecked(pos, true)
-            pos += 1
-          }
-        else
-          lv.setItemChecked(pos, true) // all interfaces always checked
-      }
-    })
-  }
-  @Loggable
-  private def updateButtonState() = {
-    lv.post(new Runnable {
-      def run = {
-        if (AppActivity.Inner.filters().isEmpty)
-          interfaceRemoveButton.setEnabled(false)
-        else
-          interfaceRemoveButton.setEnabled(true)
-      }
-    })
+  def onClickServiceReset(v: View) = {
+    IAmMumble("reset settings")
   }
 }
 
 object TabActivity extends Logging {
+  @volatile private[service] var activity: Option[TabActivity] = None
   @volatile private[service] var adapter: Option[MergeAdapter] = None
-  @volatile private var interfaceAdapter: Option[ArrayAdapter[InterfaceItem]] = None
   @volatile private var filterBlock: Option[FilterBlock] = None
   @volatile private var optionBlock: Option[OptionBlock] = None
   @volatile private var environmentBlock: Option[EnvironmentBlock] = None
-  @volatile private var stateBlock: Option[StateBlock] = None
+  @volatile private var componentBlock: Option[ComponentBlock] = None
   val FILTER_REQUEST = 10000
   val DIALOG_FILTER_REMOVE_ID = 0
-  def addLazyInit = AppActivity.LazyInit("initialize session adapter") {
+  def addLazyInit = AppActivity.LazyInit("initialize service adapter") {
     SSHDActivity.activity match {
       case Some(activity) =>
         adapter = Some(new MergeAdapter())
-        interfaceAdapter = Some(new ArrayAdapter[InterfaceItem](activity, android.R.layout.simple_list_item_checked, new ArrayList[InterfaceItem]()))
+        filterBlock = Some(new FilterBlock(activity))
         optionBlock = Some(new OptionBlock(activity))
-        sessionBlock = Some(new SessionBlock(activity))
+        environmentBlock = Some(new EnvironmentBlock(activity))
+        componentBlock = Some(new ComponentBlock(activity))
         for {
           adapter <- adapter
+          filterBlock <- filterBlock
           optionBlock <- optionBlock
-          sessionBlock <- sessionBlock
+          environmentBlock <- environmentBlock
+          componentBlock <- componentBlock
         } {
+          filterBlock appendTo (adapter)
           optionBlock appendTo (adapter)
-          sessionBlock appendTo (adapter)
+          environmentBlock appendTo (adapter)
+          componentBlock appendTo (adapter)
           TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
         }
       case None =>
         log.fatal("lost SSHDActivity context")
     }
   }
-  case class InterfaceItem(_value: String, var _state: Boolean, _context: Context) {
-    override def toString() =
-      if (_value != null)
-        _value
-      else
-        _context.getString(R.string.all)
-    def state = _state
-    def state_=(newState: Boolean): Unit = synchronized {
-      if (_value == null)
-        return
-      if (newState != _state) {
-        _state = newState
-        val pref = _context.getSharedPreferences(DPreference.Filter, Context.MODE_PRIVATE)
-        val editor = pref.edit()
-        editor.putBoolean(_value, _state)
-        editor.commit()
-      }
-    }
-  }
+  def getActivity() = activity
 }

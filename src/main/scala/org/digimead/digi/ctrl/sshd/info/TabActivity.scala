@@ -218,18 +218,15 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   @volatile private var communityBlock: Option[CommunityBlock] = None
   @volatile private var thanksBlock: Option[ThanksBlock] = None
   @volatile private var legalBlock: Option[LegalBlock] = None
-  private lazy val info = AppActivity.Inner.getCachedComponentInfo(TabActivity.locale, TabActivity.localeLanguage).get
-  val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
-  val localeLanguage = Locale.getDefault().getLanguage()
   val DIALOG_INTERFACES_ID = 0
   def addLazyInit = AppActivity.LazyInit("initialize info adapter") {
     SSHDActivity.activity match {
       case Some(activity) =>
         adapter = Some(new MergeAdapter())
         interfaceBlock = Some(new InterfaceBlock(activity))
-        supportBlock = Some(new SupportBlock(activity, Uri.parse(info.project), Uri.parse(info.project + "/issues"),
-          info.email, info.name, "+74955185377", "ezhariur"))
-        communityBlock = Some(new CommunityBlock(activity, Uri.parse(info.project + "/wiki")))
+        supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
+          SSHDActivity.info.email, SSHDActivity.info.name, "+74955185377", "ezhariur"))
+        communityBlock = Some(new CommunityBlock(activity, Uri.parse(SSHDActivity.info.project + "/wiki")))
         thanksBlock = Some(new ThanksBlock(activity))
         legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md"))))
         for {
@@ -241,8 +238,8 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
           legalBlock <- legalBlock
         } {
           interfaceBlock appendTo (adapter)
-          supportBlock appendTo (adapter)
           communityBlock appendTo (adapter)
+          supportBlock appendTo (adapter)
           //thanksBlock appendTo (adapter)
           legalBlock appendTo (adapter)
           TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
