@@ -48,8 +48,8 @@ import android.widget.LinearLayout
 
 class EnvironmentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[EnvironmentBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(R.layout.service_environment_header, null).asInstanceOf[LinearLayout]
-  protected val items = Seq()
-  private lazy val adapter = new EnvironmentBlock.Adapter(context, android.R.layout.simple_list_item_1, items)
+  private lazy val adapter = new EnvironmentBlock.Adapter(context, android.R.layout.simple_list_item_1, Seq())
+  def items = for(i <- 0 to adapter.getCount) yield adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")

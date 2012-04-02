@@ -97,9 +97,17 @@
     <string name="APPLICATION_GS_CLIENT_SECRET">N0x2RFNXaTFyTXIwdk91aVZnUWsydTI5</string>
     <string name="APPLICATION_GS_TOKEN">MS9YazNJNjBZb0VxMWlLZEU3MUgzS3JGSjZpd29OZWpZNlRsOWh5b2FSUTZF</string>
     <string name="APPLICATION_GS_BUCKET">YW5kcm9pZC1kaWdpLXNzaGQtcmVwb3J0</string>
-    <string name="option_as_root_name">grant superuser permission</string>
-    <string name="option_as_root_description">run components under root account</string>
     <string name="service_environment_reinstall">reinstall components</string>
     <string name="service_environment_reset">reset to default</string>
+    <string name="option_as_root_name">grant superuser permission</string>
+    <string name="option_as_root_description">run components under root account</string>
+    <string name="option_confirm_connection_name">confirm connection</string>
+    <string name="option_confirm_connection_description">ask for a permission at every new session</string>
+    <string name="option_write_connection_log_name">write connection log</string>
+    <string name="option_write_connection_log_description">keep history of sessions</string>
+    <string name="legend_interface_unused"> - unused interface</string>
+    <string name="legend_interface_passive"> - passive interface</string>
+    <string name="legend_interface_active"> - active interface</string>
+    <string name="dialog_interfaces_legend_title">Interface legend</string>
 
 </resources>

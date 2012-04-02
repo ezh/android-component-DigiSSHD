@@ -28,6 +28,7 @@ import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
+import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
@@ -40,10 +41,10 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
+import android.net.Uri
 import android.text.Html
-import android.view.ContextMenu
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -53,8 +54,8 @@ import android.widget.ListView
 import android.widget.TextView
 
 class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
+  val items = Seq(OptionBlock.Item(DOption.AsRoot, DOption.AsRoot))
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  protected val items = Seq(OptionBlock.Item(DOption.AsRoot, DOption.AsRoot))
   private lazy val adapter = new OptionBlock.Adapter(context, Android.getId(context, "option_list_item_multiple_choice", "layout"), items)
   OptionBlock.block = Some(this)
   @Loggable
@@ -95,6 +96,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                       val editor = pref.edit()
                       editor.putBoolean(item.option, !lastState)
                       editor.commit()
+                      context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
                     }
                   }).
                   setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -119,6 +121,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       val editor = pref.edit()
       editor.putBoolean(item.option, !lastState)
       editor.commit()
+      context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
   }
 }
 

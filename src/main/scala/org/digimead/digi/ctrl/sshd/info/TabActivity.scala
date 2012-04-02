@@ -21,8 +21,6 @@
 
 package org.digimead.digi.ctrl.sshd.info
 
-import java.util.Locale
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.block.CommunityBlock
@@ -37,19 +35,13 @@ import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.AlertDialog
-import android.app.Dialog
 import android.app.ListActivity
-import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.text.Html
 import android.view.ContextMenu
-import android.view.ContextThemeWrapper
-import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
 import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.ListView
 import android.widget.TextView
@@ -137,27 +129,6 @@ class TabActivity extends ListActivity with Logging {
       }
     }
   } getOrElse false
-  /*  @Loggable
-  override def onResume() {
-    registerReceiver(receiver, new IntentFilter(DIntent.Update))
-    super.onResume()
-    updatedInterfaceList()
-  }
-  @Loggable
-  override def onPause() {
-    super.onPause()
-    unregisterReceiver(receiver)
-  }*/
-  @Loggable
-  def buildUIInterfaces(adapter: MergeAdapter) {
-    val header = getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
-    header.setText(getString(R.string.info_interfaces))
-    header.setOnClickListener(new View.OnClickListener() {
-      override def onClick(v: View) = showDialog(TabActivity.DIALOG_INTERFACES_ID)
-    })
-    adapter.addView(header)
-    //    adapter.addAdapter(interfaceAdapter)
-  }
   @Loggable
   override def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
     adapter <- TabActivity.adapter
@@ -177,32 +148,10 @@ class TabActivity extends ListActivity with Logging {
       case item: LegalBlock.Item =>
         legalBlock.onListItemClick(l, v, item)
       case item: InterfaceBlock.Item =>
-        showDialog(TabActivity.DIALOG_INTERFACES_ID)
+        interfaceBlock.onListItemClick(l, v, item)
       case item =>
         log.fatal("unknown item " + item)
     }
-  }
-  @Loggable
-  override def onCreateDialog(id: Int): Dialog = id match {
-    case TabActivity.DIALOG_INTERFACES_ID =>
-      val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-      val layout = inflater.inflate(R.layout.info_interfaces_dialog, null).asInstanceOf[ViewGroup]
-      val builder = new AlertDialog.Builder(new ContextThemeWrapper(this, R.style.InterfacesLegendDialog))
-      builder.setView(layout)
-      val dialog = builder.create()
-      layout.setOnClickListener(new View.OnClickListener() {
-        override def onClick(v: View) = dialog.dismiss()
-      })
-      dialog.setCanceledOnTouchOutside(true)
-      dialog
-    case id =>
-      log.error("unknown dialog id " + id)
-      null
-  }
-  @Loggable
-  private def updatedInterfaceList() = {
-    //interfaces = Common.listInterfaces().map(i => TabActivity.InterfaceItem(i, AppService.Inner.getInterfaceStatus(i, AppActivity.Inner.filters())))
-    //    runOnUiThread(new Runnable() { def run = interfaceAdapter.notifyDataSetChanged(true) })
   }
 }
 
@@ -211,8 +160,8 @@ object TabActivity extends Logging {
 intellectual property laws and treaties. Certain Licensed Software programs may be wholly
 or partially subject to other licenses. For details see the description of each individual package. <br/>
 Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
-  @volatile private var activity: Option[TabActivity] = None
-  @volatile private var adapter: Option[MergeAdapter] = None
+  @volatile private[info] var activity: Option[TabActivity] = None
+  @volatile private[info] var adapter: Option[MergeAdapter] = None
   @volatile private var interfaceBlock: Option[InterfaceBlock] = None
   @volatile private var supportBlock: Option[SupportBlock] = None
   @volatile private var communityBlock: Option[CommunityBlock] = None

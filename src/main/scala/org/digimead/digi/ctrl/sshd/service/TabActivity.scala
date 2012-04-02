@@ -27,6 +27,7 @@ import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.declaration.DMessage.IAmMumble
 import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -38,6 +39,7 @@ import com.commonsware.cwac.merge.MergeAdapter
 import android.app.Activity
 import android.app.ListActivity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Html
 import android.view.ContextMenu
@@ -151,8 +153,10 @@ class TabActivity extends ListActivity with Logging {
   @Loggable
   override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) = TabActivity.filterBlock.foreach {
     filterBlock =>
-      if (resultCode == Activity.RESULT_OK && requestCode == TabActivity.FILTER_REQUEST)
-        filterBlock.updateCursor
+      if (resultCode == Activity.RESULT_OK && requestCode == TabActivity.FILTER_REQUEST) {
+        sendBroadcast(new Intent(DIntent.UpdateInterfaceFilter, Uri.parse("code://" + getPackageName + "/")))
+        filterBlock.updateAdapter
+      }
   }
   @Loggable
   def onClickServiceFilterAdd(v: View) =

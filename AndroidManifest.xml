@@ -21,7 +21,7 @@
  -->
  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
-    android:versionCode="1332652699"
+    android:versionCode="1333392489"
     android:versionName="1.0" >
 
     <uses-sdk android:minSdkVersion="8" />

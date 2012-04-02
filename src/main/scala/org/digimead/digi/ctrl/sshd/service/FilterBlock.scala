@@ -56,9 +56,9 @@ import android.widget.Toast
 
 class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[FilterBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(R.layout.service_interface_filters_header, null).asInstanceOf[LinearLayout]
-  protected val items = new ArrayBuffer[FilterBlock.Item]()
   private lazy val adapter = new FilterBlock.Adapter(context)
-  future { updateCursor }
+  future { updateAdapter }
+  def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = synchronized {
     log.debug("append " + getClass.getName + " to MergeAdapter")
@@ -88,7 +88,7 @@ class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     })
   }
   @Loggable
-  def updateCursor() = synchronized {
+  def updateAdapter() = synchronized {
     for {
       activity <- TabActivity.activity
       madapter <- TabActivity.adapter

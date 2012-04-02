@@ -64,8 +64,8 @@ import android.widget.Toast
 import annotation.elidable.ASSERTION
 
 class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
+  val items = getAppSeq
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  protected val items = getAppSeq
   private lazy val adapter = new ComponentBlock.Adapter(context, Android.getId(context, "component_list_item", "layout"), items)
   ComponentBlock.block = Some(this)
   @Loggable

@@ -21,17 +21,29 @@
 
 package org.digimead.digi.ctrl.sshd.info
 
+import java.util.ArrayList
+
+import scala.actors.Futures.future
+import scala.collection.mutable.HashMap
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConversions._
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.service.FilterBlock
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
+import android.content.Context
 import android.text.Html
 import android.view.ContextMenu
 import android.view.MenuItem
@@ -40,11 +52,15 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
+import android.app.AlertDialog
+import android.view.LayoutInflater
+import android.view.ContextThemeWrapper
 
 class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  protected val items = Seq(InterfaceBlock.Item(null, null)) // null is "pending..." item, handled at InterfaceAdapter
-  private lazy val adapter = new InterfaceBlock.Adapter(context, () => { items })
+  private lazy val adapter = new InterfaceBlock.Adapter(context)
+  future { updateAdapter }
+  def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
@@ -53,131 +69,85 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
     mergeAdapter.addAdapter(adapter)
   }
   @Loggable
-  def onListItemClick(l: ListView, v: View, item: InterfaceBlock.Item) = {
-    /*    item match {
-      case this.itemProject => // jump to project
-        log.debug("open project web site at " + projectUri)
-        try {
-          val intent = new Intent(Intent.ACTION_VIEW, projectUri)
-          intent.addCategory(Intent.CATEGORY_BROWSABLE)
-          context.startActivity(intent)
-        } catch {
-          case e =>
-            DMessage.IAmYell("Unable to open project link: " + projectUri, e)
-        }
-      case this.itemIssues => // jump to issues
-        log.debug("open issues web page at " + projectUri)
-        try {
-          val intent = new Intent(Intent.ACTION_VIEW, issuesUri)
-          intent.addCategory(Intent.CATEGORY_BROWSABLE)
-          context.startActivity(intent)
-        } catch {
-          case e =>
-            DMessage.IAmYell("Unable to open project link: " + issuesUri, e)
-        }
-      case this.itemEmail => // create email
-        // TODO simple email vs complex with log
-        log.debug("send email to " + emailTo)
-        try {
-          val intent = new Intent(Intent.ACTION_SEND)
-          intent.putExtra(Intent.EXTRA_EMAIL, Array[String](emailTo, ""))
-          intent.putExtra(Intent.EXTRA_SUBJECT, emailSubject)
-          intent.putExtra(android.content.Intent.EXTRA_TEXT, "")
-          intent.setType("text/plain");
-          context.startActivity(Intent.createChooser(intent, Android.getString(context, "share").getOrElse("share")))
-        } catch {
-          case e =>
-            DMessage.IAmYell("Unable 'send to' email: " + emailTo + " / " + emailSubject, e)
-        }
-      case this.itemChat => // show context menu with call/skype
-        log.debug("open context menu for voice call")
-        l.showContextMenuForChild(v)
-      case item =>
-        log.fatal("unsupported context menu item " + item)
-    }*/
+  def onListItemClick(l: ListView, v: View, item: InterfaceBlock.Item) = { // leave UI thread
+    future {
+      SSHDActivity.activity.foreach {
+        activity =>
+          activity.showDialogSafe[AlertDialog](() => {
+            val inflater = activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+            val layout = inflater.inflate(R.layout.info_interfaces_dialog, null).asInstanceOf[ViewGroup]
+            val dialog = new AlertDialog.Builder(new ContextThemeWrapper(activity, R.style.InterfacesLegendDialog)).
+              setTitle(R.string.dialog_interfaces_legend_title).
+              setIcon(R.drawable.ic_info).
+              setView(layout).
+              setPositiveButton(android.R.string.ok, null).
+              create
+            layout.setOnClickListener(new View.OnClickListener() {
+              override def onClick(v: View) = dialog.dismiss()
+            })
+            dialog.setCanceledOnTouchOutside(true)
+            dialog.show()
+            dialog
+          })
+      }
+    }
   }
   @Loggable
   def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SupportBlock.Item) {
     log.debug("create context menu for " + item.name)
-    /*    menu.setHeaderTitle(Android.getString(context, "context_menu").getOrElse("Context Menu"))
-    //inner.icon(this).map(menu.setHeaderIcon(_))
-    menu.add(Menu.NONE, Android.getId(context, "block_support_voice_call"), 1,
-      Android.getString(context, "block_support_voice_call").getOrElse("Voice call"))
-    menu.add(Menu.NONE, Android.getId(context, "block_support_skype_call"), 1,
-      Android.getString(context, "block_support_skype_call").getOrElse("Skype call"))*/
   }
   @Loggable
   def onContextItemSelected(menuItem: MenuItem, item: SupportBlock.Item): Boolean = {
-    /*    menuItem.getItemId match {
-      case id if id == Android.getId(context, "block_support_voice_call") =>
-        log.debug("start voice call to " + voicePhone)
-        try {
-          val intent = new Intent(Intent.ACTION_CALL)
-          intent.setData(Uri.parse("tel:" + voicePhone))
-          context.startActivity(intent)
-          true
-        } catch {
-          case e =>
-            DMessage.IAmYell("Unable start voice call to " + voicePhone, e)
-            false
-        }
-      case id if id == Android.getId(context, "block_support_skype_call") =>
-        log.debug("start skype call to " + skypeUser)
-        try {
-          val intent = new Intent("android.intent.action.VIEW")
-          intent.setData(Uri.parse("skype:" + skypeUser))
-          context.startActivity(intent)
-          true
-        } catch {
-          case e =>
-            DMessage.IAmYell("Unable start skype call to " + skypeUser, e)
-            false
-        }
-      case id =>
-        log.fatal("unknown context menu id " + id)
-        false
-    }*/
     false
+  }
+  @Loggable // Seq(InterfaceBlock.Item(null, null))
+  def updateAdapter() = synchronized {
+    for {
+      activity <- TabActivity.activity
+      madapter <- TabActivity.adapter
+    } {
+      context.runOnUiThread(new Runnable {
+        def run = {
+          adapter.setNotifyOnChange(false)
+          adapter.clear
+          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+          val acl = pref.getAll
+          val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
+          // stage 1: set unused interfaces to passive
+          if (acl.isEmpty) {
+            // all adapters enabled
+            interfaces.keys.foreach(k => interfaces(k) = Some(false))
+          } else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL)) {
+            // all adapters enabled/disabled
+            if (pref.getBoolean(FilterBlock.ALL, false))
+              interfaces.keys.foreach(k => interfaces(k) = Some(false))
+          } else {
+            // custom adapters state
+            acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
+              aclMask =>
+                // if aclMask enabled (true)
+                if (pref.getBoolean(aclMask, false)) {
+                  interfaces.filter(t => t._2 == None).keys.foreach(interface =>
+                    if (Common.checkInterfaceInUse(interface, aclMask))
+                      interfaces(interface) = Some(false))
+                }
+            }
+          }
+          // stage 2: set particular interfaces to active
+          // TODO
+          interfaces.keys.toSeq.sorted.foreach {
+            interface =>
+              adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
+          }
+          adapter.setNotifyOnChange(true)
+          adapter.notifyDataSetChanged
+        }
+      })
+    }
   }
 }
 
 object InterfaceBlock {
-  /*  private val name = "name"
-  private val description = "description"
-  sealed case class Item(id: Int)(val name: String, val description: String, val icon: String = "") extends Block.Item
-  object Item {
-    private val counter = new AtomicInteger(0)
-    def apply(name: String, description: String) = new Item(counter.getAndIncrement)(name, description)
-    def apply(name: String, description: String, icon: String) = new Item(counter.getAndIncrement)(name, description, icon)
-  }
-  class Adapter(context: Activity, textViewResourceId: Int, data: Seq[Item])
-    extends ArrayAdapter(context, textViewResourceId, android.R.id.text1, data.toArray) {
-    private var inflater: LayoutInflater = context.getLayoutInflater
-    override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
-      val item = data(position)
-      item.view.get match {
-        case None =>
-          val view = inflater.inflate(textViewResourceId, null)
-          val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-          val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
-          val icon = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
-          text2.setVisibility(View.VISIBLE)
-          text1.setText(Html.fromHtml(item.name))
-          text2.setText(Html.fromHtml(item.description))
-          if (item.icon.nonEmpty)
-            Android.getId(context, item.icon, "drawable") match {
-              case i if i != 0 =>
-                icon.setVisibility(View.VISIBLE)
-                icon.setImageDrawable(context.getResources.getDrawable(i))
-              case _ =>
-            }
-          item.view = new WeakReference(view)
-          view
-        case Some(view) =>
-          view
-      }
-    }
-  }*/
   /*
    * status:
    * None - unused
@@ -187,14 +157,13 @@ object InterfaceBlock {
   case class Item(val value: String, val status: Option[Boolean]) extends Block.Item {
     override def toString() = value
   }
-  class Adapter(context: Activity, values: () => Seq[InterfaceBlock.Item],
+  class Adapter(context: Activity,
     private val resource: Int = android.R.layout.simple_list_item_1,
     private val fieldId: Int = android.R.id.text1)
-    extends ArrayAdapter[InterfaceBlock.Item](context, resource, fieldId) {
-    private lazy val icActive = context.getResources().getDrawable(R.drawable.ic_button_plus)
-    private lazy val icPassive = context.getResources().getDrawable(R.drawable.ic_tab_session_selected)
-    private lazy val icUnused = context.getResources().getDrawable(R.drawable.ic_tab_info_unselected)
-    values().foreach(add(_))
+    extends ArrayAdapter[InterfaceBlock.Item](context, resource, fieldId, new ArrayList[Item](List(Item(null, null)))) {
+    private lazy val icActive = context.getResources().getDrawable(R.drawable.ic_interface_active)
+    private lazy val icPassive = context.getResources().getDrawable(R.drawable.ic_interface_passive)
+    private lazy val icUnused = context.getResources().getDrawable(R.drawable.ic_interface_unused)
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val view = super.getView(position, convertView, parent)
       val text = view.asInstanceOf[TextView]
@@ -211,16 +180,6 @@ object InterfaceBlock {
           text.setCompoundDrawablesWithIntrinsicBounds(icUnused, null, null, null)
       }
       view
-    }
-    override def notifyDataSetChanged() = notifyDataSetChanged(false)
-    def notifyDataSetChanged(updateValues: Boolean) = synchronized {
-      if (updateValues) {
-        setNotifyOnChange(false)
-        clear()
-        values().foreach(add(_))
-        setNotifyOnChange(true)
-      }
-      super.notifyDataSetChanged()
     }
   }
 }
