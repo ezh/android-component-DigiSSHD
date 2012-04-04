@@ -21,35 +21,35 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
+import java.net.URL
+
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.R
+
+import com.commonsware.cwac.merge.MergeAdapter
+
 import android.app.Activity
 import android.text.Html
 import android.view.ContextMenu
+import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
-import com.commonsware.cwac.merge.MergeAdapter
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.block.SupportBlock
-import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
-import java.net.URL
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import android.content.Context
-import android.widget.ArrayAdapter
-import org.digimead.digi.ctrl.sshd.R
-import android.view.ViewGroup
-import android.view.LayoutInflater
-import android.widget.LinearLayout
 
 // buy or not
 
 class EnvironmentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[EnvironmentBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(R.layout.service_environment_header, null).asInstanceOf[LinearLayout]
   private lazy val adapter = new EnvironmentBlock.Adapter(context, android.R.layout.simple_list_item_1, Seq())
-  def items = for(i <- 0 to adapter.getCount) yield adapter.getItem(i)
+  def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")

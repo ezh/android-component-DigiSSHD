@@ -30,11 +30,11 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
-import org.digimead.digi.ctrl.lib.declaration.DMessage.IAmYell
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.SSHDService

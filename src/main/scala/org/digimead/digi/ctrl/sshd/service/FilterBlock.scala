@@ -25,15 +25,15 @@ import java.util.ArrayList
 
 import scala.Array.canBuildFrom
 import scala.actors.Futures.future
-import scala.collection.mutable.ArrayBuffer
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
 import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
 
@@ -41,10 +41,10 @@ import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.text.Html
-import android.view.ContextMenu
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
@@ -84,6 +84,8 @@ class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dis
             Toast.makeText(context, context.getString(R.string.service_filter_disabled).format(item), DConstant.toastTimeout).show()
         }
         item.view.get.foreach(_.asInstanceOf[CheckedTextView].setChecked(item.state))
+        // TODO change pref
+        context.sendBroadcast(new Intent(DIntent.UpdateInterfaceFilter, Uri.parse("code://" + context.getPackageName + "/")))
       }
     })
   }

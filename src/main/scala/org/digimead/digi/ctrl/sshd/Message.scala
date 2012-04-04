@@ -21,11 +21,12 @@
 
 package org.digimead.digi.ctrl.sshd
 
-import org.digimead.digi.ctrl.lib.declaration.DMessage
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.DMessage
+import org.digimead.digi.ctrl.lib.message.Dispatcher
 
 object Message extends Logging {
-  implicit val dispatcher: DMessage.Dispatcher = new DMessage.Dispatcher {
+  implicit val dispatcher: Dispatcher = new Dispatcher {
     def process(message: DMessage): Unit = {
       SSHDActivity ! message
     }

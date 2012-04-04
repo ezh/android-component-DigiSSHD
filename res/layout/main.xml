@@ -30,7 +30,7 @@
         android:id="@+id/toggleStartStop"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:onClick="onStartStop" />
+        android:onClick="onClickStartStop" />
 
     <LinearLayout
         android:id="@+id/linearLayout2"

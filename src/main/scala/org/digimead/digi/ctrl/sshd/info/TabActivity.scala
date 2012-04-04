@@ -27,6 +27,7 @@ import org.digimead.digi.ctrl.lib.block.CommunityBlock
 import org.digimead.digi.ctrl.lib.block.LegalBlock
 import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.block.ThanksBlock
+import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -36,6 +37,10 @@ import org.digimead.digi.ctrl.sshd.SSHDActivity
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.ListActivity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import android.text.Html
@@ -74,6 +79,11 @@ class TabActivity extends ListActivity with Logging {
     registerForContextMenu(lv)
     lv.setLongClickable(false)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
+  }
+  @Loggable
+  override def onResume() {
+    super.onResume()
+    TabActivity.interfaceBlock.foreach(_.updateAdapter())
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = for {
@@ -167,7 +177,10 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   @volatile private var communityBlock: Option[CommunityBlock] = None
   @volatile private var thanksBlock: Option[ThanksBlock] = None
   @volatile private var legalBlock: Option[LegalBlock] = None
-  val DIALOG_INTERFACES_ID = 0
+  private val interfaceFilterUpdateReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) =
+      interfaceBlock.foreach(_.updateAdapter())
+  }
   def addLazyInit = AppActivity.LazyInit("initialize info adapter") {
     SSHDActivity.activity match {
       case Some(activity) =>
@@ -193,24 +206,13 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
           legalBlock appendTo (adapter)
           TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
         }
+        // register UpdateInterfaceFilter BroadcastReceiver
+        val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
+        interfaceFilterUpdateFilter.addDataScheme("code")
+        activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
       case None =>
         log.fatal("lost SSHDActivity context")
     }
   }
 }
-/*
- *   
- *   
-  private val receiver = new BroadcastReceiver() {
-    @Loggable
-    def onReceive(context: Context, intent: Intent) = {
-      intent.getAction() match {
-        case DIntent.Update =>
-          log.error("UPPDATE2!!! " + context)
-          updatedInterfaceList()
-        case _ =>
-          log.error("skip unknown intent " + intent + " with context " + context)
-      }
-    }
-  }
-*/
+

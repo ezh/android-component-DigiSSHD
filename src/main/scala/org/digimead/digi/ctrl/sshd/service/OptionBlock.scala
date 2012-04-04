@@ -26,11 +26,11 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DMessage.Dispatcher
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity

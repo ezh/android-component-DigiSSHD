@@ -30,24 +30,29 @@ import java.util.Locale
 
 import scala.actors.Futures.future
 import scala.actors.Actor
+import scala.concurrent.SyncVar
+import scala.ref.WeakReference
 import scala.util.Random
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.base.AppService
-import org.digimead.digi.ctrl.lib.declaration.DMessage.Origin.anyRefToOrigin
-import org.digimead.digi.ctrl.lib.declaration.DMessage.IAmBusy
-import org.digimead.digi.ctrl.lib.declaration.DMessage.IAmReady
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DMessage
+import org.digimead.digi.ctrl.lib.declaration.DPermission
 import org.digimead.digi.ctrl.lib.declaration.DState
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
 import org.digimead.digi.ctrl.lib.dialog.Report
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
+import org.digimead.digi.ctrl.lib.message.IAmBusy
+import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.ctrl.lib.message.IAmReady
+import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.Activity
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -79,7 +84,7 @@ import android.widget.TextView
 import android.widget.ToggleButton
 
 class SSHDActivity extends android.app.TabActivity with Activity {
-  private lazy val statusText = findViewById(R.id.status).asInstanceOf[TextView]
+  private lazy val statusText = new WeakReference(findViewById(R.id.status).asInstanceOf[TextView])
   private lazy val toggleStartStop = findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton]
   if (true)
     Logging.addLogger(Seq(AndroidLogger, FileLogger))
@@ -191,26 +196,62 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       }
   }
   @Loggable
-  def onStartStop(v: View) {
-    /*    if (toggleStartStop.isChecked())
-      App.serviceStart()
-    else
-      App.serviceStop()*/
+  def onPrivateBroadcast(context: Context, intent: Intent) = {
+    intent.getAction() match {
+      case DIntent.Update =>
+        onAppActivityStateChanged()
+      case _ =>
+        log.error("unknown private broadcast intent " + intent + " with action " + intent.getAction)
+    }
   }
   @Loggable
-  def updateStatus() = {
-    /*    AppActivity.Inner.state.get match {
+  def onPublicBroadcast(context: Context, intent: Intent) = {
+    intent.getAction match {
+      case DIntent.Update =>
+        onAppActivityStateChanged()
+      case _ =>
+        log.error("unknown public broadcast intent " + intent + " with action " + intent.getAction)
+    }
+  }
+  @Loggable
+  def onInterfaceFilterUpdateBroadcast(context: Context, intent: Intent) =
+    if (intent.getData.getAuthority == getPackageName)
+      IAmMumble("update interface filters")
+  @Loggable
+  def onConnectionFilterUpdateBroadcast(context: Context, intent: Intent) =
+    if (intent.getData.getAuthority == getPackageName)
+      IAmMumble("update connection filters")
+  @Loggable
+  private def onAppActivityStateChanged(): Unit = for {
+    statusText <- statusText.get
+  } {
+    AppActivity.Inner.state.get match {
       case AppActivity.State(DState.Initializing, message, callback) =>
-        statusText.setText(getString(R.string.status_initializing))
+        log.debug("set status text to " + DState.Initializing)
+        statusText.setText(Android.getCapitalized(this, "status_initializing").getOrElse("Initializing"))
       case AppActivity.State(DState.Passive, message, callback) =>
-        statusText.setText(getString(R.string.status_ready))
+        log.debug("set status text to " + DState.Passive)
+        statusText.setText(Android.getCapitalized(this, "status_ready").getOrElse("Ready"))
       case AppActivity.State(DState.Active, message, callback) =>
-      // TODO
-      //        statusText.setText(getString(R.string.st))
-      case AppActivity.State(DState.Broken, message, callback) =>
-        val errorMessage = getString(R.string.status_error).format(message.asInstanceOf[String])
-        statusText.setText(errorMessage)
-    }*/
+        log.debug("set status text to " + DState.Active)
+        statusText.setText(Android.getCapitalized(this, "status_active").getOrElse("Active"))
+      case AppActivity.State(DState.Broken, rawMessage, callback) =>
+        log.debug("set status text to " + DState.Broken)
+        val message = if (rawMessage != null)
+          Android.getString(this, rawMessage).getOrElse(rawMessage)
+        else
+          Android.getString(this, "unknown").getOrElse("unknown")
+        statusText.setText(Android.getCapitalized(this, "status_error").getOrElse("Error: %s").format(message))
+        if (message != null)
+          statusText.setText(Android.getCapitalized(this, "status_error").getOrElse("Error: %s").format(message))
+      case AppActivity.State(DState.Busy, message, callback) =>
+        log.debug("set status text to " + DState.Busy)
+        statusText.setText(Android.getCapitalized(this, "status_busy").getOrElse("Busy"))
+      case AppActivity.State(DState.Unknown, message, callback) =>
+        log.debug("skip notification with state DState.Unknown")
+      case state =>
+        log.fatal("unknown state " + state)
+    }
   }
   @Loggable
   def onClickServiceFilterAdd(v: View) =
@@ -224,6 +265,27 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   def onClickServiceReset(v: View) =
     service.TabActivity.getActivity.foreach(_.onClickServiceReset(v))
+  @Loggable
+  def onClickStartStop(v: View): Unit = {
+    val button = v.asInstanceOf[ToggleButton]
+    AppActivity.Inner.state.get.code match {
+      case DState.Active =>
+        IAmBusy(SSHDActivity, Android.getString(this, "state_stopping_services").getOrElse("stopping services"))
+        future {
+          stop()
+          IAmReady(SSHDActivity, Android.getString(this, "state_stopped_services").getOrElse("stopped services"))
+        }
+      case DState.Passive =>
+        IAmBusy(SSHDActivity, Android.getString(this, "state_starting_services").getOrElse("starting services"))
+        future {
+          start()
+          IAmReady(SSHDActivity, Android.getString(this, "state_started_services").getOrElse("started services"))
+        }
+      case state =>
+        IAmWarn("unable to change component state while in " + state)
+      // TODO add IAmWarn Toast.makeText(...
+    }
+  }
   @Loggable
   def onStatusClick(v: View) = {
     AppActivity.Inner.state.get.onClickCallback match {
@@ -336,6 +398,152 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
     super.onPrepareDialog(id, dialog, args)
   }
+  /*
+   * recommended to start as future
+   */
+  @Loggable
+  private def start(): Boolean = synchronized {
+    log.info("starting " + getPackageName)
+    val stopFlag = new SyncVar[Boolean]()
+    val startFlag = new SyncVar[Boolean]()
+
+    // stop bridge that possibly in running state
+    log.info(getPackageName + " marked as stopped, confirm anyway")
+    AppService.Inner ! AppService.Message.Stop(getPackageName, {
+      case true =>
+        log.info(getPackageName + " stop confirmed")
+        stopFlag.set(true)
+      case false =>
+        // if fail to stop, then maybe there is something already running
+        log.warn(getPackageName + " stop failed")
+        stopFlag.set(true)
+    })
+    if (stopFlag.get(DTimeout.normal).getOrElse(false)) {
+      // change android service mode
+      startService(new Intent(DIntent.HostService))
+      AppService.Inner ! AppService.Message.Start(getPackageName, {
+        case true =>
+          log.info(getPackageName + " start confirmed")
+          startFlag.set(true)
+        case false =>
+          log.warn(getPackageName + " start failed")
+          startFlag.set(false)
+      })
+      return startFlag.get(DTimeout.normal).getOrElse(false)
+    }
+    false
+    /*    // notify user about results
+    runOnUiThread(new Runnable {
+      def run {
+        result match {
+          case Some(true) =>
+            val message = "successful start all components"
+            log.info(message)
+            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
+          case Some(false) =>
+            val message = "some components are working"
+            log.warn(message)
+            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
+          case None =>
+            val message = "failed to start all components"
+            log.warn(message)
+            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
+        }
+        // apply state to UI elements
+        buttonToggleStartStop1.get.map(_.setChecked(running.get))
+        buttonToggleStartStop2.get.map(_.setChecked(running.get))
+      }
+    })
+    result != None*/
+  }
+  /*
+   * recommended to start as future
+   */
+  @Loggable
+  private def stop(): Boolean = synchronized {
+    log.info("stopping " + getPackageName)
+    /*
+     * Some(true) - everything perfect
+     * Some(false) - there is not one
+     * None - everything broken
+     */
+    /*    val result: Option[Boolean] = if (!running.get()) {
+      log.error("everything already stopped")
+      None
+    } else {
+      import scala.collection.mutable.HashMap
+      val stopResultAccumulator = new HashMap[String, Boolean] with SynchronizedMap[String, Boolean]
+      val components = Component.list
+      components.foreach {
+        component =>
+          log.info(component.componentPackage + " marked as stopped, confirm anyway")
+          AppService.Inner ! AppService.Message.Stop(component.componentPackage, {
+            case true =>
+              stopResultAccumulator.synchronized {
+                log.info(component.componentPackage + " stop confirmed")
+                stopResultAccumulator(component.componentPackage) = true
+                stopResultAccumulator.notifyAll()
+              }
+            case false =>
+              stopResultAccumulator.synchronized {
+                log.warn(component.componentPackage + " stop failed")
+                stopResultAccumulator(component.componentPackage) = false
+                stopResultAccumulator.notifyAll()
+              }
+          })
+      }
+      stopResultAccumulator.synchronized {
+        while (stopResultAccumulator.size != components.size)
+          stopResultAccumulator.wait()
+      }
+      log.debug("making decision about components state, stop: (" +
+        stopResultAccumulator.values.mkString(", ") + ")")
+      if (stopResultAccumulator.values.forall(_ == true))
+        Some(true)
+      else if (stopResultAccumulator.values.forall(_ == false))
+        None
+      else
+        Some(false)
+    }
+    // process result
+    result match {
+      case Some(_) =>
+        // change android service mode
+        stopService(new Intent(this, classOf[ControlService]))
+        // commit global state
+        val pref = getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+        val editor = pref.edit()
+        editor.putBoolean(DOption.Running.res, false)
+        editor.commit()
+        running.set(false)
+      case None =>
+      // everything failed
+    }
+    // notify user about results
+    runOnUiThread(new Runnable {
+      def run {
+        result match {
+          case Some(true) =>
+            val message = "successful stop all components"
+            log.info(message)
+            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
+          case Some(false) =>
+            val message = "successful stop some components"
+            log.info(message)
+            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
+          case None =>
+            val message = "failed to stop all components"
+            log.warn(message)
+            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
+        }
+        // apply state to UI elements
+        buttonToggleStartStop1.get.map(_.setChecked(running.get))
+        buttonToggleStartStop2.get.map(_.setChecked(running.get))
+      }
+    })
+    result != None*/
+    false
+  }
 }
 
 object SSHDActivity extends Actor with Logging {
@@ -354,26 +562,60 @@ object SSHDActivity extends Actor with Logging {
   private val busyKickerF = new Runnable { def run = SSHDActivity.this ! null }
   private val busyKickerDelay = 3000
   private val busyKickerRate = 50
-  private lazy val publicReceiver = new BroadcastReceiver() {
-    def onReceive(context: Context, intent: Intent) = {
-      intent.getAction() match {
-        case DIntent.Update =>
-          activity.foreach(_.updateStatus)
-        case _ =>
-          log.error("skip unknown intent " + intent + " with context " + context)
-      }
+  private val privateReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      if (intent.getBooleanExtra("__private__", false))
+        activity.foreach(activity => activity.onPrivateBroadcast(context, intent))
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
     }
   }
-
+  private val publicReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      if (!intent.getBooleanExtra("__private__", false))
+        activity.foreach(activity => activity.onPublicBroadcast(context, intent))
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
+  private val interfaceFilterUpdateReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      activity.foreach(activity => activity.onInterfaceFilterUpdateBroadcast(context, intent))
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
+  private val connectionFilterUpdateReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      activity.foreach(activity => activity.onConnectionFilterUpdateBroadcast(context, intent))
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
   start
   def addLazyInit = AppActivity.LazyInit("main activity onCreate logic") {
     activity.foreach {
       activity =>
         // register BroadcastReceiver
-        val filter = new IntentFilter()
-        filter.addAction(DIntent.Update)
-        activity.registerReceiver(publicReceiver, filter)
-        //
+        val genericFilter = new IntentFilter()
+        genericFilter.addAction(DIntent.Message)
+        genericFilter.addAction(DIntent.Update)
+        genericFilter.addAction(DIntent.UpdateInterfaceFilter)
+        activity.registerReceiver(privateReceiver, genericFilter, DPermission.Base, null)
+        activity.registerReceiver(publicReceiver, genericFilter)
+        // register UpdateInterfaceFilter BroadcastReceiver
+        val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
+        interfaceFilterUpdateFilter.addDataScheme("code")
+        activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
+        // register UpdateConnectionFilter BroadcastReceiver
+        val connectionFilterUpdateFilter = new IntentFilter(DIntent.UpdateConnectionFilter)
+        connectionFilterUpdateFilter.addDataScheme("code")
+        activity.registerReceiver(connectionFilterUpdateReceiver, connectionFilterUpdateFilter)
+        // prepare environment
         AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
           if (AppActivity.Inner.state.get.code != DState.Broken)
             if (success)
@@ -390,10 +632,10 @@ object SSHDActivity extends Actor with Logging {
   def act = {
     loop {
       react {
-        case msg: DMessage.IAmBusy =>
+        case msg: IAmBusy =>
           busyCounter.incrementAndGet
           activity.foreach(onBusy)
-        case msg: DMessage.IAmReady =>
+        case msg: IAmReady =>
           busyCounter.decrementAndGet
           onReady
         case null => // kick it
@@ -407,10 +649,10 @@ object SSHDActivity extends Actor with Logging {
   }
   @Loggable
   private def onBusy(activity: SSHDActivity) = synchronized {
+    AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
     busyDialog.get() match {
       case Some(dialog) =>
       case None =>
-        AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
         future {
           val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
           busyBuffer = Seq(message)
@@ -434,6 +676,7 @@ object SSHDActivity extends Actor with Logging {
         dialog.dismiss
       case None =>
     }
+    AppActivity.Inner.state.freeBusy
   }
   private def onKick(activity: SSHDActivity) = synchronized {
     busyDialog.get() match {

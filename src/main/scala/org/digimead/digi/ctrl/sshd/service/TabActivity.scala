@@ -25,7 +25,7 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.declaration.DMessage.IAmMumble
+import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -154,6 +154,7 @@ class TabActivity extends ListActivity with Logging {
   override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) = TabActivity.filterBlock.foreach {
     filterBlock =>
       if (resultCode == Activity.RESULT_OK && requestCode == TabActivity.FILTER_REQUEST) {
+        // most of the time this broadcast spread before onResume
         sendBroadcast(new Intent(DIntent.UpdateInterfaceFilter, Uri.parse("code://" + getPackageName + "/")))
         filterBlock.updateAdapter
       }
