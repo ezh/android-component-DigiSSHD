@@ -49,6 +49,7 @@ import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
+import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
@@ -154,7 +155,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
       future {
         IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
-        AppActivity.Inner.state.set(AppActivity.State(DState.Passive, Android.getCapitalized(this, "status_ready").getOrElse("Ready")))
+        AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
         System.gc
         Thread.sleep(500)
@@ -188,7 +189,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
       future {
         IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
-        AppActivity.Inner.state.set(AppActivity.State(DState.Passive, Android.getCapitalized(this, "status_ready").getOrElse("Ready")))
+        AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
         System.gc
         Thread.sleep(500)
@@ -200,6 +201,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     intent.getAction() match {
       case DIntent.Update =>
         onAppActivityStateChanged()
+      case DIntent.Message =>
+        val message = intent.getParcelableExtra[DMessage](DIntent.Message)
+        val logger = Logging.getLogger(message.origin.name)
+        logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " from " + message.origin.packageName)
       case _ =>
         log.error("unknown private broadcast intent " + intent + " with action " + intent.getAction)
     }
@@ -209,6 +214,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     intent.getAction match {
       case DIntent.Update =>
         onAppActivityStateChanged()
+      case DIntent.Message =>
+        val message = intent.getParcelableExtra[DMessage](DIntent.Message)
+        val logger = Logging.getLogger(message.origin.name)
+        logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " from " + message.origin.packageName)
       case _ =>
         log.error("unknown public broadcast intent " + intent + " with action " + intent.getAction)
     }
@@ -232,9 +241,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case AppActivity.State(DState.Passive, message, callback) =>
         log.debug("set status text to " + DState.Passive)
         statusText.setText(Android.getCapitalized(this, "status_ready").getOrElse("Ready"))
+        toggleStartStop.setChecked(false)
       case AppActivity.State(DState.Active, message, callback) =>
         log.debug("set status text to " + DState.Active)
         statusText.setText(Android.getCapitalized(this, "status_active").getOrElse("Active"))
+        toggleStartStop.setChecked(true)
       case AppActivity.State(DState.Broken, rawMessage, callback) =>
         log.debug("set status text to " + DState.Broken)
         val message = if (rawMessage != null)
@@ -408,53 +419,33 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     val startFlag = new SyncVar[Boolean]()
 
     // stop bridge that possibly in running state
-    log.info(getPackageName + " marked as stopped, confirm anyway")
     AppService.Inner ! AppService.Message.Stop(getPackageName, {
       case true =>
-        log.info(getPackageName + " stop confirmed")
+        log.info(getPackageName + " stopped")
         stopFlag.set(true)
       case false =>
         // if fail to stop, then maybe there is something already running
         log.warn(getPackageName + " stop failed")
         stopFlag.set(true)
     })
-    if (stopFlag.get(DTimeout.normal).getOrElse(false)) {
+    val result = if (stopFlag.get(DTimeout.normal).getOrElse(false)) {
       // change android service mode
       startService(new Intent(DIntent.HostService))
       AppService.Inner ! AppService.Message.Start(getPackageName, {
         case true =>
-          log.info(getPackageName + " start confirmed")
+          log.info(getPackageName + " started")
           startFlag.set(true)
         case false =>
           log.warn(getPackageName + " start failed")
           startFlag.set(false)
       })
-      return startFlag.get(DTimeout.normal).getOrElse(false)
-    }
-    false
-    /*    // notify user about results
-    runOnUiThread(new Runnable {
-      def run {
-        result match {
-          case Some(true) =>
-            val message = "successful start all components"
-            log.info(message)
-            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
-          case Some(false) =>
-            val message = "some components are working"
-            log.warn(message)
-            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
-          case None =>
-            val message = "failed to start all components"
-            log.warn(message)
-            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
-        }
-        // apply state to UI elements
-        buttonToggleStartStop1.get.map(_.setChecked(running.get))
-        buttonToggleStartStop2.get.map(_.setChecked(running.get))
-      }
-    })
-    result != None*/
+      startFlag.get(DTimeout.normal).getOrElse(false)
+    } else
+      false
+    // update AppState
+    if (result)
+      AppActivity.Inner.state.set(AppActivity.State(DState.Active))
+    result
   }
   /*
    * recommended to start as future
@@ -462,87 +453,22 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   private def stop(): Boolean = synchronized {
     log.info("stopping " + getPackageName)
-    /*
-     * Some(true) - everything perfect
-     * Some(false) - there is not one
-     * None - everything broken
-     */
-    /*    val result: Option[Boolean] = if (!running.get()) {
-      log.error("everything already stopped")
-      None
-    } else {
-      import scala.collection.mutable.HashMap
-      val stopResultAccumulator = new HashMap[String, Boolean] with SynchronizedMap[String, Boolean]
-      val components = Component.list
-      components.foreach {
-        component =>
-          log.info(component.componentPackage + " marked as stopped, confirm anyway")
-          AppService.Inner ! AppService.Message.Stop(component.componentPackage, {
-            case true =>
-              stopResultAccumulator.synchronized {
-                log.info(component.componentPackage + " stop confirmed")
-                stopResultAccumulator(component.componentPackage) = true
-                stopResultAccumulator.notifyAll()
-              }
-            case false =>
-              stopResultAccumulator.synchronized {
-                log.warn(component.componentPackage + " stop failed")
-                stopResultAccumulator(component.componentPackage) = false
-                stopResultAccumulator.notifyAll()
-              }
-          })
-      }
-      stopResultAccumulator.synchronized {
-        while (stopResultAccumulator.size != components.size)
-          stopResultAccumulator.wait()
-      }
-      log.debug("making decision about components state, stop: (" +
-        stopResultAccumulator.values.mkString(", ") + ")")
-      if (stopResultAccumulator.values.forall(_ == true))
-        Some(true)
-      else if (stopResultAccumulator.values.forall(_ == false))
-        None
-      else
-        Some(false)
-    }
-    // process result
-    result match {
-      case Some(_) =>
-        // change android service mode
-        stopService(new Intent(this, classOf[ControlService]))
-        // commit global state
-        val pref = getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-        val editor = pref.edit()
-        editor.putBoolean(DOption.Running.res, false)
-        editor.commit()
-        running.set(false)
-      case None =>
-      // everything failed
-    }
-    // notify user about results
-    runOnUiThread(new Runnable {
-      def run {
-        result match {
-          case Some(true) =>
-            val message = "successful stop all components"
-            log.info(message)
-            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
-          case Some(false) =>
-            val message = "successful stop some components"
-            log.info(message)
-            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
-          case None =>
-            val message = "failed to stop all components"
-            log.warn(message)
-            Toast.makeText(ControlActivity.this, message, Toast.LENGTH_SHORT).show()
-        }
-        // apply state to UI elements
-        buttonToggleStartStop1.get.map(_.setChecked(running.get))
-        buttonToggleStartStop2.get.map(_.setChecked(running.get))
-      }
+    val stopFlag = new SyncVar[Boolean]()
+
+    AppService.Inner ! AppService.Message.Stop(getPackageName, {
+      case true =>
+        log.info(getPackageName + " stopped")
+        stopFlag.set(true)
+      case false =>
+        // if fail to stop, then maybe there is something already running
+        log.warn(getPackageName + " stop failed")
+        stopFlag.set(true)
     })
-    result != None*/
-    false
+    val result = stopFlag.get(DTimeout.normal).getOrElse(false)
+    if (result)
+      AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+    stopService(new Intent(DIntent.HostService))
+    result
   }
 }
 
@@ -618,12 +544,24 @@ object SSHDActivity extends Actor with Logging {
         // prepare environment
         AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
           if (AppActivity.Inner.state.get.code != DState.Broken)
-            if (success)
-              AppActivity.State(DState.Passive, Android.getString(activity, "status_ready").
-                getOrElse("Ready"))
-            else
-              AppActivity.State(DState.Broken, Android.getString(activity, "status_error").
-                getOrElse("Error"))
+            if (success) {
+              AppService.Inner ! AppService.Message.Status(activity.getPackageName, {
+                case Right(componentState) =>
+                  val appState = componentState.state match {
+                    case DState.Active =>
+                      AppActivity.State(DState.Active)
+                    case DState.Broken =>
+                      AppActivity.State(DState.Broken, "native failed")
+                    case _ =>
+                      AppActivity.State(DState.Passive)
+                  }
+                  AppActivity.Inner.state.set(appState)
+                case Left(error) =>
+                  val appState = AppActivity.State(DState.Broken, error)
+                  AppActivity.Inner.state.set(appState)
+              })
+            } else
+              AppActivity.State(DState.Broken, "environment preparation failed")
         })
     }
   }
