@@ -59,6 +59,7 @@ import android.view.ContextThemeWrapper
 class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new InterfaceBlock.Adapter(context)
+  @volatile private var activeInterfaces = Seq[String]()
   future { updateAdapter }
   def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
   @Loggable
@@ -145,9 +146,17 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
       })
     }
   }
+  def updateActiveInteraces(allInterfacesArePassive: Boolean) = synchronized {
+    if (allInterfacesArePassive)
+      activeInterfaces = Seq()
+    else {
+      log.g_a_s_e("REQ")
+    }
+    updateAdapter
+  }
 }
 
-object InterfaceBlock {
+object InterfaceBlock extends Logging {
   /*
    * status:
    * None - unused

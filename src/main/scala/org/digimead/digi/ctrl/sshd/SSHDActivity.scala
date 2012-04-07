@@ -224,12 +224,25 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   def onInterfaceFilterUpdateBroadcast(context: Context, intent: Intent) =
-    if (intent.getData.getAuthority == getPackageName)
-      IAmMumble("update interface filters")
+    IAmMumble("update interface filters")
   @Loggable
   def onConnectionFilterUpdateBroadcast(context: Context, intent: Intent) =
-    if (intent.getData.getAuthority == getPackageName)
-      IAmMumble("update connection filters")
+    IAmMumble("update connection filters")
+  @Loggable
+  def onComponentUpdateBroadcast(context: Context, intent: Intent) = {
+    try {
+      val uri = Uri.parse(intent.getDataString())
+      if (uri.getPath() == ("/" + getPackageName)) {
+        log.trace("receive update broadcast " + intent.toUri(0))
+        val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
+        service.TabActivity.UpdateComponents(state)
+        info.TabActivity.UpdateActiveInterfaces(state)
+      }
+    } catch {
+      case _ =>
+        log.warn("receive broken intent " + intent.toUri(0))
+    }
+  }
   @Loggable
   private def onAppActivityStateChanged(): Unit = for {
     statusText <- statusText.get
@@ -522,6 +535,14 @@ object SSHDActivity extends Actor with Logging {
         log.error(e.getMessage, e)
     }
   }
+  private val componentUpdateReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      activity.foreach(activity => activity.onComponentUpdateBroadcast(context, intent))
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
   start
   def addLazyInit = AppActivity.LazyInit("main activity onCreate logic") {
     activity.foreach {
@@ -536,11 +557,19 @@ object SSHDActivity extends Actor with Logging {
         // register UpdateInterfaceFilter BroadcastReceiver
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")
+        interfaceFilterUpdateFilter.addDataAuthority(activity.getPackageName, null)
         activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
         // register UpdateConnectionFilter BroadcastReceiver
         val connectionFilterUpdateFilter = new IntentFilter(DIntent.UpdateConnectionFilter)
         connectionFilterUpdateFilter.addDataScheme("code")
+        connectionFilterUpdateFilter.addDataAuthority(activity.getPackageName, null)
         activity.registerReceiver(connectionFilterUpdateReceiver, connectionFilterUpdateFilter)
+        // register ComponentFilter BroadcastReceiver
+        val componentUpdateFilter = new IntentFilter()
+        componentUpdateFilter.addAction(DIntent.Update)
+        componentUpdateFilter.addDataScheme("code")
+        componentUpdateFilter.addDataAuthority(DConstant.ComponentAuthority, null)
+        activity.registerReceiver(componentUpdateReceiver, componentUpdateFilter, DPermission.Base, null)
         // prepare environment
         AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
           if (AppActivity.Inner.state.get.code != DState.Broken)

@@ -25,10 +25,11 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
@@ -222,4 +223,7 @@ object TabActivity extends Logging {
     }
   }
   def getActivity() = activity
+  @Loggable
+  def UpdateComponents(state: DState.Value) =
+    componentBlock.foreach(_.updateComponentsState(state))
 }

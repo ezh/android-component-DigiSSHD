@@ -25,12 +25,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 import scala.actors.Futures.future
-import scala.annotation.elidable
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppService
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
@@ -61,7 +62,6 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import annotation.elidable.ASSERTION
 
 class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
   val items = getAppSeq
@@ -152,6 +152,16 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   @Loggable
   def getAppSeq(): Seq[ComponentBlock.Item] =
     SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei))
+  @Loggable
+  def updateComponentsState(state: DState.Value) = synchronized {
+    state match {
+      case DState.Active =>
+        items.foreach(i => i.view.get.foreach(view => i.state(true)))
+      case DState.Passive =>
+        items.foreach(i => i.view.get.foreach(view => i.state(false)))
+      case _ =>
+    }
+  }
 }
 
 object ComponentBlock extends Logging {
@@ -188,7 +198,7 @@ object ComponentBlock extends Logging {
             return
           active = Some(_active)
           context.get.foreach(_.runOnUiThread(new Runnable { def run = doUpdateOnUI(icon) }))
-        // Android is too buggy, reimplement in proper way
+        // Android is too buggy, reimplement it in proper way
         /* val anim = icon.getBackground().asInstanceOf[AnimationDrawable]
           context.get.foreach(_.runOnUiThread(new Runnable { def run = anim.start }))
           icon.invalidate
@@ -261,13 +271,16 @@ object ComponentBlock extends Logging {
           description.setText(item.executableInfo.description)
           subinfo.setText(item.executableInfo.version + " / " + item.executableInfo.license)
           item.view = new WeakReference(view)
-          // TODO STATE
-          future {
-            if (false)
-              item.init(context, icon, true)
-            else
+          icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
+          AppService.Inner ! AppService.Message.Status(context.getPackageName, {
+            case Right(componentState) =>
+              if (componentState.state == DState.Active)
+                item.init(context, icon, true)
+              else
+                item.init(context, icon, false)
+            case Left(error) =>
               item.init(context, icon, false)
-          }
+          })
           view
         case Some(view) =>
           view

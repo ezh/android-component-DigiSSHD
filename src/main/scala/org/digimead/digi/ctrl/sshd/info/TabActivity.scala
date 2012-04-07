@@ -28,6 +28,7 @@ import org.digimead.digi.ctrl.lib.block.LegalBlock
 import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.block.ThanksBlock
 import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -213,6 +214,14 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
       case None =>
         log.fatal("lost SSHDActivity context")
     }
+  }
+  @Loggable
+  def UpdateActiveInterfaces(state: DState.Value) = state match {
+    case DState.Active =>
+      interfaceBlock.foreach(_.updateActiveInteraces(false))
+    case DState.Passive =>
+      interfaceBlock.foreach(_.updateActiveInteraces(true))
+    case _ =>
   }
 }
 
