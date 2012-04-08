@@ -29,6 +29,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppService
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.message.Dispatcher
@@ -59,8 +60,8 @@ import android.view.ContextThemeWrapper
 class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new InterfaceBlock.Adapter(context)
-  @volatile private var activeInterfaces = Seq[String]()
-  future { updateAdapter }
+  @volatile private var activeInterfaces: Option[Seq[String]] = None
+  future { updateActiveInteraces(false) }
   def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
@@ -135,7 +136,12 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
             }
           }
           // stage 2: set particular interfaces to active
-          // TODO
+          activeInterfaces.foreach(_ match {
+            case n if n.isEmpty =>
+              interfaces.foreach(i => if (i._2 == Some(false)) interfaces(i._1) = Some(true))
+            case active =>
+              interfaces.foreach(i => if (active.exists(_ == i._1)) interfaces(i._1) = Some(true))
+          })
           interfaces.keys.toSeq.sorted.foreach {
             interface =>
               adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
@@ -147,12 +153,14 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
     }
   }
   def updateActiveInteraces(allInterfacesArePassive: Boolean) = synchronized {
-    if (allInterfacesArePassive)
-      activeInterfaces = Seq()
-    else {
-      log.g_a_s_e("REQ")
-    }
-    updateAdapter
+    if (allInterfacesArePassive) {
+      activeInterfaces = None
+      updateAdapter
+    } else
+      AppService.Inner ! AppService.Message.ListInterfaces(context.getPackageName, (i) => {
+        activeInterfaces = i
+        updateAdapter
+      })
   }
 }
 

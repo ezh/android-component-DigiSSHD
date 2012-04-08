@@ -237,6 +237,13 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
         service.TabActivity.UpdateComponents(state)
         info.TabActivity.UpdateActiveInterfaces(state)
+        state match {
+          case DState.Active =>
+            AppActivity.Inner.state.set(AppActivity.State(DState.Active))
+          case DState.Passive =>
+            AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+          case _ =>
+        }
       }
     } catch {
       case _ =>
@@ -455,9 +462,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       startFlag.get(DTimeout.normal).getOrElse(false)
     } else
       false
-    // update AppState
-    if (result)
-      AppActivity.Inner.state.set(AppActivity.State(DState.Active))
     result
   }
   /*
@@ -668,3 +672,21 @@ object SSHDActivity extends Actor with Logging {
       busyBuffer = busyBuffer.tail
   }
 }
+
+/*
+    // update AppState
+    if (result)
+            AppService.Inner ! AppService.Message.Status(.getPackageName, {
+              case Right(status) =>
+                component(c.componentPackage).stateBuffer.set(status.state)
+                if (status.state == DState.Passive && component(c.componentPackage).executable.isEmpty) {
+                  log.warn("component " + component(c.componentPackage).name + " hasn't any executables")
+                  component(c.componentPackage).stateBuffer.set(DState.Broken)
+                }
+              case Left(error) =>
+                component(c.componentPackage).stateBuffer.set(DState.Broken)
+            })
+
+      
+      
+*/
