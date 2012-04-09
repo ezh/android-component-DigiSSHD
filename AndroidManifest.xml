@@ -18,16 +18,16 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
- <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
-    android:versionCode="1333392489"
+    android:versionCode="1334001230"
     android:versionName="1.0" >
 
     <uses-sdk android:minSdkVersion="8" />
 
     <uses-permission android:name="org.digimead.digi.ctrl" />
-    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -38,6 +38,7 @@
         <activity
             android:name=".SSHDActivity"
             android:label="@string/app_name"
+            android:launchMode="singleTask"
             android:theme="@android:style/Theme.NoTitleBar" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -70,7 +71,8 @@
             android:name=".service.FilterRemoveActivity"
             android:label="@string/app_name_filter_remove" >
         </activity>
-        <service android:name=".SSHDService">
+
+        <service android:name=".SSHDService" >
             <intent-filter>
                 <action android:name="org.digimead.digi.ctrl.component.service" />
             </intent-filter>

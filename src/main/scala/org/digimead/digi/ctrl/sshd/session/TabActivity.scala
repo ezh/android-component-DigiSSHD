@@ -77,7 +77,7 @@ object TabActivity extends Logging {
   @volatile private var adapter: Option[MergeAdapter] = None
   @volatile private var optionBlock: Option[OptionBlock] = None
   @volatile private var sessionBlock: Option[SessionBlock] = None
-  def addLazyInit = AppActivity.LazyInit("initialize session adapter") {
+  def addLazyInit = AppActivity.LazyInit("initialize session tab") {
     SSHDActivity.activity match {
       case Some(activity) =>
         adapter = Some(new MergeAdapter())
