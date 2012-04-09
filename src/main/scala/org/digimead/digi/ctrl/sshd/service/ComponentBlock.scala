@@ -151,7 +151,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   }
   @Loggable
   def getAppSeq(): Seq[ComponentBlock.Item] =
-    SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.id))
+    SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.executableID))
   @Loggable
   def updateComponentsState(state: DState.Value) = synchronized {
     state match {
@@ -173,7 +173,7 @@ object ComponentBlock extends Logging {
     private var icon: WeakReference[ImageView] = new WeakReference(null)
     private var context: WeakReference[Activity] = new WeakReference(null)
     private val lock = new ReentrantLock
-    def executableInfo: ExecutableInfo = SSHDService.getExecutableInfo(".").filter(_.id == id).head
+    def executableInfo: ExecutableInfo = SSHDService.getExecutableInfo(".").filter(_.executableID == id).head
     override def toString() = value
     @Loggable
     def init(_context: Activity, _icon: ImageView, _active: Boolean) = synchronized {

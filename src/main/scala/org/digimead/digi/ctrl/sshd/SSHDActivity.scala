@@ -547,6 +547,12 @@ object SSHDActivity extends Actor with Logging {
         log.error(e.getMessage, e)
     }
   }
+  private val sessionUpdateReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = {
+      log.debug("receive session update " + intent.toUri(0))
+      future { session.SessionBlock.updateCursor }
+    }
+  }
   start
   def addLazyInit = AppActivity.LazyInit("main activity onCreate logic") {
     activity.foreach {
@@ -574,6 +580,12 @@ object SSHDActivity extends Actor with Logging {
         componentUpdateFilter.addDataScheme("code")
         componentUpdateFilter.addDataAuthority(DConstant.ComponentAuthority, null)
         activity.registerReceiver(componentUpdateReceiver, componentUpdateFilter, DPermission.Base, null)
+        // register SessionUpdate BroadcastReceiver
+        val sessionUpdateFilter = new IntentFilter(DIntent.Update)
+        sessionUpdateFilter.addDataScheme("code")
+        sessionUpdateFilter.addDataAuthority(DConstant.SessionAuthority, null)
+        activity.registerReceiver(sessionUpdateReceiver, sessionUpdateFilter, DPermission.Base, null)
+
         // prepare environment
         AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
           if (AppActivity.Inner.state.get.code != DState.Broken)

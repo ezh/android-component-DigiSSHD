@@ -178,7 +178,7 @@ object SSHDService extends Logging {
     } getOrElse false
     @Loggable(result = false)
     def executable(id: Int, workdir: String): ExecutableInfo =
-      SSHDService.getExecutableInfo(workdir).find(_.id == id).getOrElse(null)
+      SSHDService.getExecutableInfo(workdir).find(_.executableID == id).getOrElse(null)
     @Loggable(result = false)
     def post(id: Int, workdir: String): Boolean = {
       log.debug("post(...)")

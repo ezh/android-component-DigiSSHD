@@ -49,14 +49,6 @@ import android.widget.LinearLayout
 
 class SessionBlock(context: Activity) extends Logging {
   implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
-  private val updateReceiver = new BroadcastReceiver() {
-    def onReceive(context: Context, intent: Intent) = {
-      if (intent.getData.getAuthority == DConstant.SessionAuthority) {
-        log.debug("receive session update " + intent.toUri(0))
-        onIntentUpdate(intent)
-      }
-    }
-  }
   private val header = context.getLayoutInflater.inflate(R.layout.session_header, null).asInstanceOf[LinearLayout]
   private val adapter = {
     val result: SyncVar[SessionAdapter] = new SyncVar
@@ -66,6 +58,8 @@ class SessionBlock(context: Activity) extends Logging {
   private lazy val inflater = LayoutInflater.from(context)
   private var applyButton = new WeakReference[Button](null)
   private var cancelButton = new WeakReference[Button](null)
+  SessionBlock.block = new WeakReference(this)
+
   def appendTo(adapter: MergeAdapter) {
     val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
     headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
@@ -74,20 +68,6 @@ class SessionBlock(context: Activity) extends Logging {
     adapter.addView(header)
     adapter.addAdapter(this.adapter)
   }
-  @Loggable
-  def onResume() {
-    val updateFilter = new IntentFilter()
-    updateFilter.addAction(DIntent.Update)
-    updateFilter.addDataScheme("code")
-    context.registerReceiver(updateReceiver, updateFilter, DPermission.Base, null)
-    future { updateCursor }
-  }
-  @Loggable
-  def onPause() {
-    context.unregisterReceiver(updateReceiver)
-  }
-  @Loggable
-  private def onIntentUpdate(intent: Intent): Unit = future { updateCursor }
   @Loggable
   def onApply(view: View) = future {}
   @Loggable
@@ -98,11 +78,23 @@ class SessionBlock(context: Activity) extends Logging {
     val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
     context.runOnUiThread(new Runnable() {
       def run() {
+        if (cursor.getCount == 0)
+          header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
+        else
+          header.findViewById(android.R.id.content).setVisibility(View.GONE)
         adapter.changeCursor(cursor)
         adapter.notifyDataSetChanged
       }
     })
   }
+}
+
+object SessionBlock extends Logging {
+  @volatile protected var block = new WeakReference[SessionBlock](null)
+
+  @Loggable
+  def updateCursor =
+    synchronized { block.get.foreach(_.updateCursor()) }
 }
 
 /*

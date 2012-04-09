@@ -55,16 +55,6 @@ class TabActivity extends ListActivity with Logging {
     getListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
-  /*  @Loggable
-  override def onResume() {
-    sessionBlock.onResume()
-    super.onResume()
-  }
-  @Loggable
-  override def onPause() {
-    sessionBlock.onPause()
-    super.onPause()
-  }*/
   @Loggable
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
     adapter <- TabActivity.adapter

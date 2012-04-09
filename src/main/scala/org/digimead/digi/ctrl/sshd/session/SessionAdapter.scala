@@ -21,38 +21,56 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+import scala.actors.Actor
+import scala.collection.mutable.SynchronizedMap
+import scala.collection.mutable.HashMap
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.WeakHashMap
+import scala.ref.WeakReference
+
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.declaration.DConnection
+import org.digimead.digi.ctrl.lib.declaration.DProvider
+import org.digimead.digi.ctrl.lib.info.ComponentInfo
+import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.util.Common
+
 import android.content.Context
+import android.database.Cursor
 import android.view.View
 import android.view.ViewGroup
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.declaration.DConnection
-import org.digimead.digi.ctrl.lib.declaration.DProvider
-import org.digimead.digi.ctrl.lib.util.Common
-import scala.actors.Actor
-import scala.collection.mutable.SynchronizedMap
-import scala.collection.mutable.WeakHashMap
 
 class SessionAdapter(context: Context, layout: Int)
   extends SimpleCursorAdapter(context, layout, null, Array[String](), Array[Int]()) with Logging {
+  private[session] val item = new HashMap[Int, SessionAdapter.Item] with SynchronizedMap[Int, SessionAdapter.Item]
   override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
-    convertView match {
-      case null =>
+    val cursor = getCursor()
+    if (!cursor.moveToPosition(position))
+      throw new IllegalStateException("couldn't move cursor to position " + position)
+    val id = cursor.getInt(DProvider.Field.ID.id)
+    item.get(id).flatMap(_.view.get) match {
+      case None =>
         val view = super.getView(position, convertView, parent)
         val cursor = getCursor()
         if (!cursor.moveToPosition(position))
           throw new IllegalStateException("couldn't move cursor to position " + position)
-        val componentPackage = cursor.getString(DProvider.Field.ComponentPackage.id)
-        val executableID = cursor.getInt(DProvider.Field.ExecutableID.id)
-        Option(cursor.getBlob(DProvider.Field.Connection.id)).foreach {
-          connection =>
-            Common.deserializeFromArray(connection) match {
-              case Some(connection: DConnection) =>
-                log.g_a_s_e("!" + connection)
-              /*                Component.get(componentPackage) match {
+        (for {
+          component <- Option(cursor.getBlob(DProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
+          executable <- Option(cursor.getBlob(DProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
+          connection <- Option(cursor.getBlob(DProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
+        } yield {
+          log.g_a_s_e("!" + connection)
+          val processID = cursor.getInt(DProvider.Field.ProcessID.id)
+          item(id) = new SessionAdapter.Item(id, position, component.componentPackage, processID, connection.connectionID,
+            new WeakReference(null), connection.timestamp, new WeakReference(view))
+        }) getOrElse ({ log.warn("couldn't unparcel connection from cursor at position " + position) })
+        /*                Component.get(componentPackage) match {
                   case Some(component) =>
                     val title = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
                     val description = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
@@ -72,15 +90,31 @@ class SessionAdapter(context: Context, layout: Int)
                   case None =>
                     log.warn("couldn't aquire component " + componentPackage + " for cursor at position " + position)
                 }*/
-              case _ =>
-                log.warn("couldn't deserialize connection from cursor at position " + position)
-            }
-        }
         //        log.trace("recreate view for child " + cursor)
         view
-      case view: View =>
-        super.getView(position, convertView, parent)
+      case Some(view) =>
+        view
     }
+  }
+  @Loggable
+  override def changeCursor(cursor: Cursor): Unit = try {
+    super.changeCursor(cursor)
+    if (cursor.getCount != 0) {
+      val pos = cursor.getPosition
+      if (cursor.moveToFirst) {
+        val existsIDs = HashSet[Int](item.keys.toSeq: _*)
+        do { existsIDs.remove(cursor.getInt(DProvider.Field.ID.id)) } while (cursor.moveToNext)
+        existsIDs.foreach(n => {
+          log.debug("remove item " + n)
+          item.remove(n)
+        })
+        cursor.moveToPosition(pos)
+      }
+    } else
+      item.clear
+  } catch {
+    case e =>
+      log.error(e.getMessage, e)
   }
 }
 
@@ -107,4 +141,12 @@ object SessionAdapter extends Actor with Logging {
       field.getRootView.post(new Runnable() {
         def run() = field.setText("D: " + (System.currentTimeMillis - durationField(field)))
       })
+  class Item(val id: Int,
+    val position: Int,
+    val componentPackage: String,
+    val processID: Int,
+    val connectionID: Int,
+    val durationField: WeakReference[TextView],
+    val timestamp: Long,
+    val view: WeakReference[View])
 }
