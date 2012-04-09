@@ -41,6 +41,8 @@ import android.content.Intent
 import android.os.IBinder
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
+import org.digimead.digi.ctrl.lib.declaration.DOption
+import android.content.Context
 
 class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
@@ -71,6 +73,7 @@ object SSHDService extends Logging {
   def getExecutableInfo(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
+      context <- AppActivity.Context
       appNativePath <- AppActivity.Inner.appNativePath
       xml <- AppActivity.Inner.nativeManifest
     } yield {
@@ -94,7 +97,10 @@ object SSHDService extends Logging {
           case "openssh" => None
         }
         val port = executable match {
-          case "dropbear" => Some(2222)
+          case "dropbear" =>
+            val pref = context.getSharedPreferences(DOption.Port, Context.MODE_WORLD_READABLE)
+            val port = pref.getInt(DOption.Port, 2222)
+            Some(port)
           case "openssh" => None
         }
         val env = Seq()

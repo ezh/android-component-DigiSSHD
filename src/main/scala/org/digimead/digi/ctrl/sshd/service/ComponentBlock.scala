@@ -151,7 +151,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   }
   @Loggable
   def getAppSeq(): Seq[ComponentBlock.Item] =
-    SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei))
+    SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.id))
   @Loggable
   def updateComponentsState(state: DState.Value) = synchronized {
     state match {
@@ -166,13 +166,14 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
 
 object ComponentBlock extends Logging {
   @volatile private var block: Option[ComponentBlock] = None
-  case class Item(value: String, executableInfo: ExecutableInfo) extends Block.Item {
+  case class Item(value: String, id: Int) extends Block.Item {
     private var activeDrawable: Option[Drawable] = None
     private var passiveDrawable: Option[Drawable] = None
     private var active: Option[Boolean] = None
     private var icon: WeakReference[ImageView] = new WeakReference(null)
     private var context: WeakReference[Activity] = new WeakReference(null)
     private val lock = new ReentrantLock
+    def executableInfo: ExecutableInfo = SSHDService.getExecutableInfo(".").filter(_.id == id).head
     override def toString() = value
     @Loggable
     def init(_context: Activity, _icon: ImageView, _active: Boolean) = synchronized {

@@ -83,6 +83,8 @@
     <string name="dialog_exit_message">Do you want to exit?</string>
     <string name="dialog_root_title">Access Permission</string>
     <string name="dialog_root_message">Are you sure you want to grant superuser permission to native components?\n\nPlease note that your software must support this function. This option is ignored if you have a firmware with limited functionality.</string>
+    <string name="dialog_port_title">Select network port</string>
+    <string name="dialog_port_message">Select new TCP port at range from 1024 to 32767. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/&gt;&lt;br/&gt;Please select only &lt;b&gt;unprivileged&lt;/b&gt; port values</string>    
     <string name="dialog_component_info_title">Component information</string>
     <string name="dialog_component_info_message">component: &lt;font color=\'white\'>%1$s&lt;/font> &lt;br/>
         description: &lt;font color=\'white\'>%2$s&lt;/font> &lt;br/>
@@ -99,6 +101,8 @@
     <string name="APPLICATION_GS_BUCKET">YW5kcm9pZC1kaWdpLXNzaGQtcmVwb3J0</string>
     <string name="service_environment_reinstall">reinstall components</string>
     <string name="service_environment_reset">reset to default</string>
+    <string name="option_port_name">component port</string>
+    <string name="option_port_description">TCP port, sshd is listing on</string>
     <string name="option_as_root_name">grant superuser permission</string>
     <string name="option_as_root_description">run components under root account</string>
     <string name="option_confirm_connection_name">confirm connection</string>
