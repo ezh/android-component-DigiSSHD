@@ -155,11 +155,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
       future {
         IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
-        AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+        if (AppActivity.Inner.state.get.code == DState.Initializing)
+          AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
         System.gc
         Thread.sleep(500)
         IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
+      }
+    else
+      future {
+        AppActivity.Inner.synchronizeStateWithICtrlHost
       }
     super.onResume()
   }
@@ -189,7 +194,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
       future {
         IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
-        AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+        if (AppActivity.Inner.state.get.code == DState.Initializing)
+          AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
         System.gc
         Thread.sleep(500)
@@ -314,6 +320,12 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         }
       case state =>
         IAmWarn("unable to change component state while in " + state)
+        runOnUiThread(new Runnable {
+          def run {
+            val state = toggleStartStop.isChecked()
+            toggleStartStop.setChecked(true)
+          }
+        })
       // TODO add IAmWarn Toast.makeText(...
     }
   }
@@ -503,7 +515,7 @@ object SSHDActivity extends Actor with Logging {
   private var busyBuffer = Seq[String]()
   private var busyKicker: Option[ScheduledExecutorService] = None
   private val busyKickerF = new Runnable { def run = SSHDActivity.this ! null }
-  private val busyKickerDelay = 3000
+  private val busyKickerDelay = 500
   private val busyKickerRate = 50
   private val privateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
@@ -554,6 +566,8 @@ object SSHDActivity extends Actor with Logging {
     }
   }
   start
+  log.debug("alive")
+
   def addLazyInit = AppActivity.LazyInit("main activity onCreate logic") {
     activity.foreach {
       activity =>
@@ -589,29 +603,13 @@ object SSHDActivity extends Actor with Logging {
         // prepare environment
         AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
           if (AppActivity.Inner.state.get.code != DState.Broken)
-            if (success) {
-              AppService.Inner ! AppService.Message.Status(activity.getPackageName, {
-                case Right(componentState) =>
-                  val appState = componentState.state match {
-                    case DState.Active =>
-                      AppActivity.State(DState.Active)
-                    case DState.Broken =>
-                      AppActivity.State(DState.Broken, "native failed")
-                    case _ =>
-                      AppActivity.State(DState.Passive)
-                  }
-                  AppActivity.Inner.state.set(appState)
-                case Left(error) =>
-                  val appState = AppActivity.State(DState.Broken, error)
-                  AppActivity.Inner.state.set(appState)
-              })
-            } else
+            if (success)
+              AppActivity.Inner.synchronizeStateWithICtrlHost
+            else
               AppActivity.State(DState.Broken, "environment preparation failed")
         })
     }
   }
-  log.debug("alive")
-
   def act = {
     loop {
       react {
