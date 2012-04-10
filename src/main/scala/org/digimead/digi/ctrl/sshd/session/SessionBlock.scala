@@ -46,6 +46,7 @@ import scala.concurrent.SyncVar
 import android.text.Html
 import org.digimead.digi.ctrl.lib.util.Android
 import android.widget.LinearLayout
+import android.view.MotionEvent
 
 class SessionBlock(context: Activity) extends Logging {
   implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
@@ -56,17 +57,33 @@ class SessionBlock(context: Activity) extends Logging {
     result.get
   }
   private lazy val inflater = LayoutInflater.from(context)
-  private var applyButton = new WeakReference[Button](null)
-  private var cancelButton = new WeakReference[Button](null)
+  private var disconnectButton = new WeakReference[Button](null)
   SessionBlock.block = new WeakReference(this)
+  future { updateCursor }
 
   def appendTo(adapter: MergeAdapter) {
     val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
     headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
-    if (this.adapter.isEmpty)
-      header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
     adapter.addView(header)
     adapter.addAdapter(this.adapter)
+    val footer = inflater.inflate(Android.getId(context, "session_footer", "layout"), null)
+    adapter.addView(footer)
+    disconnectButton = new WeakReference(footer.findViewById(Android.getId(context, "session_footer_disconnect_all")).asInstanceOf[Button])
+    disconnectButton.get.foreach(_.setOnTouchListener(new View.OnTouchListener {
+      def onTouch(v: View, event: MotionEvent): Boolean = {
+        if (event.getAction() == MotionEvent.ACTION_DOWN)
+          future {
+            log.g_a_s_e("disconnect")
+            //            adapter.item.values.toSeq.foreach(i =>
+            //              AppService.Inner ! AppService.Message.Disconnect(i.componentPackage, i.processID, i.connectionID))
+          }
+        false
+      }
+    }))
+    if (this.adapter.isEmpty) {
+      header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
+      disconnectButton.get.foreach(_.setEnabled(false))
+    }
   }
   @Loggable
   def onApply(view: View) = future {}
@@ -78,10 +95,13 @@ class SessionBlock(context: Activity) extends Logging {
     val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
     context.runOnUiThread(new Runnable() {
       def run() {
-        if (cursor.getCount == 0)
+        if (cursor.getCount == 0) {
           header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
-        else
+          disconnectButton.get.foreach(_.setEnabled(false))
+        } else {
           header.findViewById(android.R.id.content).setVisibility(View.GONE)
+          disconnectButton.get.foreach(_.setEnabled(true))
+        }
         adapter.changeCursor(cursor)
         adapter.notifyDataSetChanged
       }
@@ -96,43 +116,3 @@ object SessionBlock extends Logging {
   def updateCursor =
     synchronized { block.get.foreach(_.updateCursor()) }
 }
-
-/*
-
-class TabActivity extends ListActivity with Logging {
-
-
-  log.debug("alive")
-  @Loggable
-  override protected def onCreate(savedInstanceState: Bundle) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.session)
-    val lv = findViewById(android.R.id.list).asInstanceOf[ListView]
-    val header = inflater.inflate(R.layout.separator, null).asInstanceOf[TextView]
-    header.setText(R.string.session_list)
-    lv.addHeaderView(header)
-    val footer = inflater.inflate(R.layout.session_footer, null)
-    applyButton = new WeakReference(footer.findViewById(R.id.session_footer_apply).asInstanceOf[Button])
-    applyButton.get.foreach(_.setOnTouchListener(new View.OnTouchListener {
-      def onTouch(v: View, event: MotionEvent): Boolean = {
-        if (event.getAction() == MotionEvent.ACTION_DOWN)
-          TabActivity.this.onApply(v)
-        false
-      }
-    }))
-    cancelButton = new WeakReference(footer.findViewById(R.id.session_footer_cancel).asInstanceOf[Button])
-    cancelButton.get.foreach(_.setOnTouchListener(new View.OnTouchListener {
-      def onTouch(v: View, event: MotionEvent): Boolean = {
-        if (event.getAction() == MotionEvent.ACTION_DOWN)
-          TabActivity.this.onCancel(v)
-        false
-      }
-    }))
-    lv.addFooterView(footer)
-    lv.setAdapter(adapter)
-    future { updateCursor }
-  }
-}
-
-*/
-

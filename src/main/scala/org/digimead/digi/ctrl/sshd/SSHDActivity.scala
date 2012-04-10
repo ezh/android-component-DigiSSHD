@@ -21,11 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd
 
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
 import java.util.Locale
 
 import scala.actors.Futures.future
@@ -152,12 +148,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onResume() {
     AppService.Inner.bind(this)
     SSHDActivity.consistent = true
+    val fOnResume = () => {
+      org.digimead.digi.ctrl.sshd.session.SessionBlock.updateCursor
+    }
     if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
       future {
         IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
         if (AppActivity.Inner.state.get.code == DState.Initializing)
           AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
+        fOnResume()
         System.gc
         Thread.sleep(500)
         IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
@@ -165,6 +165,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     else
       future {
         AppActivity.Inner.synchronizeStateWithICtrlHost
+        fOnResume()
       }
     super.onResume()
   }
@@ -474,6 +475,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       startFlag.get(DTimeout.normal).getOrElse(false)
     } else
       false
+    AppActivity.Inner.synchronizeStateWithICtrlHost
     result
   }
   /*
@@ -497,6 +499,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (result)
       AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
     stopService(new Intent(DIntent.HostService))
+    AppActivity.Inner.synchronizeStateWithICtrlHost
     result
   }
 }
@@ -509,11 +512,10 @@ object SSHDActivity extends Actor with Logging {
   @volatile private var focused = false
   @volatile private var consistent = false
   // null - empty, None - dialog upcoming, Some - dialog in progress
-  private val busyDialog = new AtomicReference[Option[ProgressDialog]](None)
+  private val busyDialog = new SyncVar[Option[ProgressDialog]]()
   private val busyCounter = new AtomicInteger()
   private val busySize = 5
   private var busyBuffer = Seq[String]()
-  private var busyKicker: Option[ScheduledExecutorService] = None
   private val busyKickerF = new Runnable { def run = SSHDActivity.this ! null }
   private val busyKickerDelay = 500
   private val busyKickerRate = 50
@@ -565,6 +567,11 @@ object SSHDActivity extends Actor with Logging {
       future { session.SessionBlock.updateCursor }
     }
   }
+  /*
+   * initialize singletons
+   */
+  session.SessionAdapter
+  // start actor
   start
   log.debug("alive")
 
@@ -616,6 +623,7 @@ object SSHDActivity extends Actor with Logging {
         case msg: IAmBusy =>
           busyCounter.incrementAndGet
           activity.foreach(onBusy)
+          busyDialog.get
         case msg: IAmReady =>
           busyCounter.decrementAndGet
           onReady
@@ -629,43 +637,46 @@ object SSHDActivity extends Actor with Logging {
     }
   }
   @Loggable
-  private def onBusy(activity: SSHDActivity) = synchronized {
+  private def onBusy(activity: SSHDActivity): Unit = synchronized {
     AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
-    busyDialog.get() match {
-      case Some(dialog) =>
-      case None =>
-        future {
-          val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
-          busyBuffer = Seq(message)
-          for (i <- 1 until busySize) addDataToBusyBuffer
-          busyDialog.set(activity.showDialogSafe[ProgressDialog](() =>
-            if (busyCounter.get > 0) {
-              busyKicker = Some(Executors.newSingleThreadScheduledExecutor())
-              busyKicker.get.scheduleAtFixedRate(busyKickerF, busyKickerDelay, busyKickerRate, TimeUnit.MILLISECONDS)
-              ProgressDialog.show(activity, "Please wait...", Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>")), true)
-            } else
-              null))
-        }
-    }
+    if (!busyDialog.isSet)
+      future {
+        val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
+        busyBuffer = Seq(message)
+        for (i <- 1 until busySize) addDataToBusyBuffer
+        busyDialog.set(activity.showDialogSafe[ProgressDialog](() =>
+          if (busyCounter.get > 0) {
+            future {
+              Thread.sleep(200)
+              onKick(activity)
+            }
+            ProgressDialog.show(activity, "Please wait...", Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>")), true)
+          } else
+            null))
+      }
   }
   @Loggable
-  private def onReady() = synchronized {
-    busyDialog.get() match {
-      case Some(dialog) =>
-        busyKicker.foreach(_.shutdownNow)
-        busyKicker = None
-        dialog.dismiss
-      case None =>
-    }
+  private def onReady(): Unit = synchronized {
+    if (busyDialog.isSet)
+      busyDialog.get.foreach {
+        dialog =>
+          dialog.dismiss
+          busyDialog.unset
+      }
     AppActivity.Inner.state.freeBusy
   }
-  private def onKick(activity: SSHDActivity) = synchronized {
-    busyDialog.get() match {
-      case Some(dialog) =>
-        addDataToBusyBuffer()
-        activity.runOnUiThread(new Runnable { def run = dialog.setMessage(Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>"))) })
-      case None =>
-    }
+  private def onKick(activity: SSHDActivity): Unit = synchronized {
+    log.error("kick")
+    if (busyDialog.isSet)
+      busyDialog.get.foreach {
+        dialog =>
+          addDataToBusyBuffer()
+          activity.runOnUiThread(new Runnable { def run = dialog.setMessage(Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>"))) })
+          future {
+            Thread.sleep(200)
+            onKick(activity)
+          }
+      }
   }
   private def addDataToBusyBuffer() = synchronized {
     var value = Random.nextInt
@@ -682,21 +693,3 @@ object SSHDActivity extends Actor with Logging {
       busyBuffer = busyBuffer.tail
   }
 }
-
-/*
-    // update AppState
-    if (result)
-            AppService.Inner ! AppService.Message.Status(.getPackageName, {
-              case Right(status) =>
-                component(c.componentPackage).stateBuffer.set(status.state)
-                if (status.state == DState.Passive && component(c.componentPackage).executable.isEmpty) {
-                  log.warn("component " + component(c.componentPackage).name + " hasn't any executables")
-                  component(c.componentPackage).stateBuffer.set(DState.Broken)
-                }
-              case Left(error) =>
-                component(c.componentPackage).stateBuffer.set(DState.Broken)
-            })
-
-      
-      
-*/

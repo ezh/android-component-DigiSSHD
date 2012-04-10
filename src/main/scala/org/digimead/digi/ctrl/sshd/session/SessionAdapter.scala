@@ -21,34 +21,43 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
+import java.net.InetAddress
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+import scala.Option.option2Iterable
 import scala.actors.Actor
 import scala.collection.mutable.SynchronizedMap
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
-import scala.collection.mutable.WeakHashMap
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DProvider
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.sshd.R
 
 import android.content.Context
 import android.database.Cursor
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
 
 class SessionAdapter(context: Context, layout: Int)
   extends SimpleCursorAdapter(context, layout, null, Array[String](), Array[Int]()) with Logging {
   private[session] val item = new HashMap[Int, SessionAdapter.Item] with SynchronizedMap[Int, SessionAdapter.Item]
+  SessionAdapter.adapter.set(new WeakReference(this))
+
   override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
     val cursor = getCursor()
     if (!cursor.moveToPosition(position))
@@ -65,32 +74,24 @@ class SessionAdapter(context: Context, layout: Int)
           executable <- Option(cursor.getBlob(DProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
           connection <- Option(cursor.getBlob(DProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
         } yield {
-          log.g_a_s_e("!" + connection)
+          val title = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
+          val description = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
+          val subinfo = view.findViewById(android.R.id.message).asInstanceOf[TextView]
+          val kind = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
+          val state = view.findViewById(android.R.id.button1).asInstanceOf[ImageButton]
+          val ip = InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray)
+          kind.setBackgroundDrawable(context.getResources.getDrawable(R.drawable.ic_launcher))
+          title.setText(Android.getString(context, "session_title").getOrElse("%1$s to %2$s").
+            format(ip.getHostAddress, executable.name))
+          description.setText(Android.getString(context, "session_description").getOrElse("%1$s").
+            format(component.name))
+          state.setFocusable(false)
+          state.setFocusableInTouchMode(false)
+          subinfo.setText(Android.getString(context, "time_minutes").getOrElse("%02dm %02ds").format(0, 0))
           val processID = cursor.getInt(DProvider.Field.ProcessID.id)
           item(id) = new SessionAdapter.Item(id, position, component.componentPackage, processID, connection.connectionID,
-            new WeakReference(null), connection.timestamp, new WeakReference(view))
+            new WeakReference(subinfo), connection.timestamp, new WeakReference(view))
         }) getOrElse ({ log.warn("couldn't unparcel connection from cursor at position " + position) })
-        /*                Component.get(componentPackage) match {
-                  case Some(component) =>
-                    val title = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-                    val description = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
-                    val subinfo = view.findViewById(android.R.id.message).asInstanceOf[TextView]
-                    val kind = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
-                    val state = view.findViewById(android.R.id.button1).asInstanceOf[ImageButton]
-                    val ip = InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray)
-                    component.icon(context).foreach(kind.setBackgroundDrawable)
-                    title.setText(context.getString(R.string.session_title).
-                      format(ip.getHostAddress, component.executable(executableID).name))
-                    description.setText(context.getString(R.string.session_description).
-                      format(component.name))
-                    state.setFocusable(false)
-                    state.setFocusableInTouchMode(false)
-                    Adapter.durationField(subinfo) = connection.timestamp
-                    Adapter.updateDurationText(subinfo)
-                  case None =>
-                    log.warn("couldn't aquire component " + componentPackage + " for cursor at position " + position)
-                }*/
-        //        log.trace("recreate view for child " + cursor)
         view
       case Some(view) =>
         view
@@ -119,28 +120,52 @@ class SessionAdapter(context: Context, layout: Int)
 }
 
 object SessionAdapter extends Actor with Logging {
+  private val adapter = new AtomicReference(new WeakReference[SessionAdapter](null))
   private val jscheduler = Executors.newSingleThreadScheduledExecutor()
-  private val durationField = new WeakHashMap[TextView, Long] with SynchronizedMap[TextView, Long]
-  start
-  schedule(1000)
-  log.debug("alive")
 
-  private def schedule(duration: Int) {
-    jscheduler.scheduleAtFixedRate(new Runnable { def run { SessionAdapter.this ! () } }, 0, duration, TimeUnit.MILLISECONDS)
+  AppActivity.LazyInit("start session.SessionAdapter actor and heartbeat") {
+    start
+    schedule(1000)
   }
+  log.debug("alive")
+  private def schedule(duration: Int) =
+    jscheduler.scheduleAtFixedRate(new Runnable { def run { SessionAdapter.this ! () } }, 0, duration, TimeUnit.MILLISECONDS)
   def act = {
     loop {
       react {
         case _ =>
-          durationField.keys.foreach(updateDurationText)
+          adapter.get.get match {
+            case Some(adapter) =>
+              val waiting = adapter.item.values.flatMap(updateDurationText)
+              if (waiting.nonEmpty) {
+                waiting.head._1.getRootView.post(new Runnable() {
+                  def run() = waiting.foreach(t => {
+                    t._1.setText(t._2)
+                    t._1.requestLayout
+                  })
+                })
+                waiting.head._1.postInvalidate
+              }
+            case None =>
+          }
       }
     }
   }
-  private def updateDurationText(field: TextView) =
-    if (field.getVisibility == View.VISIBLE)
-      field.getRootView.post(new Runnable() {
-        def run() = field.setText("D: " + (System.currentTimeMillis - durationField(field)))
-      })
+  private def updateDurationText(item: Item): Option[(TextView, String)] = item.durationField.get.flatMap {
+    durationField =>
+      if (durationField.getVisibility == View.VISIBLE) {
+        val time = System.currentTimeMillis - item.timestamp
+        val seconds = ((time / 1000) % 60).toInt
+        val minutes = ((time / (1000 * 60)) % 60).toInt
+        val hours = ((time / (1000 * 60 * 60))).toInt
+        val text = if (time < 1000 * 60 * 60)
+          Android.getString(durationField.getContext, "time_minutes").getOrElse("%02dm %02ds").format(minutes, seconds)
+        else
+          Android.getString(durationField.getContext, "time_hours").getOrElse("%dh %02dm %02ds").format(hours, minutes, seconds)
+        Some((durationField, text))
+      } else
+        None
+  }
   class Item(val id: Int,
     val position: Int,
     val componentPackage: String,
