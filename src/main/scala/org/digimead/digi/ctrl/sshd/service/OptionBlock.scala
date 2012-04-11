@@ -86,81 +86,86 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
           onOptionClick(item, lastState)
       }
     case DOption.Port =>
-      // leave UI thread
-      future {
-        SSHDActivity.activity.foreach {
-          activity =>
-            val container = new ScrollView(activity)
-            val layout = new LinearLayout(activity)
-            layout.setOrientation(LinearLayout.VERTICAL)
-            val padding = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 5, activity.getResources.getDisplayMetrics).toInt
-            layout.setPadding(padding, padding, padding, padding)
-            val message = new TextView(activity)
-            message.setMovementMethod(LinkMovementMethod.getInstance())
-            message.setPadding(0, 0, 0, padding)
-            message.setText(Html.fromHtml(Android.getString(activity, "dialog_port_message").getOrElse("Select new TCP port in range from 1024 to 32767")))
-            layout.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-            val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
-            val input = new EditText(activity)
-            val maxLengthFilter = new InputFilter.LengthFilter(5)
-            val currentValue = pref.getInt(item.option, 2222)
-            input.setPadding(0, padding, 0, padding)
-            input.setId(Int.MaxValue)
-            input.setInputType(InputType.TYPE_CLASS_NUMBER)
-            input.setText(currentValue.toString)
-            input.setFilters(Array(maxLengthFilter))
-            layout.addView(input, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-            container.addView(layout)
-            activity.showDialogSafe[AlertDialog](() => {
-              val dialog = new AlertDialog.Builder(activity).
-                setTitle(R.string.dialog_port_title).
-                setView(container).
-                setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                  def onClick(dialog: DialogInterface, whichButton: Int) = try {
-                    val port = input.getText.toString.toInt
-                    log.debug("set port to " + port)
-                    val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
-                    val editor = pref.edit()
-                    editor.putInt(item.option, port)
-                    editor.commit()
-                    item.view.get.foreach(view => {
-                      val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                      text.setText(port.toString)
-                    })
-                    context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-                  } catch {
-                    case e =>
-                      log.error(e.getMessage, e)
-                  }
-                }).
-                setNegativeButton(android.R.string.cancel, null).
-                setIcon(android.R.drawable.ic_dialog_info).
-                create()
-              dialog.show()
-              val ok = dialog.findViewById(android.R.id.button1)
-              ok.setEnabled(false)
-              input.addTextChangedListener(new TextWatcher {
-                override def afterTextChanged(s: Editable) = try {
-                  val rawPort = s.toString
-                  if (rawPort.nonEmpty) {
-                    val port = rawPort.toInt
-                    if (port > 1023 && port < 32768 && port != currentValue)
-                      ok.setEnabled(true)
-                    else
-                      ok.setEnabled(false)
-                  } else
-                    ok.setEnabled(false)
-                } catch {
-                  case e =>
-                    log.warn(e.getMessage, e)
-                }
-                override def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-                override def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-              })
-              dialog
-            })
+      context.runOnUiThread(new Runnable {
+        def run {
+          SSHDActivity.activity.foreach {
+            activity =>
+              val container = new ScrollView(activity)
+              val layout = new LinearLayout(activity)
+              layout.setOrientation(LinearLayout.VERTICAL)
+              val padding = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 5, activity.getResources.getDisplayMetrics).toInt
+              layout.setPadding(padding, padding, padding, padding)
+              val message = new TextView(activity)
+              message.setMovementMethod(LinkMovementMethod.getInstance())
+              message.setPadding(0, 0, 0, padding)
+              message.setText(Html.fromHtml(Android.getString(activity, "dialog_port_message").getOrElse("Select new TCP port in range from 1024 to 32767")))
+              layout.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+              val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+              val input = new EditText(activity)
+              val maxLengthFilter = new InputFilter.LengthFilter(5)
+              val currentValue = pref.getInt(item.option, 2222)
+              input.setPadding(0, padding, 0, padding)
+              input.setId(Int.MaxValue)
+              input.setInputType(InputType.TYPE_CLASS_NUMBER)
+              input.setText(currentValue.toString)
+              input.setFilters(Array(maxLengthFilter))
+              layout.addView(input, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+              container.addView(layout)
+              // leave UI thread
+              future {
+                activity.showDialogSafe[AlertDialog](() => {
+                  val dialog = new AlertDialog.Builder(activity).
+                    setTitle(R.string.dialog_port_title).
+                    setView(container).
+                    setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                      def onClick(dialog: DialogInterface, whichButton: Int) = try {
+                        val port = input.getText.toString.toInt
+                        log.debug("set port to " + port)
+                        val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+                        val editor = pref.edit()
+                        editor.putInt(item.option, port)
+                        editor.commit()
+                        item.view.get.foreach(view => {
+                          val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
+                          text.setText(port.toString)
+                        })
+                        context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+                      } catch {
+                        case e =>
+                          log.error(e.getMessage, e)
+                      }
+                    }).
+                    setNegativeButton(android.R.string.cancel, null).
+                    setIcon(android.R.drawable.ic_dialog_info).
+                    create()
+                  dialog.show()
+                  val ok = dialog.findViewById(android.R.id.button1)
+                  ok.setEnabled(false)
+                  input.addTextChangedListener(new TextWatcher {
+                    override def afterTextChanged(s: Editable) = try {
+                      val rawPort = s.toString
+                      if (rawPort.nonEmpty) {
+                        val port = rawPort.toInt
+                        if (port > 1023 && port < 32768 && port != currentValue)
+                          ok.setEnabled(true)
+                        else
+                          ok.setEnabled(false)
+                      } else
+                        ok.setEnabled(false)
+                    } catch {
+                      case e =>
+                        log.warn(e.getMessage, e)
+                    }
+                    override def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+                    override def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+                  })
+                  dialog
+                })
+
+              }
+          }
         }
-      }
+      })
   }
   @Loggable
   def onOptionClick(item: OptionBlock.Item, lastState: Boolean) = item.option match {

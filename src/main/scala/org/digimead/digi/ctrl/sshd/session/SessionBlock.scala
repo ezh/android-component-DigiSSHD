@@ -21,32 +21,27 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.net.Uri
-import android.view.LayoutInflater
-import android.view.View
-import android.widget.Button
-import android.widget.TextView
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DPermission
-import org.digimead.digi.ctrl.lib.declaration.DProvider
-import org.digimead.digi.ctrl.sshd.R
 import scala.actors.Futures.future
 import scala.ref.WeakReference
-import com.commonsware.cwac.merge.MergeAdapter
-import android.app.Activity
-import org.digimead.digi.ctrl.sshd.SSHDActivity
-import scala.concurrent.SyncVar
-import android.text.Html
+
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.declaration.DProvider
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
-import android.widget.LinearLayout
+import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.ctrl.sshd.R
+
+import com.commonsware.cwac.merge.MergeAdapter
+
+import android.app.Activity
+import android.net.Uri
+import android.text.Html
+import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
 
 class SessionBlock(context: Activity) extends Logging {
   implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get

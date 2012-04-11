@@ -24,11 +24,15 @@ package org.digimead.digi.ctrl.sshd
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.ctrl.lib.message.IAmBusy
 
 object Message extends Logging {
   implicit val dispatcher: Dispatcher = new Dispatcher {
     def process(message: DMessage): Unit = {
-      SSHDActivity ! message
+      if (message.isInstanceOf[IAmBusy])
+        SSHDActivity !? message
+      else
+        SSHDActivity ! message
     }
   }
 }

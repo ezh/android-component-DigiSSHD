@@ -26,7 +26,6 @@ import java.util.Locale
 
 import scala.actors.Futures.future
 import scala.actors.Actor
-import scala.concurrent.SyncVar
 import scala.ref.WeakReference
 import scala.util.Random
 
@@ -51,6 +50,7 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.Activity
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabActivity
@@ -293,18 +293,18 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   def onClickServiceFilterAdd(v: View) =
-    service.TabActivity.getActivity.foreach(_.onClickServiceFilterAdd(v))
+    future { service.TabActivity.getActivity.foreach(_.onClickServiceFilterAdd(v)) }
   @Loggable
   def onClickServiceFilterRemove(v: View) =
-    service.TabActivity.getActivity.foreach(_.onClickServiceFilterRemove(v))
+    future { service.TabActivity.getActivity.foreach(_.onClickServiceFilterRemove(v)) }
   @Loggable
   def onClickServiceReinstall(v: View) =
-    service.TabActivity.getActivity.foreach(_.onClickServiceReinstall(v))
+    future { service.TabActivity.getActivity.foreach(_.onClickServiceReinstall(v)) }
   @Loggable
   def onClickServiceReset(v: View) =
-    service.TabActivity.getActivity.foreach(_.onClickServiceReset(v))
+    future { service.TabActivity.getActivity.foreach(_.onClickServiceReset(v)) }
   @Loggable
-  def onClickStartStop(v: View): Unit = {
+  def onClickStartStop(v: View): Unit = future {
     val button = v.asInstanceOf[ToggleButton]
     AppActivity.Inner.state.get.code match {
       case DState.Active =>
@@ -331,7 +331,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  def onStatusClick(v: View) = {
+  def onClickStatus(v: View) = future {
     AppActivity.Inner.state.get.onClickCallback match {
       case cb: Function0[_] => cb()
       case _ =>
@@ -621,9 +621,11 @@ object SSHDActivity extends Actor with Logging {
     loop {
       react {
         case msg: IAmBusy =>
-          busyCounter.incrementAndGet
-          activity.foreach(onBusy)
-          busyDialog.get
+          reply({
+            busyCounter.incrementAndGet
+            activity.foreach(onBusy)
+            busyDialog.get(DTimeout.normal)
+          })
         case msg: IAmReady =>
           busyCounter.decrementAndGet
           onReady
@@ -661,12 +663,11 @@ object SSHDActivity extends Actor with Logging {
       busyDialog.get.foreach {
         dialog =>
           dialog.dismiss
-          busyDialog.unset
+          busyDialog.unset()
       }
     AppActivity.Inner.state.freeBusy
   }
   private def onKick(activity: SSHDActivity): Unit = synchronized {
-    log.error("kick")
     if (busyDialog.isSet)
       busyDialog.get.foreach {
         dialog =>

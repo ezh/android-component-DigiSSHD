@@ -48,7 +48,7 @@
             android:scrollHorizontally="true"
             android:singleLine="true"
             android:clickable="true"
-            android:onClick="onStatusClick"
+            android:onClick="onClickStatus"
             android:text="@string/status_initializing"
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:textColor="#ffffff" />

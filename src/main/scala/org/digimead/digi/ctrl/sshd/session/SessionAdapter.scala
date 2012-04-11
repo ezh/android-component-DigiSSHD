@@ -69,10 +69,20 @@ class SessionAdapter(context: Context, layout: Int)
         val cursor = getCursor()
         if (!cursor.moveToPosition(position))
           throw new IllegalStateException("couldn't move cursor to position " + position)
+        val v = android.os.Build.VERSION.SDK.toInt
         (for {
-          component <- Option(cursor.getBlob(DProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
-          executable <- Option(cursor.getBlob(DProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
-          connection <- Option(cursor.getBlob(DProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
+          component <- Option(if (v < 11)
+            cursor.getString(DProvider.Field.Component.id).getBytes("ISO-8859-1")
+          else
+            cursor.getBlob(DProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
+          executable <- Option(if (v < 11)
+            cursor.getString(DProvider.Field.Executable.id).getBytes("ISO-8859-1")
+          else
+            cursor.getBlob(DProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
+          connection <- Option(if (v < 11)
+            cursor.getString(DProvider.Field.Connection.id).getBytes("ISO-8859-1")
+          else
+            cursor.getBlob(DProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
         } yield {
           val title = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
           val description = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
