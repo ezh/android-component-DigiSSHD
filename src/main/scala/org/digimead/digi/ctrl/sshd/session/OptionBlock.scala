@@ -49,7 +49,6 @@ import android.widget.CheckBox
 import android.widget.TextView
 
 class OptionBlock(context: Activity) extends Logging {
-  implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
   private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val items = Seq(
     OptionBlock.Item(DOption.ConfirmConn, DOption.ConfirmConn),

@@ -26,6 +26,7 @@ import java.util.Locale
 
 import scala.actors.Futures.future
 import scala.actors.Actor
+import scala.collection.mutable.ArrayBuffer
 import scala.ref.WeakReference
 import scala.util.Random
 
@@ -158,8 +159,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
         fOnResume()
-        System.gc
-        Thread.sleep(500)
         IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
       }
     else
@@ -191,15 +190,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onWindowFocusChanged(hasFocus: Boolean) = {
     super.onWindowFocusChanged(hasFocus)
     SSHDActivity.focused = hasFocus
-    //SSHDActivity.onBusy(this) // show busy dialog if any
+    if (SSHDActivity.consistent && SSHDActivity.focused)
+      AppActivity.Inner.enableSafeDialogs
+    else
+      AppActivity.Inner.disableSafeDialogs
     if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
       future {
         IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
         if (AppActivity.Inner.state.get.code == DState.Initializing)
           AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
         AppActivity.LazyInit.init
-        System.gc
-        Thread.sleep(500)
         IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
       }
   }
@@ -351,21 +351,18 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onOptionsItemSelected(item: MenuItem): Boolean =
     item.getItemId() match {
       case R.id.menu_help =>
-        // leave UI thread
-        future {
-          showDialogSafe[AlertDialog](() => {
-            val dialog = new AlertDialog.Builder(this).
-              setTitle(R.string.dialog_help_title).
-              setMessage(R.string.dialog_help_message).
-              setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                def onClick(dialog: DialogInterface, whichButton: Int) {}
-              }).
-              setIcon(R.drawable.ic_menu_help).
-              create()
-            dialog.show()
-            dialog
-          })
-        }
+        AppActivity.Inner.showDialogSafe[AlertDialog](this, () => {
+          val dialog = new AlertDialog.Builder(this).
+            setTitle(R.string.dialog_help_title).
+            setMessage(R.string.dialog_help_message).
+            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+              def onClick(dialog: DialogInterface, whichButton: Int) {}
+            }).
+            setIcon(R.drawable.ic_menu_help).
+            create()
+          dialog.show()
+          dialog
+        })
         true
       case R.id.menu_gplay =>
         try {
@@ -373,30 +370,26 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           intent.addCategory(Intent.CATEGORY_BROWSABLE)
           startActivity(intent)
         } catch {
-          case _ => showDialogSafe(FailedMarket.getId(this))
+          case _ => AppActivity.Inner.showDialogSafe(this, FailedMarket.getId(this))
         }
         true
       case R.id.menu_report =>
         Report.submit(this)
         true
       case R.id.menu_quit =>
-        // leave UI thread
-        future {
-          showDialogSafe[AlertDialog](() => {
-            val dialog = new AlertDialog.Builder(this).
-              setTitle(R.string.dialog_exit_title).
-              setMessage(R.string.dialog_exit_message).
-              setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                def onClick(dialog: DialogInterface, whichButton: Int) { finish }
-              }).
-              setNegativeButton(android.R.string.cancel, null).
-              setIcon(R.drawable.ic_menu_quit).
-              create()
-            dialog.show()
-            dialog
-          })
-        }
-
+        AppActivity.Inner.showDialogSafe[AlertDialog](this, () => {
+          val dialog = new AlertDialog.Builder(this).
+            setTitle(R.string.dialog_exit_title).
+            setMessage(R.string.dialog_exit_message).
+            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+              def onClick(dialog: DialogInterface, whichButton: Int) { finish }
+            }).
+            setNegativeButton(android.R.string.cancel, null).
+            setIcon(R.drawable.ic_menu_quit).
+            create()
+          dialog.show()
+          dialog
+        })
         true
       case _ =>
         super.onOptionsItemSelected(item)
@@ -515,10 +508,8 @@ object SSHDActivity extends Actor with Logging {
   private val busyDialog = new SyncVar[Option[ProgressDialog]]()
   private val busyCounter = new AtomicInteger()
   private val busySize = 5
-  private var busyBuffer = Seq[String]()
-  private val busyKickerF = new Runnable { def run = SSHDActivity.this ! null }
-  private val busyKickerDelay = 500
-  private val busyKickerRate = 50
+  private val busyBuffer = ArrayBuffer[String]()
+  private val busyKickerRate = 100
   private val privateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
       if (intent.getBooleanExtra("__private__", false))
@@ -632,33 +623,33 @@ object SSHDActivity extends Actor with Logging {
         case null => // kick it
           activity.foreach(onKick)
         case message: AnyRef =>
-          log.error("skip unknown message " + message.getClass.getName + ": " + message)
+          log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
         case message =>
-          log.error("skip unknown message " + message)
+          log.errorWhere("skip unknown message " + message)
       }
     }
   }
   @Loggable
-  private def onBusy(activity: SSHDActivity): Unit = synchronized {
+  private def onBusy(activity: SSHDActivity): Unit = {
     AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
-    if (!busyDialog.isSet)
-      future {
-        val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
-        busyBuffer = Seq(message)
-        for (i <- 1 until busySize) addDataToBusyBuffer
-        busyDialog.set(activity.showDialogSafe[ProgressDialog](() =>
-          if (busyCounter.get > 0) {
-            future {
-              Thread.sleep(200)
-              onKick(activity)
-            }
-            ProgressDialog.show(activity, "Please wait...", Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>")), true)
-          } else
-            null))
-      }
+    if (!busyDialog.isSet) {
+      for (i <- 1 until busySize) addDataToBusyBuffer
+      busyDialog.set(AppActivity.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
+        if (busyCounter.get > 0) {
+          val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
+          busyBuffer.clear
+          busyBuffer.append(message)
+          while (busyBuffer.size < busySize)
+            addDataToBusyBuffer()
+          val result = ProgressDialog.show(activity, "Please wait...", Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>")), true)
+          SSHDActivity.this ! null // kick
+          result
+        } else
+          null))
+    }
   }
   @Loggable
-  private def onReady(): Unit = synchronized {
+  private def onReady(): Unit = {
     if (busyDialog.isSet)
       busyDialog.get.foreach {
         dialog =>
@@ -667,19 +658,21 @@ object SSHDActivity extends Actor with Logging {
       }
     AppActivity.Inner.state.freeBusy
   }
-  private def onKick(activity: SSHDActivity): Unit = synchronized {
-    if (busyDialog.isSet)
-      busyDialog.get.foreach {
-        dialog =>
-          addDataToBusyBuffer()
-          activity.runOnUiThread(new Runnable { def run = dialog.setMessage(Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>"))) })
-          future {
-            Thread.sleep(200)
-            onKick(activity)
+  private def onKick(activity: SSHDActivity): Unit = future {
+    Thread.sleep(busyKickerRate)
+    busyDialog.get(0).foreach {
+      case Some(dialog) =>
+        activity.runOnUiThread(new Runnable {
+          def run {
+            addDataToBusyBuffer()
+            dialog.setMessage(busyBuffer.mkString("\n"))
+            SSHDActivity.this ! null // kick
           }
-      }
+        })
+      case None =>
+    }
   }
-  private def addDataToBusyBuffer() = synchronized {
+  private def addDataToBusyBuffer() = {
     var value = Random.nextInt
     val displayMask = 1 << 31;
     var data = (for (i <- 1 to 24) yield {
@@ -689,8 +682,8 @@ object SSHDActivity extends Actor with Logging {
         result += " "
       result
     }).mkString
-    busyBuffer = busyBuffer :+ data
-    if (busyBuffer.size > busySize)
-      busyBuffer = busyBuffer.tail
+    if (busyBuffer.size >= busySize)
+      busyBuffer.remove(0)
+    busyBuffer.append(data)
   }
 }

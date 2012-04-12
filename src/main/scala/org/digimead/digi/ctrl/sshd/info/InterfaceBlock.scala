@@ -40,6 +40,7 @@ import org.digimead.digi.ctrl.sshd.service.FilterBlock
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.SSHDActivity
+import org.digimead.digi.ctrl.lib.base.AppActivity
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -75,7 +76,7 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
     future {
       SSHDActivity.activity.foreach {
         activity =>
-          activity.showDialogSafe[AlertDialog](() => {
+          AppActivity.Inner.showDialogSafe[AlertDialog](activity, () => {
             val inflater = activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
             val layout = inflater.inflate(R.layout.info_interfaces_dialog, null).asInstanceOf[ViewGroup]
             val dialog = new AlertDialog.Builder(new ContextThemeWrapper(activity, R.style.InterfacesLegendDialog)).

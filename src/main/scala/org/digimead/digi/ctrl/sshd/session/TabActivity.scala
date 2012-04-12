@@ -45,6 +45,9 @@ class TabActivity extends ListActivity with Logging {
     TabActivity.activity = Some(this)
 
     // prepare empty view
+    // filters
+    val filtersHeader = findViewById(Android.getId(this, "nodata_header_connectionfilter")).asInstanceOf[TextView]
+    filtersHeader.setText(Html.fromHtml(Android.getString(this, "block_connectionfilter_title").getOrElse("connection filters")))
     // options
     val optionsHeader = findViewById(Android.getId(this, "nodata_header_option")).asInstanceOf[TextView]
     optionsHeader.setText(Html.fromHtml(Android.getString(this, "block_option_title").getOrElse("options")))
@@ -58,6 +61,7 @@ class TabActivity extends ListActivity with Logging {
   @Loggable
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
     adapter <- TabActivity.adapter
+    filterBlock <- TabActivity.filterBlock
     optionBlock <- TabActivity.optionBlock
     sessionBlock <- TabActivity.sessionBlock
   } {
@@ -75,19 +79,23 @@ class TabActivity extends ListActivity with Logging {
 object TabActivity extends Logging {
   @volatile private var activity: Option[TabActivity] = None
   @volatile private var adapter: Option[MergeAdapter] = None
+  @volatile private var filterBlock: Option[FilterBlock] = None
   @volatile private var optionBlock: Option[OptionBlock] = None
   @volatile private var sessionBlock: Option[SessionBlock] = None
   def addLazyInit = AppActivity.LazyInit("initialize session tab") {
     SSHDActivity.activity match {
       case Some(activity) =>
         adapter = Some(new MergeAdapter())
+        filterBlock = Some(new FilterBlock(activity))
         optionBlock = Some(new OptionBlock(activity))
         sessionBlock = Some(new SessionBlock(activity))
         for {
           adapter <- adapter
+          filterBlock <- filterBlock
           optionBlock <- optionBlock
           sessionBlock <- sessionBlock
         } {
+          filterBlock appendTo (adapter)
           optionBlock appendTo (adapter)
           sessionBlock appendTo (adapter)
           TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))

@@ -25,9 +25,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 import scala.actors.Futures.future
+import scala.annotation.elidable
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.base.AppService
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConstant
@@ -62,6 +64,7 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import annotation.elidable.ASSERTION
 
 class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
   val items = getAppSeq
@@ -79,7 +82,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = {
     val bundle = new Bundle()
     bundle.putParcelable("info", item.executableInfo)
-    SSHDActivity.activity.foreach(_.showDialogSafe(Android.getId(context, "dialog_ComponentInfo"), bundle))
+    SSHDActivity.activity.foreach(AppActivity.Inner.showDialogSafe(_, Android.getId(context, "dialog_ComponentInfo"), bundle))
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
