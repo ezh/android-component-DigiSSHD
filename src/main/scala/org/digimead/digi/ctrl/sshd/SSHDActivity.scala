@@ -21,6 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.Locale
 
@@ -33,6 +34,7 @@ import scala.util.Random
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DPermission
@@ -40,6 +42,7 @@ import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
 import org.digimead.digi.ctrl.lib.dialog.Report
+import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
@@ -51,6 +54,7 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.Activity
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -72,10 +76,12 @@ import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
 import android.text.Html
 import android.view.ViewGroup.LayoutParams
+import android.view.View.OnClickListener
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.TabHost.OnTabChangeListener
+import android.widget.Button
 import android.widget.ScrollView
 import android.widget.TabHost
 import android.widget.TextView
@@ -83,7 +89,7 @@ import android.widget.ToggleButton
 
 class SSHDActivity extends android.app.TabActivity with Activity {
   private lazy val statusText = new WeakReference(findViewById(R.id.status).asInstanceOf[TextView])
-  private lazy val toggleStartStop = findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton]
+  private lazy val buttonToggleStartStop = new WeakReference(findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton])
   if (true)
     Logging.addLogger(Seq(AndroidLogger, FileLogger))
   else
@@ -135,6 +141,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       }
     })
 
+    buttonToggleStartStop.get.foreach(b => {
+      b.setChecked(false)
+      b.setEnabled(false)
+    })
+
     tabHost.setCurrentTab(2)
     SSHDActivity.addLazyInit
     info.TabActivity.addLazyInit
@@ -147,25 +158,21 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   override def onResume() {
+    runOnUiThread(new Runnable {
+      def run {
+        buttonToggleStartStop.get.foreach(b => {
+          b.setChecked(false)
+          b.setEnabled(false)
+        })
+      }
+    })
     AppService.Inner.bind(this)
     SSHDActivity.consistent = true
-    val fOnResume = () => {
-      org.digimead.digi.ctrl.sshd.session.SessionBlock.updateCursor
-    }
-    if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
-      future {
-        IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
-        if (AppActivity.Inner.state.get.code == DState.Initializing)
-          AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
-        AppActivity.LazyInit.init
-        fOnResume()
-        IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
-      }
-    else
-      future {
-        AppActivity.Inner.synchronizeStateWithICtrlHost
-        fOnResume()
-      }
+    if (SSHDActivity.consistent && SSHDActivity.focused)
+      if (AppActivity.LazyInit.nonEmpty)
+        future { onResumeInitializeFull }
+      else
+        future { onResumeInitializeFast }
     super.onResume()
   }
   @Loggable
@@ -194,14 +201,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       AppActivity.Inner.enableSafeDialogs
     else
       AppActivity.Inner.disableSafeDialogs
-    if (SSHDActivity.consistent && SSHDActivity.focused && AppActivity.LazyInit.nonEmpty)
-      future {
-        IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
-        if (AppActivity.Inner.state.get.code == DState.Initializing)
-          AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
-        AppActivity.LazyInit.init
-        IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
-      }
+    if (SSHDActivity.consistent && SSHDActivity.focused)
+      if (AppActivity.LazyInit.nonEmpty)
+        future { onResumeInitializeFull }
+      else
+        future { onResumeInitializeFast }
   }
   @Loggable
   def onPrivateBroadcast(context: Context, intent: Intent) = {
@@ -268,11 +272,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case AppActivity.State(DState.Passive, message, callback) =>
         log.debug("set status text to " + DState.Passive)
         statusText.setText(Android.getCapitalized(this, "status_ready").getOrElse("Ready"))
-        toggleStartStop.setChecked(false)
+        buttonToggleStartStop.get.foreach(_.setChecked(false))
       case AppActivity.State(DState.Active, message, callback) =>
         log.debug("set status text to " + DState.Active)
         statusText.setText(Android.getCapitalized(this, "status_active").getOrElse("Active"))
-        toggleStartStop.setChecked(true)
+        buttonToggleStartStop.get.foreach(_.setChecked(true))
       case AppActivity.State(DState.Broken, rawMessage, callback) =>
         log.debug("set status text to " + DState.Broken)
         val message = if (rawMessage != null)
@@ -323,8 +327,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         IAmWarn("unable to change component state while in " + state)
         runOnUiThread(new Runnable {
           def run {
-            val state = toggleStartStop.isChecked()
-            toggleStartStop.setChecked(true)
+            buttonToggleStartStop.get.foreach {
+              button =>
+                button.setChecked(button.isChecked)
+            }
           }
         })
       // TODO add IAmWarn Toast.makeText(...
@@ -395,9 +401,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         super.onOptionsItemSelected(item)
     }
   @Loggable
-  override def onCreateDialog(id: Int, args: Bundle): Dialog = {
+  override def onCreateDialog(id: Int, data: Bundle): Dialog = {
+    Option(Common.onCreateDialog(id, this)).foreach(dialog => return dialog)
     id match {
-      case id if id == Android.getId(this, "dialog_ComponentInfo") =>
+      case id if id == SSHDActivity.Dialog.ComponentInfo =>
+        log.debug("create dialog ComponentInfo " + SSHDActivity.Dialog.NewConnection)
         val container = new ScrollView(this)
         val message = new TextView(this)
         container.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -409,14 +417,26 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           setPositiveButton(android.R.string.ok, null).
           setIcon(R.drawable.ic_launcher).
           create()
+      case id if id == SSHDActivity.Dialog.NewConnection =>
+        log.debug("create dialog NewConnection " + SSHDActivity.Dialog.NewConnection)
+        new AlertDialog.Builder(this).
+          setTitle(Android.getString(this, "ask_ctrl_newconnection_title").
+            getOrElse("Allow access?")).
+          setMessage(Android.getString(this, "ask_ctrl_newconnection_content").
+            getOrElse("DigiControl needs your permission to start new session")).
+          setPositiveButton(android.R.string.ok, null).
+          setNegativeButton(android.R.string.cancel, null).
+          create()
       case id =>
-        super.onCreateDialog(id)
+        super.onCreateDialog(id, data)
     }
   }
   @Loggable
   override def onPrepareDialog(id: Int, dialog: Dialog, args: Bundle) = {
+    super.onPrepareDialog(id, dialog)
     id match {
-      case id if id == Android.getId(this, "dialog_ComponentInfo") =>
+      case id if id == SSHDActivity.Dialog.ComponentInfo =>
+        log.debug("prepare dialog ComponentInfo " + SSHDActivity.Dialog.NewConnection)
         val message = dialog.findViewById(Int.MaxValue).asInstanceOf[TextView]
         val info = args.getParcelable("info").asInstanceOf[ExecutableInfo]
         val env = info.env.mkString("""<br/>""")
@@ -431,6 +451,47 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           if (env.nonEmpty) env else "-")
         Linkify.addLinks(message, Linkify.ALL)
         message.setText(Html.fromHtml(s))
+      case id if id == SSHDActivity.Dialog.NewConnection =>
+        log.debug("prepare dialog NewConnection " + id)
+        val ok = dialog.findViewById(android.R.id.button1).asInstanceOf[Button]
+        onPrepareDialogStash.remove(id).map(_.asInstanceOf[Seq[(Uri, Bundle)]]).foreach {
+          case requestSeq =>
+            val (key, data) = requestSeq.head
+            val requestTail = requestSeq.tail
+            if (requestTail.nonEmpty)
+              onPrepareDialogStash(id) = requestTail
+            val component = Option(data.getParcelable[ComponentInfo]("component"))
+            val connection = Option(data.getParcelable[DConnection]("connection"))
+            val executable = Option(data.getParcelable[ExecutableInfo]("executable"))
+            val processID = Option(data.getInt("processID")).asInstanceOf[Option[Int]]
+            val total = Option(data.getInt("total")).asInstanceOf[Option[Int]]
+            for {
+              connection <- connection
+              component <- component
+              executable <- executable
+            } {
+              log.debug("ask user opinion about " + key)
+              val ip = InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray)
+              dialog.setTitle("Connection from " + ip)
+              ok.setOnClickListener(new OnClickListener() {
+                def onClick(v: View) = {
+                  log.info("permit connection")
+                  data.putBoolean("result", true)
+                  AppActivity.Inner.giveTheSign(key, data)
+                  dialog.dismiss
+                }
+              })
+              val cancel = dialog.findViewById(android.R.id.button2).asInstanceOf[Button]
+              cancel.setOnClickListener(new OnClickListener() {
+                def onClick(v: View) = {
+                  log.info("deny connection")
+                  data.putBoolean("result", false)
+                  AppActivity.Inner.giveTheSign(key, data)
+                  dialog.dismiss
+                }
+              })
+            }
+        }
       case id =>
     }
     super.onPrepareDialog(id, dialog, args)
@@ -495,6 +556,93 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppActivity.Inner.synchronizeStateWithICtrlHost
     result
   }
+  @Loggable
+  private def onIntentSignRequest(intent: Intent): Unit = {
+    try {
+      val key = Uri.parse(intent.getDataString())
+      key.getPath.split("""/""") match {
+        case Array("", uuid, "connection") if uuid.matches("""[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}""") =>
+          askPermissionSomeoneConnect(key, intent.getExtras())
+        case unknown =>
+          log.error("unknown subject \"" + unknown + "\" for " + intent.toUri(0))
+      }
+    } catch {
+      case e =>
+        log.warn("receive broken sign intent " + intent.toUri(0), e)
+    }
+  }
+  @Loggable
+  private def askPermissionSomeoneConnect(key: Uri, data: Bundle): Unit = synchronized {
+    val component = Option(data.getParcelable[ComponentInfo]("component"))
+    val connection = Option(data.getParcelable[DConnection]("connection"))
+    val executable = Option(data.getParcelable[ExecutableInfo]("executable"))
+    val processID = Option(data.getInt("processID")).asInstanceOf[Option[Int]]
+    val total = Option(data.getInt("total")).asInstanceOf[Option[Int]]
+    for {
+      connection <- connection
+      component <- component
+      processID <- processID
+      executable <- executable
+      total <- total
+    } {
+      val id = SSHDActivity.Dialog.NewConnection
+      val stash = (key: Uri, data: Bundle)
+      // add stash to onPrepareDialogStash(ControlActivity.Dialog.NewConnection.id)
+      if (onPrepareDialogStash.isDefinedAt(id))
+        onPrepareDialogStash(id) = onPrepareDialogStash(id).asInstanceOf[Seq[(Uri, Bundle)]] :+ stash
+      else
+        onPrepareDialogStash(id) = Seq(stash)
+      val ip = InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray)
+      IAmMumble("Someone or something connect to " + component.name +
+        " executable " + executable.name + " from IP " + ip.getHostAddress)
+      AppActivity.Inner.showDialogSafe(this, SSHDActivity.Dialog.NewConnection)
+    }
+  }
+  @Loggable
+  private def onResumeInitializeFull(): Unit = synchronized {
+    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
+    if (AppActivity.Inner.state.get.code == DState.Initializing)
+      AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+    AppActivity.LazyInit.init
+    onResumeInitializeFast
+    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
+  }
+  @Loggable
+  private def onResumeInitializeFast(): Unit = synchronized {
+    buttonToggleStartStop.get.foreach(b => if (b.isEnabled) {
+      log.trace("skip onResumeInitializeFast() - already initialized")
+      return
+    })
+    AppActivity.Inner.synchronizeStateWithICtrlHost
+    org.digimead.digi.ctrl.sshd.session.SessionBlock.updateCursor
+    AppService.Inner ! AppService.Message.ListPendingConnections(getPackageName, {
+      case Some(pendingConnections) =>
+        IAmMumble(pendingConnections.size + " pending connection(s)")
+        pendingConnections.foreach(connectionIntent => try {
+          log.debug("process sign request " + connectionIntent.getDataString)
+          val restoredIntent = connectionIntent.cloneFilter
+          val data = new Bundle
+          data.putInt("processID", connectionIntent.getIntExtra("processID", 0))
+          data.putInt("total", connectionIntent.getIntExtra("total", 0))
+          (for {
+            component <- Common.unparcelFromArray[ComponentInfo](connectionIntent.getByteArrayExtra("component"))
+            connection <- Common.unparcelFromArray[DConnection](connectionIntent.getByteArrayExtra("connection"))
+            executable <- Common.unparcelFromArray[ExecutableInfo](connectionIntent.getByteArrayExtra("executable"))
+          } yield {
+            data.putParcelable("component", component)
+            data.putParcelable("connection", connection)
+            data.putParcelable("executable", executable)
+            restoredIntent.replaceExtras(data)
+            onIntentSignRequest(restoredIntent)
+          }) getOrElse (log.fatal("broken ListPendingConnections intent detected: " + connectionIntent))
+        } catch {
+          case e =>
+            log.error(e.getMessage, e)
+        })
+      case None =>
+    })
+    runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
+  }
 }
 
 object SSHDActivity extends Actor with Logging {
@@ -558,6 +706,13 @@ object SSHDActivity extends Actor with Logging {
       future { session.SessionBlock.updateCursor }
     }
   }
+  private val privateSignReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) =
+      if (intent.getBooleanExtra("__private__", false) && isOrderedBroadcast) {
+        abortBroadcast()
+        activity.foreach(activity => activity.onIntentSignRequest(intent))
+      }
+  }
   /*
    * initialize singletons
    */
@@ -597,6 +752,11 @@ object SSHDActivity extends Actor with Logging {
         sessionUpdateFilter.addDataScheme("code")
         sessionUpdateFilter.addDataAuthority(DConstant.SessionAuthority, null)
         activity.registerReceiver(sessionUpdateReceiver, sessionUpdateFilter, DPermission.Base, null)
+        // register sign BroadcastReceiver
+        val signFilter = new IntentFilter(DIntent.SignRequest)
+        signFilter.addDataScheme("sign")
+        signFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY)
+        activity.registerReceiver(privateSignReceiver, signFilter, DPermission.Base, null)
 
         // prepare environment
         AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
@@ -685,5 +845,9 @@ object SSHDActivity extends Actor with Logging {
     if (busyBuffer.size >= busySize)
       busyBuffer.remove(0)
     busyBuffer.append(data)
+  }
+  object Dialog {
+    lazy val NewConnection = AppActivity.Context.map(a => Android.getId(a, "new_connection")).getOrElse(0)
+    lazy val ComponentInfo = AppActivity.Context.map(a => Android.getId(a, "component_info")).getOrElse(0)
   }
 }

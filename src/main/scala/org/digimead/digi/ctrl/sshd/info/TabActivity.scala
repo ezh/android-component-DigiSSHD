@@ -75,10 +75,8 @@ class TabActivity extends ListActivity with Logging {
     val legalHeader = findViewById(Android.getId(this, "nodata_header_legal")).asInstanceOf[TextView]
     legalHeader.setText(Html.fromHtml(Android.getString(this, "block_legal_title").getOrElse("legal")))
     // prepare active view
-    getListView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE)
     val lv = getListView()
     registerForContextMenu(lv)
-    lv.setLongClickable(false)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
   @Loggable
@@ -107,6 +105,8 @@ class TabActivity extends ListActivity with Logging {
             thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item: LegalBlock.Item =>
             legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case item: InterfaceBlock.Item =>
+            interfaceBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item =>
             log.fatal("unknown item " + item)
         }

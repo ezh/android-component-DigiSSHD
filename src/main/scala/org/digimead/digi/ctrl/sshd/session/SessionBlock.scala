@@ -22,28 +22,39 @@
 package org.digimead.digi.ctrl.sshd.session
 
 import scala.actors.Futures.future
+import scala.actors.threadpool.AtomicInteger
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DProvider
+import org.digimead.digi.ctrl.lib.info.ComponentInfo
+import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
 import android.net.Uri
+import android.os.Bundle
 import android.text.Html
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ListView
 import android.widget.TextView
 
-class SessionBlock(context: Activity) extends Logging {
+class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with Logging {
   implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
   private val header = context.getLayoutInflater.inflate(R.layout.session_header, null).asInstanceOf[LinearLayout]
   private val adapter = {
@@ -53,9 +64,11 @@ class SessionBlock(context: Activity) extends Logging {
   }
   private lazy val inflater = LayoutInflater.from(context)
   private var disconnectButton = new WeakReference[Button](null)
+  private val updateInProgressLock = new AtomicInteger(0)
   SessionBlock.block = new WeakReference(this)
   future { updateCursor }
 
+  def items = adapter.item.values.toSeq
   def appendTo(adapter: MergeAdapter) {
     val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
     headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
@@ -68,9 +81,11 @@ class SessionBlock(context: Activity) extends Logging {
       def onTouch(v: View, event: MotionEvent): Boolean = {
         if (event.getAction() == MotionEvent.ACTION_DOWN)
           future {
-            log.g_a_s_e("disconnect")
-            //            adapter.item.values.toSeq.foreach(i =>
-            //              AppService.Inner ! AppService.Message.Disconnect(i.componentPackage, i.processID, i.connectionID))
+            TabActivity.activity.foreach {
+              activity =>
+                IAmMumble("disconnect all sessions")
+                AppActivity.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnectAll)
+            }
           }
         false
       }
@@ -81,26 +96,40 @@ class SessionBlock(context: Activity) extends Logging {
     }
   }
   @Loggable
-  def onApply(view: View) = future {}
+  override def onListItemClick(l: ListView, v: View, item: SessionBlock.Item) = TabActivity.activity.foreach {
+    activity =>
+      IAmMumble("disconnect session " + item)
+      val bundle = new Bundle
+      bundle.putString("componentPackage", item.component.componentPackage)
+      bundle.putInt("processID", item.processID)
+      bundle.putInt("connectionID", item.connection.connectionID)
+      AppActivity.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnect, bundle)
+  }
   @Loggable
-  def onCancel(view: View) = future {}
-  @Loggable
-  private def updateCursor() = synchronized {
-    log.debug("recreate session cursor")
-    val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
-    context.runOnUiThread(new Runnable() {
-      def run() {
-        if (cursor.getCount == 0) {
-          header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
-          disconnectButton.get.foreach(_.setEnabled(false))
-        } else {
-          header.findViewById(android.R.id.content).setVisibility(View.GONE)
-          disconnectButton.get.foreach(_.setEnabled(true))
+  private def updateCursor(): Unit = {
+    if (updateInProgressLock.getAndIncrement() == 0) {
+      log.debug("recreate session cursor")
+      val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
+      context.runOnUiThread(new Runnable() {
+        def run() {
+          if (cursor.getCount == 0) {
+            header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
+            disconnectButton.get.foreach(_.setEnabled(false))
+          } else {
+            header.findViewById(android.R.id.content).setVisibility(View.GONE)
+            disconnectButton.get.foreach(_.setEnabled(true))
+          }
+          adapter.changeCursor(cursor)
+          adapter.notifyDataSetChanged
         }
-        adapter.changeCursor(cursor)
-        adapter.notifyDataSetChanged
-      }
-    })
+      })
+      if (updateInProgressLock.decrementAndGet != 0) {
+        Thread.sleep(100)
+        updateInProgressLock.set(0)
+        updateCursor()
+      } else
+        updateInProgressLock.set(0)
+    }
   }
 }
 
@@ -109,5 +138,14 @@ object SessionBlock extends Logging {
 
   @Loggable
   def updateCursor =
-    synchronized { block.get.foreach(_.updateCursor()) }
+    future { block.get.foreach(_.updateCursor()) }
+
+  class Item(val id: Int,
+    val processID: Int,
+    val component: ComponentInfo,
+    val executable: ExecutableInfo,
+    val connection: DConnection) extends Block.Item {
+    var durationField: WeakReference[TextView] = new WeakReference(null)
+    var position: Option[Int] = None
+  }
 }

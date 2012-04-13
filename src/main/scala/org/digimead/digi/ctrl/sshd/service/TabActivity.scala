@@ -75,7 +75,6 @@ class TabActivity extends ListActivity with Logging {
     val serviceSoftwareHeader = findViewById(Android.getId(this, "nodata_header_servicesoftware")).asInstanceOf[TextView]
     serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(this, "block_servicesoftware_title").getOrElse("software")))
     // prepare active view
-    getListView.setChoiceMode(ListView.CHOICE_MODE_NONE)
     val lv = getListView()
     registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
