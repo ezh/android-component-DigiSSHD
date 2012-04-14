@@ -155,8 +155,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   override def onResume() {
+    AppActivity.Inner.disableRotation()
     super.onResume()
-    Android.disableRotation(this)
     runOnUiThread(new Runnable {
       def run {
         buttonToggleStartStop.get.foreach(b => {
@@ -645,7 +645,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case None =>
     })
     runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
-    Android.enableRotation(this)
+    AppActivity.Inner.enableRotation()
     IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("loaded on resume logic"))
   }
 }
@@ -783,6 +783,7 @@ object SSHDActivity extends Actor with Logging {
         signFilter.addDataScheme("sign")
         signFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY)
         activity.registerReceiver(privateSignReceiver, signFilter, DPermission.Base, null)
+        Report.searchAndSubmit()
     }
   }
   def act = {
@@ -808,6 +809,7 @@ object SSHDActivity extends Actor with Logging {
   private def onBusy(activity: SSHDActivity): Unit = {
     AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
     if (!busyDialog.isSet) {
+      AppActivity.Inner.disableRotation()
       val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
       busyDialog.set(AppActivity.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
         if (busyCounter.get > 0) {
@@ -838,6 +840,7 @@ object SSHDActivity extends Actor with Logging {
         dialog =>
           dialog.dismiss
           busyDialog.unset()
+          AppActivity.Inner.enableRotation()
       }
     AppActivity.Inner.state.freeBusy
   }

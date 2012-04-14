@@ -95,6 +95,7 @@ class SessionAdapter(context: Activity, layout: Int)
         view
     }
   }
+//    item.values.find(_.position == Some(position)).getOrElse({ log.fatal("session item lost"); null })
   override def getItem(position: Int): AnyRef = {
     val c = super.getItem(position).asInstanceOf[Cursor]
     getItem(c).getOrElse({ log.fatal("session item lost"); c })
