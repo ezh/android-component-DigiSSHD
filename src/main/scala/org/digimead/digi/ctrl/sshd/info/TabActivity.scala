@@ -182,7 +182,7 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
     def onReceive(context: Context, intent: Intent) =
       interfaceBlock.foreach(_.updateAdapter())
   }
-  def addLazyInit = AppActivity.LazyInit("initialize info adapter") {
+  AppActivity.LazyInit("info.TabActivity initialize once") {
     SSHDActivity.activity match {
       case Some(activity) =>
         adapter = Some(new MergeAdapter())
@@ -207,6 +207,14 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
           legalBlock appendTo (adapter)
           TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
         }
+      case None =>
+        log.fatal("lost SSHDActivity context")
+    }
+  }
+
+  def addLazyInit = AppActivity.LazyInit("info.TabActivity initialize onCreate", 50) {
+    SSHDActivity.activity match {
+      case Some(activity) =>
         // register UpdateInterfaceFilter BroadcastReceiver
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")

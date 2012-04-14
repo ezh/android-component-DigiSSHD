@@ -22,6 +22,7 @@
 package org.digimead.digi.ctrl.sshd
 
 import java.net.InetAddress
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.Locale
 
@@ -147,10 +148,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     })
 
     tabHost.setCurrentTab(2)
-    SSHDActivity.addLazyInit
-    info.TabActivity.addLazyInit
-    session.TabActivity.addLazyInit
-    service.TabActivity.addLazyInit
   }
   @Loggable
   override def onStart() {
@@ -158,6 +155,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   override def onResume() {
+    super.onResume()
+    Android.disableRotation(this)
     runOnUiThread(new Runnable {
       def run {
         buttonToggleStartStop.get.foreach(b => {
@@ -169,21 +168,22 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     AppService.Inner.bind(this)
     SSHDActivity.consistent = true
     if (SSHDActivity.consistent && SSHDActivity.focused)
-      if (AppActivity.LazyInit.nonEmpty)
-        future { onResumeInitializeFull }
-      else
-        future { onResumeInitializeFast }
-    super.onResume()
+      future {
+        initializeOnCreate
+        initializeOnResume
+      }
   }
+
   @Loggable
   override def onPause() {
     super.onPause()
     SSHDActivity.consistent = false
     SSHDActivity.focused = false
-    AppService.Inner.unbind()
+    SSHDActivity.initializeOnResume.set(true)
   }
   @Loggable
   override def onDestroy() {
+    SSHDActivity.initializeOnCreate.set(true)
     super.onDestroy()
   }
   /**
@@ -202,10 +202,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     else
       AppActivity.Inner.disableSafeDialogs
     if (SSHDActivity.consistent && SSHDActivity.focused)
-      if (AppActivity.LazyInit.nonEmpty)
-        future { onResumeInitializeFull }
-      else
-        future { onResumeInitializeFast }
+      future {
+        initializeOnCreate
+        initializeOnResume
+      }
   }
   @Loggable
   def onPrivateBroadcast(context: Context, intent: Intent) = {
@@ -599,22 +599,25 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  private def onResumeInitializeFull(): Unit = synchronized {
-    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_internal_routines").getOrElse("loading internals"))
+  private def initializeOnCreate(): Unit = {
+    if (!SSHDActivity.initializeOnCreate.compareAndSet(true, false))
+      return
+    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("loading on create logic"))
     if (AppActivity.Inner.state.get.code == DState.Initializing)
       AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
-    AppActivity.LazyInit.init
-    onResumeInitializeFast
-    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_internal_routines").getOrElse("loaded internals"))
+    SSHDActivity.addLazyInit
+    info.TabActivity.addLazyInit
+    session.TabActivity.addLazyInit
+    initializeOnResume
+    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("loaded on create logic"))
   }
   @Loggable
-  private def onResumeInitializeFast(): Unit = synchronized {
-    buttonToggleStartStop.get.foreach(b => if (b.isEnabled) {
-      log.trace("skip onResumeInitializeFast() - already initialized")
+  private def initializeOnResume(): Unit = {
+    if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
-    })
+    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("loading on resume logic"))
+    AppActivity.LazyInit.init
     AppActivity.Inner.synchronizeStateWithICtrlHost
-    org.digimead.digi.ctrl.sshd.session.SessionBlock.updateCursor
     AppService.Inner ! AppService.Message.ListPendingConnections(getPackageName, {
       case Some(pendingConnections) =>
         IAmMumble(pendingConnections.size + " pending connection(s)")
@@ -642,22 +645,29 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case None =>
     })
     runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
+    Android.enableRotation(this)
+    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("loaded on resume logic"))
   }
 }
 
 object SSHDActivity extends Actor with Logging {
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
+  private val initializeOnCreate = new AtomicBoolean(true)
+  private val initializeOnResume = new AtomicBoolean(true)
   lazy val info = AppActivity.Inner.getCachedComponentInfo(locale, localeLanguage).get
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
   @volatile private var focused = false
   @volatile private var consistent = false
+  @volatile private var screenOrientation = 0
   // null - empty, None - dialog upcoming, Some - dialog in progress
   private val busyDialog = new SyncVar[Option[ProgressDialog]]()
   private val busyCounter = new AtomicInteger()
   private val busySize = 5
   private val busyBuffer = ArrayBuffer[String]()
+  private val busyBufferSize = 32
   private val busyKickerRate = 100
+  // broadcast receivers
   private val privateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
       if (intent.getBooleanExtra("__private__", false))
@@ -717,11 +727,27 @@ object SSHDActivity extends Actor with Logging {
    * initialize singletons
    */
   session.SessionAdapter
+  session.TabActivity
+  service.TabActivity
   // start actor
   start
+  AppActivity.LazyInit("SSHDActivity initialize once") {
+    activity.foreach {
+      activity =>
+        AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
+          if (AppActivity.Inner.state.get.code != DState.Broken)
+            if (success)
+              AppActivity.Inner.synchronizeStateWithICtrlHost
+            else
+              AppActivity.State(DState.Broken, "environment preparation failed")
+        })
+    }
+  }
+  for (i <- 0 to busyBufferSize)
+    addDataToBusyBuffer
   log.debug("alive")
 
-  def addLazyInit = AppActivity.LazyInit("main activity onCreate logic") {
+  def addLazyInit = AppActivity.LazyInit("SSHDActivity initialize onCreate", 50) {
     activity.foreach {
       activity =>
         // register BroadcastReceiver
@@ -757,15 +783,6 @@ object SSHDActivity extends Actor with Logging {
         signFilter.addDataScheme("sign")
         signFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY)
         activity.registerReceiver(privateSignReceiver, signFilter, DPermission.Base, null)
-
-        // prepare environment
-        AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
-          if (AppActivity.Inner.state.get.code != DState.Broken)
-            if (success)
-              AppActivity.Inner.synchronizeStateWithICtrlHost
-            else
-              AppActivity.State(DState.Broken, "environment preparation failed")
-        })
     }
   }
   def act = {
@@ -779,9 +796,7 @@ object SSHDActivity extends Actor with Logging {
           })
         case msg: IAmReady =>
           busyCounter.decrementAndGet
-          onReady
-        case null => // kick it
-          activity.foreach(onKick)
+          activity.foreach(onReady)
         case message: AnyRef =>
           log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
         case message =>
@@ -793,23 +808,31 @@ object SSHDActivity extends Actor with Logging {
   private def onBusy(activity: SSHDActivity): Unit = {
     AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
     if (!busyDialog.isSet) {
-      for (i <- 1 until busySize) addDataToBusyBuffer
+      val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
       busyDialog.set(AppActivity.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
         if (busyCounter.get > 0) {
-          val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
-          busyBuffer.clear
-          busyBuffer.append(message)
-          while (busyBuffer.size < busySize)
-            addDataToBusyBuffer()
-          val result = ProgressDialog.show(activity, "Please wait...", Html.fromHtml(busyBuffer.takeRight(busySize).mkString("<br/>")), true)
-          SSHDActivity.this ! null // kick
-          result
+          val text = Seq(message) ++ (for (i <- 1 until busySize)
+            yield busyBuffer(Random.nextInt(busyBufferSize)))
+          ProgressDialog.show(activity, "Please wait...", text.mkString("\n"), true)
         } else
           null))
+      future {
+        Thread.sleep(busyKickerRate)
+        while (busyDialog.get(0).flatMap(d => d) match {
+          case Some(dialog) =>
+            activity.runOnUiThread(new Runnable {
+              def run = dialog.setMessage((for (i <- 1 to busySize)
+                yield busyBuffer(Random.nextInt(busyBufferSize))).mkString("\n"))
+            })
+            true
+          case None =>
+            false
+        }) Thread.sleep(busyKickerRate)
+      }
     }
   }
   @Loggable
-  private def onReady(): Unit = {
+  private def onReady(activity: SSHDActivity): Unit = {
     if (busyDialog.isSet)
       busyDialog.get.foreach {
         dialog =>
@@ -817,20 +840,6 @@ object SSHDActivity extends Actor with Logging {
           busyDialog.unset()
       }
     AppActivity.Inner.state.freeBusy
-  }
-  private def onKick(activity: SSHDActivity): Unit = future {
-    Thread.sleep(busyKickerRate)
-    busyDialog.get(0).foreach {
-      case Some(dialog) =>
-        activity.runOnUiThread(new Runnable {
-          def run {
-            addDataToBusyBuffer()
-            dialog.setMessage(busyBuffer.mkString("\n"))
-            SSHDActivity.this ! null // kick
-          }
-        })
-      case None =>
-    }
   }
   private def addDataToBusyBuffer() = {
     var value = Random.nextInt
@@ -842,8 +851,6 @@ object SSHDActivity extends Actor with Logging {
         result += " "
       result
     }).mkString
-    if (busyBuffer.size >= busySize)
-      busyBuffer.remove(0)
     busyBuffer.append(data)
   }
   object Dialog {

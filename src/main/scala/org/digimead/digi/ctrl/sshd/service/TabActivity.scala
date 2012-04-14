@@ -196,7 +196,7 @@ object TabActivity extends Logging {
   @volatile private var componentBlock: Option[ComponentBlock] = None
   val FILTER_REQUEST = 10000
   val DIALOG_FILTER_REMOVE_ID = 0
-  def addLazyInit = AppActivity.LazyInit("initialize service adapter") {
+  AppActivity.LazyInit("service.TabActivity initialize once") {
     SSHDActivity.activity match {
       case Some(activity) =>
         adapter = Some(new MergeAdapter())
@@ -221,6 +221,7 @@ object TabActivity extends Logging {
         log.fatal("lost SSHDActivity context")
     }
   }
+
   def getActivity() = activity
   @Loggable
   def UpdateComponents(state: DState.Value) =
