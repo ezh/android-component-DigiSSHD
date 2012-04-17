@@ -29,6 +29,7 @@ import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
@@ -71,7 +72,7 @@ class OptionBlock(context: Activity) extends Logging {
   @Loggable
   def onOptionClick(item: OptionBlock.Item, lastState: Boolean) = item.option match {
     case _ =>
-      val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
       val editor = pref.edit()
       editor.putBoolean(item.option, !lastState)
       editor.commit()
@@ -84,7 +85,7 @@ object OptionBlock extends Logging {
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState(context: Context): Boolean = {
-      val pref = context.getSharedPreferences(option, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
       pref.getBoolean(option, false)
     }
   }

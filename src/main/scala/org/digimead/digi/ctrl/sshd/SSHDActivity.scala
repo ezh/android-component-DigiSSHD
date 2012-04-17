@@ -496,6 +496,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
     super.onPrepareDialog(id, dialog, args)
   }
+  @Loggable
+  override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent): Unit =
+    if (requestCode == session.FilterBlock.FILTER_REQUEST_ALLOW || requestCode == session.FilterBlock.FILTER_REQUEST_DENY)
+      session.FilterBlock.onActivityResult(requestCode, resultCode, data)
   /*
    * recommended to start as future
    */
@@ -615,8 +619,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def initializeOnResume(): Unit = {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
-    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("loading on resume logic"))
     AppActivity.LazyInit.init
+    session.SessionBlock.updateCursor
     AppActivity.Inner.synchronizeStateWithICtrlHost
     AppService.Inner ! AppService.Message.ListPendingConnections(getPackageName, {
       case Some(pendingConnections) =>
@@ -645,8 +649,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case None =>
     })
     runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
+    Report.searchAndSubmit()
     AppActivity.Inner.enableRotation()
-    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("loaded on resume logic"))
   }
 }
 
@@ -713,7 +717,7 @@ object SSHDActivity extends Actor with Logging {
   private val sessionUpdateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = {
       log.debug("receive session update " + intent.toUri(0))
-      future { session.SessionBlock.updateCursor }
+      session.SessionBlock.updateCursor
     }
   }
   private val privateSignReceiver = new BroadcastReceiver() {
@@ -783,7 +787,6 @@ object SSHDActivity extends Actor with Logging {
         signFilter.addDataScheme("sign")
         signFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY)
         activity.registerReceiver(privateSignReceiver, signFilter, DPermission.Base, null)
-        Report.searchAndSubmit()
     }
   }
   def act = {

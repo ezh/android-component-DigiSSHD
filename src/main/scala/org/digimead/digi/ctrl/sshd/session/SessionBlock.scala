@@ -21,6 +21,8 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
+import java.net.InetAddress
+
 import scala.actors.Futures.future
 import scala.actors.threadpool.AtomicInteger
 import scala.ref.WeakReference
@@ -29,6 +31,8 @@ import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConnection
+import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DProvider
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
@@ -43,16 +47,21 @@ import org.digimead.digi.ctrl.sshd.R
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.text.Html
+import android.view.ContextMenu
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.Toast
 
 class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with Logging {
   implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
@@ -126,6 +135,103 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         updateCursor()
       } else
         updateInProgressLock.set(0)
+    }
+  }
+  @Loggable
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SessionBlock.Item) {
+    val ip = InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress
+    log.debug("create context menu for " + item.connection.connectionID + " with IP " + ip)
+    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
+    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
+    menu.setHeaderTitle(ip)
+    menu.setHeaderIcon(Android.getId(context, "ic_launcher", "drawable"))
+    if (!propAllow.contains(ip))
+      menu.add(Menu.NONE, Android.getId(context, "session_always_allow"), 1,
+        Android.getString(context, "session_always_allow").getOrElse("Allow %1$s").format(ip))
+    if (!propDeny.contains(ip))
+      menu.add(Menu.NONE, Android.getId(context, "session_always_deny"), 3,
+        Android.getString(context, "session_always_deny").getOrElse("Deny %1$s").format(ip))
+    ip.split("""\.""") match {
+      case Array(ip1, ip2, ip3, ip4) =>
+        val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
+        if (!propAllow.contains(acl))
+          menu.add(Menu.NONE, Android.getId(context, "session_always_allow_net"), 2,
+            Android.getString(context, "session_always_allow_net").getOrElse("Allow %1$s").format(acl))
+        if (!propDeny.contains(acl))
+          menu.add(Menu.NONE, Android.getId(context, "session_always_deny_net"), 4,
+            Android.getString(context, "session_always_deny_net").getOrElse("Deny %1$s").format(acl))
+      case _ =>
+    }
+  }
+  @Loggable
+  override def onContextItemSelected(menuItem: MenuItem, item: SessionBlock.Item): Boolean = {
+    val ip = InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress
+    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
+    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
+    menuItem.getItemId match {
+      case id if id == Android.getId(context, "session_always_allow") =>
+        if (!propAllow.contains(ip)) {
+          val msg = Android.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(ip)
+          IAmMumble(msg)
+          val editor = propAllow.edit
+          editor.putBoolean(ip, true)
+          editor.commit
+          Toast.makeText(context, msg, DConstant.toastTimeout).show()
+          FilterBlock.updateFilterItem
+        } else
+          log.warn("allow filter already exists " + ip)
+        true
+      case id if id == Android.getId(context, "session_always_deny") =>
+        if (!propDeny.contains(ip)) {
+          val msg = Android.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(ip)
+          IAmMumble(msg)
+          val editor = propDeny.edit
+          editor.putBoolean(ip, true)
+          editor.commit
+          Toast.makeText(context, msg, DConstant.toastTimeout).show()
+          FilterBlock.updateFilterItem
+        } else
+          log.warn("deny filter already exists " + ip)
+        true
+      case id if id == Android.getId(context, "session_always_allow_net") =>
+        ip.split("""\.""") match {
+          case Array(ip1, ip2, ip3, ip4) =>
+            val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
+            if (!propAllow.contains(acl)) {
+              val msg = Android.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(acl)
+              IAmMumble(msg)
+              val editor = propAllow.edit
+              editor.putBoolean(acl, true)
+              editor.commit
+              Toast.makeText(context, msg, DConstant.toastTimeout).show()
+              FilterBlock.updateFilterItem
+            } else
+              log.warn("allow filter already exists " + acl)
+          case _ =>
+            log.warn("allow filter source ip incorrect " + ip)
+        }
+        true
+      case id if id == Android.getId(context, "session_always_deny_net") =>
+        ip.split("""\.""") match {
+          case Array(ip1, ip2, ip3, ip4) =>
+            val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
+            if (!propDeny.contains(acl)) {
+              val msg = Android.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(acl)
+              IAmMumble(msg)
+              val editor = propDeny.edit
+              editor.putBoolean(acl, true)
+              editor.commit
+              Toast.makeText(context, msg, DConstant.toastTimeout).show()
+              FilterBlock.updateFilterItem
+            } else
+              log.warn("deny filter already exists " + acl)
+          case _ =>
+            log.warn("deny filter source ip incorrect " + ip)
+        }
+        true
+      case item =>
+        log.fatal("unknown item " + item)
+        false
     }
   }
 }

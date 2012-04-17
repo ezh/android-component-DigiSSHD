@@ -25,24 +25,30 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.util.Locale
+
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
+import scala.collection.JavaConversions._
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
+import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.log.AndroidLogger
+import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.Service
 import org.digimead.digi.ctrl.ICtrlComponent
+
+import android.content.Context
 import android.content.Intent
 import android.os.IBinder
-import org.digimead.digi.ctrl.lib.log.AndroidLogger
-import org.digimead.digi.ctrl.lib.log.FileLogger
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import android.content.Context
 
 class SSHDService extends Service {
   private lazy val binder = new SSHDService.Binder
@@ -98,7 +104,7 @@ object SSHDService extends Logging {
         }
         val port = executable match {
           case "dropbear" =>
-            val pref = context.getSharedPreferences(DOption.Port, Context.MODE_WORLD_READABLE)
+            val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
             val port = pref.getInt(DOption.Port, 2222)
             Some(port)
           case "openssh" => None
@@ -185,5 +191,48 @@ object SSHDService extends Logging {
       assert(id == 0)
       true
     }
+    @Loggable(result = false)
+    def accessRulesOrder(): Boolean = try {
+      AppActivity.Context.map(
+        _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
+          getBoolean(DOption.ACLConnection, DOption.ACLConnection.default.asInstanceOf[Boolean])).
+        getOrElse(DOption.ACLConnection.default.asInstanceOf[Boolean])
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        DOption.ACLConnection.default.asInstanceOf[Boolean]
+    }
+    @Loggable(result = false)
+    def accessRuleImplicitInteractive(): Boolean = try {
+      AppActivity.Context.map(
+        _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
+          getBoolean(DOption.ConfirmConn, DOption.ConfirmConn.default.asInstanceOf[Boolean])).
+        getOrElse(DOption.ConfirmConn.default.asInstanceOf[Boolean])
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        DOption.ConfirmConn.default.asInstanceOf[Boolean]
+    }
+    @Loggable(result = false)
+    def accessAllowRules(): java.util.List[java.lang.String] = try {
+      AppActivity.Context.map(
+        _.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE).
+          getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        List()
+    }
+    @Loggable(result = false)
+    def accessDenyRules(): java.util.List[java.lang.String] = try {
+      AppActivity.Context.map(
+        _.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE).
+          getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        List()
+    }
+
   }
 }

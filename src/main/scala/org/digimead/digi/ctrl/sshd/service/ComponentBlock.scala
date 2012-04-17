@@ -82,7 +82,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = {
     val bundle = new Bundle()
     bundle.putParcelable("info", item.executableInfo)
-    SSHDActivity.activity.foreach(AppActivity.Inner.showDialogSafe(_, Android.getId(context, "dialog_ComponentInfo"), bundle))
+    SSHDActivity.activity.foreach(AppActivity.Inner.showDialogSafe(_, Android.getId(context, "component_info"), bundle))
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
@@ -147,9 +147,9 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
             IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
         }
         true
-      case message =>
-        log.fatal("skip unknown message " + message)
-        false
+        case item =>
+          log.fatal("unknown item " + item)
+          false
     }
   }
   @Loggable

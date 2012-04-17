@@ -30,6 +30,7 @@ import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
@@ -101,7 +102,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
               message.setPadding(0, 0, 0, padding)
               message.setText(Html.fromHtml(Android.getString(activity, "dialog_port_message").getOrElse("Select new TCP port in range from 1024 to 32767")))
               layout.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-              val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+              val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
               val input = new EditText(activity)
               val maxLengthFilter = new InputFilter.LengthFilter(5)
               val currentValue = pref.getInt(item.option, 2222)
@@ -122,7 +123,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                       def onClick(dialog: DialogInterface, whichButton: Int) = try {
                         val port = input.getText.toString.toInt
                         log.debug("set port to " + port)
-                        val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+                        val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
                         val editor = pref.edit()
                         editor.putInt(item.option, port)
                         editor.commit()
@@ -172,7 +173,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
   def onOptionClick(item: OptionBlock.Item, lastState: Boolean) = item.option match {
     case DOption.AsRoot =>
       if (lastState) {
-        val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+        val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
         val editor = pref.edit()
         editor.putBoolean(item.option, !lastState)
         editor.commit()
@@ -187,7 +188,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                   setMessage(R.string.dialog_root_message).
                   setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                     def onClick(dialog: DialogInterface, whichButton: Int) {
-                      val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+                      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
                       val editor = pref.edit()
                       editor.putBoolean(item.option, !lastState)
                       editor.commit()
@@ -212,7 +213,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         }
       }
     case _ =>
-      val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
       val editor = pref.edit()
       editor.putBoolean(item.option, !lastState)
       editor.commit()
@@ -225,7 +226,7 @@ object OptionBlock extends Logging {
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState(context: Context): Boolean = {
-      val pref = context.getSharedPreferences(option, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
       pref.getBoolean(option, false)
     }
   }
@@ -269,7 +270,7 @@ object OptionBlock extends Logging {
             case c if c == classOf[Int] =>
               val view = inflater.inflate(Android.getId(context, "option_list_item_value", "layout"), null)
               val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-              val pref = context.getSharedPreferences(item.option, Context.MODE_WORLD_READABLE)
+              val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
               value.setText(pref.getInt(item.option, 2222).toString)
               view
           }

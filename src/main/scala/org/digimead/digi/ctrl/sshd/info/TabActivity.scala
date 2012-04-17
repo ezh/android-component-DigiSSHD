@@ -188,7 +188,7 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
         adapter = Some(new MergeAdapter())
         interfaceBlock = Some(new InterfaceBlock(activity))
         supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
-          SSHDActivity.info.email, SSHDActivity.info.name, "+74955185377", "ezhariur"))
+          SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
         communityBlock = Some(new CommunityBlock(activity, Uri.parse(SSHDActivity.info.project + "/wiki")))
         thanksBlock = Some(new ThanksBlock(activity))
         legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md"))))

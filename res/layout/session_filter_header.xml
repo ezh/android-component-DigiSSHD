@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ ~ DigiSSHD - DigiControl component for Android Platform
+ ~ Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
+ ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ ~
+ ~ This code is free software; you can redistribute it and/or modify it
+ ~ under the terms of the GNU General Public License version 3 or any later
+ ~ version, as published by the Free Software Foundation.
+ ~
+ ~ This code is distributed in the hope that it will be useful, but WITHOUT
+ ~ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ ~ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ ~ version 2 for more details (a copy is included in the LICENSE file that
+ ~ accompanied this code).
+ ~
+ ~ You should have received a copy of the GNU General Public License version
+ ~ 3 along with this work; if not, write to the Free Software Foundation,
+ ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ ~
+ -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:background="#ff888888"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/separator_colon"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <EditText
+            android:id="@+id/session_filter_header_ip1"
+            android:layout_width="0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:cursorVisible="true"
+            android:ellipsize="end"
+            android:hint="@string/ip1"
+            android:inputType="number"
+            android:lines="1"
+            android:maxLength="3"
+            android:scrollHorizontally="true"
+            android:selectAllOnFocus="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/separator_dot"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <EditText
+            android:id="@+id/session_filter_header_ip2"
+            android:layout_width="0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:cursorVisible="true"
+            android:ellipsize="end"
+            android:hint="@string/ip2"
+            android:inputType="number"
+            android:lines="1"
+            android:maxLength="3"
+            android:scrollHorizontally="true"
+            android:selectAllOnFocus="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/separator_dot"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <EditText
+            android:id="@+id/session_filter_header_ip3"
+            android:layout_width="0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:cursorVisible="true"
+            android:ellipsize="end"
+            android:hint="@string/ip3"
+            android:inputType="number"
+            android:lines="1"
+            android:maxLength="3"
+            android:scrollHorizontally="true"
+            android:selectAllOnFocus="true" >
+
+        </EditText>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/separator_dot"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <EditText
+            android:id="@+id/session_filter_header_ip4"
+            android:layout_width="0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:cursorVisible="true"
+            android:ellipsize="end"
+            android:hint="@string/ip4"
+            android:inputType="number"
+            android:lines="1"
+            android:maxLength="3"
+            android:scrollHorizontally="true"
+            android:selectAllOnFocus="true" >
+
+        </EditText>
+
+        <ImageButton
+            android:id="@+id/session_filter_header_add"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/image_description"
+            android:onClick="onClickAddFilter"
+            android:src="@drawable/plus_selected" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/session_filter_header" />
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="10dip"
+        android:gravity="right"
+        android:text="@string/session_filter_header2" />
+
+</LinearLayout>

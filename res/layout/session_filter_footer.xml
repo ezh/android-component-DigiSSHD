@@ -20,42 +20,33 @@
  ~
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+    android:layout_width="fill_parent"
     android:layout_height="?android:attr/listPreferredItemHeight"
-    android:orientation="horizontal"
-    android:paddingBottom="5.0dip"
-    android:paddingRight="?android:attr/scrollbarSize"
-    android:paddingTop="5.0dip" >
+    android:background="#ff888888"
+    android:gravity="center"
+    android:orientation="horizontal" >
 
-    <TextView
-        android:id="@android:id/text1"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:text="@string/app_name"
-        android:textAppearance="?android:attr/textAppearanceMedium" >
-    </TextView>
-
-    <ImageView
-        android:id="@android:id/icon1"
+    <Button
+        android:id="@+id/session_filter_footer_apply"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_weight="0"
-        android:background="@drawable/ic_session_acl_devider_ada"
-        android:scaleType="centerCrop" >
-    </ImageView>
+        android:onClick="onClickApply"
+        android:text="@string/Apply"
+        android:visibility="gone" />
 
-    <TextView
-        android:id="@android:id/text2"
+    <Button
+        android:id="@+id/session_filter_footer_back"
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="left|right"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:text="@string/app_name"
-        android:textAppearance="?android:attr/textAppearanceMedium" >
-    </TextView>
+        android:layout_height="wrap_content"
+        android:onClick="onClickCancel"
+        android:text="@string/Back" />
+
+    <Button
+        android:id="@+id/session_filter_footer_cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="onClickCancel"
+        android:text="@string/Cancel"
+        android:visibility="gone" />
 
 </LinearLayout>

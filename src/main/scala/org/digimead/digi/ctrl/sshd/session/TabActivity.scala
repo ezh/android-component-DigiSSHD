@@ -40,7 +40,10 @@ import android.content.DialogInterface
 import android.os.Bundle
 import android.text.Html
 import android.view.View.OnClickListener
+import android.view.ContextMenu
+import android.view.MenuItem
 import android.view.View
+import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
@@ -64,6 +67,8 @@ class TabActivity extends ListActivity with Logging {
     val sessionsHeader = findViewById(Android.getId(this, "nodata_header_session")).asInstanceOf[TextView]
     sessionsHeader.setText(Html.fromHtml(Android.getString(this, "block_session_title").getOrElse("sessions")))
     // prepare active view
+    val lv = getListView()
+    registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
   @Loggable
@@ -134,10 +139,56 @@ class TabActivity extends ListActivity with Logging {
         optionBlock.onListItemClick(item)
       case item: SessionBlock.Item =>
         sessionBlock.onListItemClick(l, v, item)
+      case item: FilterBlock.Item =>
+        filterBlock.onListItemClick(l, v, item)
       case item =>
         log.fatal("unsupported context menu item " + item)
     }
   }
+  @Loggable
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = for {
+    adapter <- TabActivity.adapter
+    filterBlock <- TabActivity.filterBlock
+    optionBlock <- TabActivity.optionBlock
+    sessionBlock <- TabActivity.sessionBlock
+  } {
+    super.onCreateContextMenu(menu, v, menuInfo)
+    menuInfo match {
+      case info: AdapterContextMenuInfo =>
+        adapter.getItem(info.position) match {
+          case item: FilterBlock.Item =>
+          case item: OptionBlock.Item =>
+          case item: SessionBlock.Item =>
+            sessionBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case item =>
+            log.fatal("unknown item " + item)
+        }
+      case info =>
+        log.fatal("unsupported menu info " + info)
+    }
+  }
+  @Loggable
+  override def onContextItemSelected(menuItem: MenuItem): Boolean = {
+    for {
+      adapter <- TabActivity.adapter
+      filterBlock <- TabActivity.filterBlock
+      optionBlock <- TabActivity.optionBlock
+      sessionBlock <- TabActivity.sessionBlock
+    } yield {
+      val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
+      adapter.getItem(info.position) match {
+        case item: FilterBlock.Item =>
+          false
+        case item: OptionBlock.Item =>
+          false
+        case item: SessionBlock.Item =>
+          sessionBlock.onContextItemSelected(menuItem, item)
+        case item =>
+          log.fatal("unknown item " + item)
+          false
+      }
+    }
+  } getOrElse false
 }
 
 object TabActivity extends Logging {

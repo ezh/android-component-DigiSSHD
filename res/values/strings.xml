@@ -27,6 +27,9 @@
     <string name="app_name_info">DigiSSHD: Information</string>
     <string name="app_name_filter_add">DigiSSHD: Add filter</string>
     <string name="app_name_filter_remove">DigiSSHD: Remove filter</string>
+    <string name="app_name_filter">DigiSSHD: Filter</string>
+    <string name="app_name_filter_allow">DigiSSHD: Allow filter</string>
+    <string name="app_name_filter_deny">DigiSSHD: Deny filter</string>
     <string name="image_description">…</string>
     <string name="info_interfaces">interfaces</string>
     <string name="info_support">support</string>
@@ -84,7 +87,7 @@
     <string name="dialog_root_title">Access Permission</string>
     <string name="dialog_root_message">Are you sure you want to grant superuser permission to native components?\n\nPlease note that your software must support this function. This option is ignored if you have a firmware with limited functionality.</string>
     <string name="dialog_port_title">Select network port</string>
-    <string name="dialog_port_message">Select new TCP port at range from 1024 to 32767. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/&gt;&lt;br/&gt;Please select only &lt;b&gt;unprivileged&lt;/b&gt; port values</string>    
+    <string name="dialog_port_message">Select new TCP port at range from 1024 to 32767. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/>&lt;br/>Please select only &lt;b>unprivileged&lt;/b> port values</string>
     <string name="dialog_component_info_title">Component information</string>
     <string name="dialog_component_info_message">component: &lt;font color=\'white\'>%1$s&lt;/font> &lt;br/>
         description: &lt;font color=\'white\'>%2$s&lt;/font> &lt;br/>
@@ -106,12 +109,28 @@
     <string name="option_as_root_name">grant superuser permission</string>
     <string name="option_as_root_description">run components under root account</string>
     <string name="option_confirm_connection_name">confirm connection</string>
-    <string name="option_confirm_connection_description">ask for a permission at every new session</string>
+    <string name="option_confirm_connection_description">ask for a permission at every unknown session</string>
     <string name="option_write_connection_log_name">write connection log</string>
     <string name="option_write_connection_log_description">keep history of sessions</string>
     <string name="legend_interface_unused"> - unused interface</string>
     <string name="legend_interface_passive"> - passive interface</string>
     <string name="legend_interface_active"> - active interface</string>
     <string name="dialog_interfaces_legend_title">Interface legend</string>
+    <string name="no_session_filters">no filters defined</string>
+    <string name="session_filter_header">please leave empty field for \'ANY\' value</string>
+    <string name="session_filter_header2">long tap for remove</string>
+    <string name="session_filter_illegal_outofrange">incorrect filter: IP octet %1$s out of valid range 0 … 255</string>
+    <string name="session_filter_illegal">filter %1$s is illegal</string>
+    <string name="session_filter_exists">filter %1$s already exists</string>
+    <string name="session_filter_add_allow">add allow filter %1$s</string>
+    <string name="session_filter_add_deny">add deny filter %1$s</string>
+    <string name="session_filter_include_separator">pending to be included</string>
+    <string name="session_filter_delete_separator">pending to be deleted</string>
+    <string name="session_filter_selected">filter %1$s activated</string>
+    <string name="session_filter_deselected">filter %1$s deactivated</string>
+    <string name="session_filter_willbeselected">filter %1$s will be activated</string>
+    <string name="session_filter_willbedeselected">filter %1$s will be deactivated</string>
+    <string name="session_filter_add_deny">add deny connection filter %1$s</string>
+    <string name="session_filter_add_allow">add deny connection filter %1$s</string>
 
 </resources>
