@@ -233,6 +233,15 @@ object SSHDService extends Logging {
         log.error(e.getMessage, e)
         List()
     }
-
+    @Loggable(result = false)
+    def interfaceRules(): java.util.Map[_, _] = try {
+      AppActivity.Context.map(
+          _.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll).
+          getOrElse(new java.util.HashMap[String, Any]())
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        new java.util.HashMap[String, Any]()
+    }
   }
 }
