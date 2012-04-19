@@ -71,10 +71,6 @@
     <string name="reinstall">reinstall</string>
     <string name="reinstall_complete">reinstall_complete</string>
     <string name="copy_to_clipboard">copy_to_clipboard</string>
-    <string name="menu_help">Help</string>
-    <string name="menu_gplay">Google Play</string>
-    <string name="menu_report">Report</string>
-    <string name="menu_quit">Quit</string>
     <string name="dialog_about_title">dialog_about_title</string>
     <string name="dialog_about_message">dialog_about_message</string>
     <string name="comm_option_block">options</string>

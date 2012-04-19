@@ -22,9 +22,9 @@
  <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <item
-        android:id="@+id/menu_help"
-        android:icon="@drawable/ic_menu_help"
-        android:title="@string/menu_help"/>
+        android:id="@+id/menu_control"
+        android:icon="@drawable/ic_menu_control"
+        android:title="@string/menu_control"/>
     <item
         android:id="@+id/menu_gplay"
         android:icon="@drawable/ic_menu_gplay"
@@ -34,7 +34,7 @@
         android:icon="@drawable/ic_menu_report"
         android:title="@string/menu_report"/>
     <item
-        android:id="@+id/menu_quit"
-        android:icon="@drawable/ic_menu_quit"
-        android:title="@string/menu_quit"/>
+        android:id="@+id/menu_help"
+        android:icon="@drawable/ic_menu_help"
+        android:title="@string/menu_help"/>
 </menu>

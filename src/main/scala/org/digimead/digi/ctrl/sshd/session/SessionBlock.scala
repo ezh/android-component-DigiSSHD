@@ -116,6 +116,10 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
     if (updateInProgressLock.getAndIncrement() == 0) {
       log.debug("recreate session cursor")
       val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
+      if (cursor == null) {
+        log.warn("cursor from " + DProvider.Uri.Session + " unavailable")
+        return
+      }
       context.runOnUiThread(new Runnable() {
         def run() {
           if (cursor.getCount == 0) {

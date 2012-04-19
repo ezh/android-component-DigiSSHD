@@ -170,10 +170,13 @@ object SSHDService extends Logging {
               rsa_key.delete()
             if (dss_key.exists())
               dss_key.delete()
+            // -rw-r--r-- 644
             generateKey(Array("-t", "rsa", "-f", rsa_key.getAbsolutePath())) &&
-              generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath())) &&
-              Common.execChmod("o+r", rsa_key) &&
-              Common.execChmod("o+r", dss_key)
+              generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath())) && {
+                try { Common.execChmod(644, rsa_key, false) } catch { case e => log.warn(e.getMessage) }
+                try { Common.execChmod(644, dss_key, false) } catch { case e => log.warn(e.getMessage) }
+                true
+              }
           } catch {
             case e =>
               log.error(e.getMessage(), e)
@@ -236,8 +239,8 @@ object SSHDService extends Logging {
     @Loggable(result = false)
     def interfaceRules(): java.util.Map[_, _] = try {
       AppActivity.Context.map(
-          _.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll).
-          getOrElse(new java.util.HashMap[String, Any]())
+        _.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll).
+        getOrElse(new java.util.HashMap[String, Any]())
     } catch {
       case e =>
         log.error(e.getMessage, e)

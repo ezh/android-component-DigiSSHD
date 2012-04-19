@@ -42,6 +42,7 @@ import org.digimead.digi.ctrl.lib.declaration.DPermission
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
+import org.digimead.digi.ctrl.lib.dialog.InstallControl
 import org.digimead.digi.ctrl.lib.dialog.Report
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
@@ -382,20 +383,13 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case R.id.menu_report =>
         Report.submit(this)
         true
-      case R.id.menu_quit =>
-        AppActivity.Inner.showDialogSafe[AlertDialog](this, () => {
-          val dialog = new AlertDialog.Builder(this).
-            setTitle(R.string.dialog_exit_title).
-            setMessage(R.string.dialog_exit_message).
-            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-              def onClick(dialog: DialogInterface, whichButton: Int) { finish }
-            }).
-            setNegativeButton(android.R.string.cancel, null).
-            setIcon(R.drawable.ic_menu_quit).
-            create()
-          dialog.show()
-          dialog
-        })
+      case R.id.menu_control =>
+        try {
+          val intent = new Intent(DIntent.HostActivity)
+          startActivity(intent)
+        } catch {
+          case _ => AppActivity.Inner.showDialogSafe(this, InstallControl.getId(this))
+        }
         true
       case _ =>
         super.onOptionsItemSelected(item)
@@ -649,7 +643,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case None =>
     })
     runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
-    Report.searchAndSubmit()
+    Report.searchAndSubmit(this)
     AppActivity.Inner.enableRotation()
   }
 }
