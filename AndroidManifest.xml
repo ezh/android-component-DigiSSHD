@@ -21,7 +21,7 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
-    android:versionCode="1334863767"
+    android:versionCode="1335036561"
     android:versionName="1.0" >
 
     <uses-sdk
@@ -42,8 +42,7 @@
             android:name=".SSHDActivity"
             android:label="@string/app_name"
             android:launchMode="singleTask"
-            android:screenOrientation="behind"
-            android:theme="@android:style/Theme.NoTitleBar" >
+            android:screenOrientation="behind" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

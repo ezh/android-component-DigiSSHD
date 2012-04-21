@@ -82,6 +82,7 @@ import android.view.View.OnClickListener
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.Window
 import android.widget.TabHost.OnTabChangeListener
 import android.widget.Button
 import android.widget.ScrollView
@@ -101,6 +102,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   /** Called when the activity is first created. */
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
+    if (android.os.Build.VERSION.SDK.toInt < 11)
+      requestWindowFeature(Window.FEATURE_NO_TITLE)
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     SSHDActivity.activity = Some(this)
@@ -729,18 +732,6 @@ object SSHDActivity extends Actor with Logging {
   service.TabActivity
   // start actor
   start
-  AppActivity.LazyInit("SSHDActivity initialize once") {
-    activity.foreach {
-      activity =>
-        AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(activity, true, true, (success) => {
-          if (AppActivity.Inner.state.get.code != DState.Broken)
-            if (success)
-              AppActivity.Inner.synchronizeStateWithICtrlHost
-            else
-              AppActivity.State(DState.Broken, "environment preparation failed")
-        })
-    }
-  }
   for (i <- 0 to busyBufferSize)
     addDataToBusyBuffer
   log.debug("alive")

@@ -174,12 +174,12 @@ class TabActivity extends ListActivity with Logging {
   def onClickServiceReinstall(v: View) = {
     IAmMumble("reinstall files/force prepare evironment")
     Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
-    AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
+/*    AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
       runOnUiThread(new Runnable() {
         def run = if (success)
           Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
             "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
-      }))
+      }))*/
   }
   @Loggable
   def onClickServiceReset(v: View) = {
