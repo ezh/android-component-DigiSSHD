@@ -20,6 +20,7 @@ Having question, suggestion or idea about the software? Contact us or [open issu
 DOCUMENTATION
 -------------
 
+
   [http://github.com/ezh/android-component-DigiSSHD/wiki](http://github.com/ezh/android-component-DigiSSHD/wiki)
 
 AUTHORS
@@ -39,6 +40,13 @@ Copyright
 ---------
 
 Copyright ©  2011-2012 Alexey B. Aksenov/Ezh. All rights reserved.
+
+BRIEF VIDEO OVERVIEW
+--------------------
+
+<a style="float:right" href="http://youtu.be/aoqYQDAIk28" target="_blank">
+  <img alt="DigiSSHD overview" src="https://github.com/ezh/android-component-DigiSSHD/blob/master/src/resources/screenshots/DigiSSHD-1-2012-04-18-192534.png?raw=true" width="276" />
+</a>
 
 
 
