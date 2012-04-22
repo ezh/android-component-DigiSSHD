@@ -45,11 +45,8 @@ import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
-import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.Service
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.ICtrlComponent
@@ -233,8 +230,8 @@ object SSHDService extends Logging {
                 // -rw-r--r-- 644
                 generateKey(Array("-t", "rsa", "-f", rsa_key.getAbsolutePath())) &&
                   generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath())) && {
-                    try { Common.execChmod(644, rsa_key, false) } catch { case e => log.warn(e.getMessage) }
-                    try { Common.execChmod(644, dss_key, false) } catch { case e => log.warn(e.getMessage) }
+                    try { Android.execChmod(644, rsa_key, false) } catch { case e => log.warn(e.getMessage) }
+                    try { Android.execChmod(644, dss_key, false) } catch { case e => log.warn(e.getMessage) }
                     true
                   }
               } catch {

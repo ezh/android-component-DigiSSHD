@@ -22,9 +22,9 @@
 <resources>
 
     <string name="app_name">DigiSSHD</string>
-    <string name="app_name_service">DigiSSHD: Service</string>
-    <string name="app_name_session">DigiSSHD: Sessions</string>
-    <string name="app_name_info">DigiSSHD: Information</string>
+    <string name="app_name_service">Service</string>
+    <string name="app_name_session">Sessions</string>
+    <string name="app_name_info">Information</string>
     <string name="app_name_filter_add">DigiSSHD: Add filter</string>
     <string name="app_name_filter_remove">DigiSSHD: Remove filter</string>
     <string name="app_name_filter">DigiSSHD: Filter</string>
@@ -126,7 +126,5 @@
     <string name="session_filter_deselected">filter %1$s deactivated</string>
     <string name="session_filter_willbeselected">filter %1$s will be activated</string>
     <string name="session_filter_willbedeselected">filter %1$s will be deactivated</string>
-    <string name="session_filter_add_deny">add deny connection filter %1$s</string>
-    <string name="session_filter_add_allow">add deny connection filter %1$s</string>
 
 </resources>

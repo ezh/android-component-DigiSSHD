@@ -76,10 +76,16 @@ class SessionAdapter(context: Activity, layout: Int)
             val subinfo = view.findViewById(android.R.id.message).asInstanceOf[TextView]
             val kind = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
             val state = view.findViewById(android.R.id.button1).asInstanceOf[ImageButton]
-            val ip = InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray)
+            val ip = try {
+              Some(InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress)
+            } catch {
+              case e =>
+                log.warn(e.getMessage)
+                None
+            }
             kind.setBackgroundDrawable(context.getResources.getDrawable(R.drawable.ic_launcher))
             title.setText(Android.getString(context, "session_title").getOrElse("%1$s to %2$s").
-              format(ip.getHostAddress, item.executable.name))
+              format(ip.getOrElse(Android.getString(context, "unknown_source").getOrElse("unknown source")), item.executable.name))
             description.setText(Android.getString(context, "session_description").getOrElse("%1$s").
               format(item.component.name))
             state.setFocusable(false)
@@ -95,7 +101,7 @@ class SessionAdapter(context: Activity, layout: Int)
         view
     }
   }
-//    item.values.find(_.position == Some(position)).getOrElse({ log.fatal("session item lost"); null })
+  //    item.values.find(_.position == Some(position)).getOrElse({ log.fatal("session item lost"); null })
   override def getItem(position: Int): AnyRef = {
     val c = super.getItem(position).asInstanceOf[Cursor]
     getItem(c).getOrElse({ log.fatal("session item lost"); c })

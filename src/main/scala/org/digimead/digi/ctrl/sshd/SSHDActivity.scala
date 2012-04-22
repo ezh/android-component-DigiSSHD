@@ -136,11 +136,14 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     tabHost.setOnTabChangedListener(new OnTabChangeListener() {
       def onTabChanged(tab: String) = tab match {
         case id if id == classOf[org.digimead.digi.ctrl.sshd.service.TabActivity].getName() =>
-          setTitle(R.string.app_name_service)
+          log.info("activate tab " + getString(R.string.app_name_service))
+          setTitle("%s: %s".format(getString(R.string.app_name), getString(R.string.app_name_service)))
         case id if id == classOf[session.TabActivity].getName() =>
-          setTitle(R.string.app_name_session)
+          log.info("activate tab " + getString(R.string.app_name_session))
+          setTitle("%s: %s".format(getString(R.string.app_name), getString(R.string.app_name_session)))
         case id if id == classOf[info.TabActivity].getName() =>
-          setTitle(R.string.app_name_info)
+          log.info("activate tab " + getString(R.string.app_name_info))
+          setTitle("%s: %s".format(getString(R.string.app_name), getString(R.string.app_name_info)))
         case id =>
           log.error("unknown tab " + tab)
       }
@@ -468,8 +471,14 @@ class SSHDActivity extends android.app.TabActivity with Activity {
               executable <- executable
             } {
               log.debug("ask user opinion about " + key)
-              val ip = InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray)
-              dialog.setTitle("Connection from " + ip)
+              val ip = try {
+                Some(InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray).getHostAddress)
+              } catch {
+                case e =>
+                  log.warn(e.getMessage)
+                  None
+              }
+              dialog.setTitle("Connection from " + ip.getOrElse(Android.getString(this, "unknown_source").getOrElse("unknown source")))
               ok.setOnClickListener(new OnClickListener() {
                 def onClick(v: View) = {
                   log.info("permit connection")
@@ -593,9 +602,15 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         onPrepareDialogStash(id) = onPrepareDialogStash(id).asInstanceOf[Seq[(Uri, Bundle)]] :+ stash
       else
         onPrepareDialogStash(id) = Seq(stash)
-      val ip = InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray)
+      val ip = try {
+        Some(InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray).getHostAddress)
+      } catch {
+        case e =>
+          log.warn(e.getMessage)
+          None
+      }
       IAmMumble("Someone or something connect to " + component.name +
-        " executable " + executable.name + " from IP " + ip.getHostAddress)
+        " executable " + executable.name + " from " + ip.getOrElse(Android.getString(this, "unknown_source").getOrElse("unknown source")))
       AppActivity.Inner.showDialogSafe(this, SSHDActivity.Dialog.NewConnection)
     }
   }

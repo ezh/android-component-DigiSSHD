@@ -142,8 +142,17 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
     }
   }
   @Loggable
-  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SessionBlock.Item) {
-    val ip = InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SessionBlock.Item): Unit = {
+    val ip = try {
+      InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress
+    } catch {
+      case e =>
+        log.warn(e.getMessage)
+        val text = Android.getString(context, "session_context_menu_unavailable_for_unknown_source").
+          getOrElse("optional actions unavailable for session from unknown source")
+        context.runOnUiThread(new Runnable { def run = Toast.makeText(context, text, DConstant.toastTimeout).show() })
+        return
+    }
     log.debug("create context menu for " + item.connection.connectionID + " with IP " + ip)
     val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
     val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
@@ -169,7 +178,13 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem, item: SessionBlock.Item): Boolean = {
-    val ip = InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress
+    val ip = (try {
+      Some(InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress)
+    } catch {
+      case e =>
+        log.warn(e.getMessage)
+        None
+    }).getOrElse(Android.getString(context, "unknown_source").getOrElse("unknown source"))
     val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
     val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
     menuItem.getItemId match {
