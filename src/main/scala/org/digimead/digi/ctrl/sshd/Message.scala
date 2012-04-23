@@ -21,14 +21,23 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 
+import android.content.Intent
+import android.net.Uri
+
 object Message extends Logging {
   implicit val dispatcher: Dispatcher = new Dispatcher {
     def process(message: DMessage): Unit = {
+      val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
+      intent.putExtra(DIntent.Message, message)
+      AppActivity.Inner.sendPrivateBroadcast(intent)
       if (message.isInstanceOf[IAmBusy])
         SSHDActivity !? message
       else

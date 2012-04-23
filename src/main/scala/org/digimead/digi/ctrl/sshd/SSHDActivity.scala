@@ -28,9 +28,8 @@ import java.util.Locale
 
 import scala.actors.Futures.future
 import scala.actors.Actor
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.Subscriber
 import scala.ref.WeakReference
-import scala.util.Random
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppActivity
@@ -55,6 +54,7 @@ import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.IAmWarn
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.SyncVar
@@ -155,6 +155,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     })
 
     tabHost.setCurrentTab(2)
+
   }
   @Loggable
   override def onStart() {
@@ -174,6 +175,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     })
     AppService.Inner.bind(this)
     SSHDActivity.consistent = true
+    AppActivity.Inner.state.subscribe(SSHDActivity.stateSubscriber)
     if (SSHDActivity.consistent && SSHDActivity.focused)
       future {
         initializeOnCreate
@@ -184,6 +186,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   override def onPause() {
     super.onPause()
+    AppActivity.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
     SSHDActivity.consistent = false
     SSHDActivity.focused = false
     SSHDActivity.initializeOnResume.set(true)
@@ -215,92 +218,99 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       }
   }
   @Loggable
-  def onPrivateBroadcast(context: Context, intent: Intent) = {
+  private def onPrivateBroadcast(context: Context, intent: Intent) = {
     intent.getAction() match {
       case DIntent.Update =>
-        onAppActivityStateChanged()
-      case DIntent.Message =>
-        val message = intent.getParcelableExtra[DMessage](DIntent.Message)
-        val logger = Logging.getLogger(message.origin.name)
-        logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " from " + message.origin.packageName)
+      // we don't interested in different AppActivity DIntent.Update events
       case _ =>
         log.error("unknown private broadcast intent " + intent + " with action " + intent.getAction)
     }
   }
   @Loggable
-  def onPublicBroadcast(context: Context, intent: Intent) = {
+  private def onPublicBroadcast(context: Context, intent: Intent) = {
     intent.getAction match {
       case DIntent.Update =>
-        onAppActivityStateChanged()
-      case DIntent.Message =>
-        val message = intent.getParcelableExtra[DMessage](DIntent.Message)
-        val logger = Logging.getLogger(message.origin.name)
-        logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " from " + message.origin.packageName)
+      // we don't interested in different AppActivity DIntent.Update events
       case _ =>
         log.error("unknown public broadcast intent " + intent + " with action " + intent.getAction)
     }
   }
   @Loggable
-  def onInterfaceFilterUpdateBroadcast(context: Context, intent: Intent) =
+  private def onInterfaceFilterUpdateBroadcast(context: Context, intent: Intent) =
     IAmMumble("update interface filters")
   @Loggable
-  def onConnectionFilterUpdateBroadcast(context: Context, intent: Intent) =
+  private def onConnectionFilterUpdateBroadcast(context: Context, intent: Intent) =
     IAmMumble("update connection filters")
   @Loggable
-  def onComponentUpdateBroadcast(context: Context, intent: Intent) = {
-    try {
-      val uri = Uri.parse(intent.getDataString())
-      if (uri.getPath() == ("/" + getPackageName)) {
-        log.trace("receive update broadcast " + intent.toUri(0))
-        val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
-        service.TabActivity.UpdateComponents(state)
-        info.TabActivity.UpdateActiveInterfaces(state)
-        state match {
-          case DState.Active =>
-            AppActivity.Inner.state.set(AppActivity.State(DState.Active))
-          case DState.Passive =>
-            AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
-          case _ =>
-        }
-      }
-    } catch {
+  private def onComponentUpdateBroadcast(context: Context, intent: Intent) = {
+    log.trace("receive update broadcast " + intent.toUri(0))
+    val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
+    service.TabActivity.UpdateComponents(state)
+    info.TabActivity.UpdateActiveInterfaces(state)
+    state match {
+      case DState.Active =>
+        AppActivity.Inner.state.set(AppActivity.State(DState.Active))
+      case DState.Passive =>
+        AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
       case _ =>
-        log.warn("receive broken intent " + intent.toUri(0))
     }
   }
   @Loggable
-  private def onAppActivityStateChanged(): Unit = for {
+  private def onMessageBroadcast(context: Context, intent: Intent) = {
+    val message = intent.getParcelableExtra[DMessage](DIntent.Message)
+    val logger = Logging.getLogger(message.origin.name)
+    logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " <- " + message.origin.packageName)
+    SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ message.message
+    SSHDActivity.onUpdate(this)
+  }
+  @Loggable
+  private def onAppActivityStateChanged(state: AppActivity.State): Unit = for {
     statusText <- statusText.get
   } {
-    AppActivity.Inner.state.get match {
+    if (SSHDActivity.busyCounter.get > 0 && !SSHDActivity.busyDialog.isSet)
+      SSHDActivity.onBusy(this)
+    state match {
       case AppActivity.State(DState.Initializing, message, callback) =>
         log.debug("set status text to " + DState.Initializing)
-        statusText.setText(Android.getCapitalized(this, "status_initializing").getOrElse("Initializing"))
+        val text = Android.getCapitalized(SSHDActivity.this, "status_initializing").getOrElse("Initializing")
+        runOnUiThread(new Runnable { def run = statusText.setText(text) })
       case AppActivity.State(DState.Passive, message, callback) =>
         log.debug("set status text to " + DState.Passive)
-        statusText.setText(Android.getCapitalized(this, "status_ready").getOrElse("Ready"))
-        buttonToggleStartStop.get.foreach(_.setChecked(false))
+        val text = Android.getCapitalized(SSHDActivity.this, "status_ready").getOrElse("Ready")
+        runOnUiThread(new Runnable {
+          def run = {
+            statusText.setText(text)
+            buttonToggleStartStop.get.foreach(_.setChecked(false))
+          }
+        })
       case AppActivity.State(DState.Active, message, callback) =>
         log.debug("set status text to " + DState.Active)
-        statusText.setText(Android.getCapitalized(this, "status_active").getOrElse("Active"))
-        buttonToggleStartStop.get.foreach(_.setChecked(true))
+        val text = Android.getCapitalized(SSHDActivity.this, "status_active").getOrElse("Active")
+        runOnUiThread(new Runnable {
+          def run = {
+            statusText.setText(text)
+            buttonToggleStartStop.get.foreach(_.setChecked(true))
+          }
+        })
       case AppActivity.State(DState.Broken, rawMessage, callback) =>
         log.debug("set status text to " + DState.Broken)
         val message = if (rawMessage != null)
-          Android.getString(this, rawMessage).getOrElse(rawMessage)
+          Android.getString(SSHDActivity.this, rawMessage).getOrElse(rawMessage)
         else
-          Android.getString(this, "unknown").getOrElse("unknown")
-        statusText.setText(Android.getCapitalized(this, "status_error").getOrElse("Error: %s").format(message))
-        if (message != null)
-          statusText.setText(Android.getCapitalized(this, "status_error").getOrElse("Error: %s").format(message))
+          Android.getString(SSHDActivity.this, "unknown").getOrElse("unknown")
+        val text = Android.getCapitalized(SSHDActivity.this, "status_error").getOrElse("Error: %s").format(message)
+        runOnUiThread(new Runnable { def run = statusText.setText(text) })
       case AppActivity.State(DState.Busy, message, callback) =>
         log.debug("set status text to " + DState.Busy)
-        statusText.setText(Android.getCapitalized(this, "status_busy").getOrElse("Busy"))
+        val text = Android.getCapitalized(SSHDActivity.this, "status_busy").getOrElse("Busy")
+        runOnUiThread(new Runnable { def run = statusText.setText(text) })
       case AppActivity.State(DState.Unknown, message, callback) =>
         log.debug("skip notification with state DState.Unknown")
       case state =>
         log.fatal("unknown state " + state)
     }
+    if (SSHDActivity.busyCounter.get == 0 && SSHDActivity.busyDialog.isSet)
+      SSHDActivity.onReady(this)
   }
   @Loggable
   def onClickServiceFilterAdd(v: View) =
@@ -321,14 +331,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case DState.Active =>
         IAmBusy(SSHDActivity, Android.getString(this, "state_stopping_services").getOrElse("stopping services"))
         future {
-          stop()
-          IAmReady(SSHDActivity, Android.getString(this, "state_stopped_services").getOrElse("stopped services"))
+          stop((s) => {
+            IAmReady(SSHDActivity, Android.getString(this, "state_stopped_services").getOrElse("stopped services"))
+          })
         }
       case DState.Passive =>
         IAmBusy(SSHDActivity, Android.getString(this, "state_starting_services").getOrElse("starting services"))
         future {
-          start()
-          IAmReady(SSHDActivity, Android.getString(this, "state_started_services").getOrElse("started services"))
+          start((s) => {
+            IAmReady(SSHDActivity, Android.getString(this, "state_started_services").getOrElse("started services"))
+          })
         }
       case state =>
         IAmWarn("unable to change component state while in " + state)
@@ -510,7 +522,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
    * recommended to start as future
    */
   @Loggable
-  private def start(): Boolean = synchronized {
+  private def start(onFinish: (DState.Value) => Unit): Boolean = synchronized {
     log.info("starting " + getPackageName)
     val stopFlag = new SyncVar[Boolean]()
     val startFlag = new SyncVar[Boolean]()
@@ -525,7 +537,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         log.warn(getPackageName + " stop failed")
         stopFlag.set(true)
     })
-    val result = if (stopFlag.get(DTimeout.normal).getOrElse(false)) {
+    val result = if (stopFlag.get(DTimeout.long).getOrElse(false)) {
       // change android service mode
       startService(new Intent(DIntent.HostService))
       AppService.Inner ! AppService.Message.Start(getPackageName, {
@@ -536,17 +548,17 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           log.warn(getPackageName + " start failed")
           startFlag.set(false)
       })
-      startFlag.get(DTimeout.normal).getOrElse(false)
+      startFlag.get(DTimeout.long).getOrElse(false)
     } else
       false
-    AppActivity.Inner.synchronizeStateWithICtrlHost
+    AppActivity.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
     result
   }
   /*
    * recommended to start as future
    */
   @Loggable
-  private def stop(): Boolean = synchronized {
+  private def stop(onFinish: (DState.Value) => Unit): Boolean = synchronized {
     log.info("stopping " + getPackageName)
     val stopFlag = new SyncVar[Boolean]()
 
@@ -559,15 +571,15 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         log.warn(getPackageName + " stop failed")
         stopFlag.set(true)
     })
-    val result = stopFlag.get(DTimeout.normal).getOrElse(false)
+    val result = stopFlag.get(DTimeout.long).getOrElse(false)
     if (result)
       AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
     stopService(new Intent(DIntent.HostService))
-    AppActivity.Inner.synchronizeStateWithICtrlHost
+    AppActivity.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
     result
   }
   @Loggable
-  private def onIntentSignRequest(intent: Intent): Unit = {
+  private def onSignRequest(intent: Intent): Unit = {
     try {
       val key = Uri.parse(intent.getDataString())
       key.getPath.split("""/""") match {
@@ -633,7 +645,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       return
     AppActivity.LazyInit.init
     session.SessionBlock.updateCursor
-    AppActivity.Inner.synchronizeStateWithICtrlHost
+    AppActivity.Inner.synchronizeStateWithICtrlHost()
     AppService.Inner ! AppService.Message.ListPendingConnections(getPackageName, {
       case Some(pendingConnections) =>
         IAmMumble(pendingConnections.size + " pending connection(s)")
@@ -652,7 +664,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
             data.putParcelable("connection", connection)
             data.putParcelable("executable", executable)
             restoredIntent.replaceExtras(data)
-            onIntentSignRequest(restoredIntent)
+            onSignRequest(restoredIntent)
           }) getOrElse (log.fatal("broken ListPendingConnections intent detected: " + connectionIntent))
         } catch {
           case e =>
@@ -680,9 +692,12 @@ object SSHDActivity extends Actor with Logging {
   private val busyDialog = new SyncVar[Option[ProgressDialog]]()
   private val busyCounter = new AtomicInteger()
   private val busySize = 5
-  private val busyBuffer = ArrayBuffer[String]()
-  private val busyBufferSize = 32
-  private val busyKickerRate = 100
+  @volatile private var busyBuffer = Seq[String]()
+  //AppActivity state subscriber
+  val stateSubscriber = new Subscriber[AppActivity.State, AppActivity.StateContainer#Pub] {
+    def notify(pub: AppActivity.StateContainer#Pub, event: AppActivity.State) =
+      activity.foreach(_.onAppActivityStateChanged(event))
+  }
   // broadcast receivers
   private val privateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
@@ -720,24 +735,43 @@ object SSHDActivity extends Actor with Logging {
   }
   private val componentUpdateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
-      activity.foreach(activity => activity.onComponentUpdateBroadcast(context, intent))
+      val uri = Uri.parse(intent.getDataString())
+      if (uri.getPath() == ("/org.digimead.digi.ctrl.sshd"))
+        activity.foreach(activity => activity.onComponentUpdateBroadcast(context, intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
     }
   }
   private val sessionUpdateReceiver = new BroadcastReceiver() {
-    def onReceive(context: Context, intent: Intent) = {
+    def onReceive(context: Context, intent: Intent) = try {
       log.debug("receive session update " + intent.toUri(0))
       session.SessionBlock.updateCursor
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
     }
   }
-  private val privateSignReceiver = new BroadcastReceiver() {
-    def onReceive(context: Context, intent: Intent) =
+  private val signReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
       if (intent.getBooleanExtra("__private__", false) && isOrderedBroadcast) {
         abortBroadcast()
-        activity.foreach(activity => activity.onIntentSignRequest(intent))
+        activity.foreach(activity => activity.onSignRequest(intent))
       }
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
+  private val messageReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      val uri = Uri.parse(intent.getDataString())
+      if (uri.getAuthority != "org.digimead.digi.ctrl.sshd")
+        activity.foreach(activity => activity.onMessageBroadcast(context, intent))
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
   }
   /*
    * initialize singletons
@@ -747,11 +781,9 @@ object SSHDActivity extends Actor with Logging {
   service.TabActivity
   // start actor
   start
-  for (i <- 0 to busyBufferSize)
-    addDataToBusyBuffer
   log.debug("alive")
 
-  def addLazyInit = AppActivity.LazyInit("SSHDActivity initialize onCreate", 50) {
+  def addLazyInit = AppActivity.LazyInit("SSHDActivity initialize onCreate", -50) {
     activity.foreach {
       activity =>
         // register BroadcastReceiver
@@ -786,21 +818,40 @@ object SSHDActivity extends Actor with Logging {
         val signFilter = new IntentFilter(DIntent.SignRequest)
         signFilter.addDataScheme("sign")
         signFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY)
-        activity.registerReceiver(privateSignReceiver, signFilter, DPermission.Base, null)
+        activity.registerReceiver(signReceiver, signFilter, DPermission.Base, null)
+        // register message BroadcastReceiver
+        val messageFilter = new IntentFilter(DIntent.Message)
+        messageFilter.addDataScheme("code")
+        activity.registerReceiver(messageReceiver, messageFilter, DPermission.Base, null)
     }
   }
   def act = {
     loop {
       react {
-        case msg: IAmBusy =>
+        case IAmBusy(origin, message) =>
           reply({
             busyCounter.incrementAndGet
-            activity.foreach(onBusy)
-            busyDialog.get(DTimeout.normal)
+            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+            activity.foreach(onUpdate)
+            AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
+            busyDialog.get(DTimeout.long)
           })
-        case msg: IAmReady =>
+        case IAmMumble(origin, message, callback) =>
+          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+          activity.foreach(onUpdate)
+        case IAmWarn(origin, message, callback) =>
+          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+          activity.foreach(onUpdate)
+        case IAmYell(origin, message, stacktrace, callback) =>
+          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+          activity.foreach(onUpdate)
+        case IAmReady(origin, message) =>
           busyCounter.decrementAndGet
-          activity.foreach(onReady)
+          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+          activity.foreach(onUpdate)
+          AppActivity.Inner.state.freeBusy
+          busyDialog.put(null)
+          busyDialog.unset()
         case message: AnyRef =>
           log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
         case message =>
@@ -810,30 +861,14 @@ object SSHDActivity extends Actor with Logging {
   }
   @Loggable
   private def onBusy(activity: SSHDActivity): Unit = {
-    AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
     if (!busyDialog.isSet) {
       AppActivity.Inner.disableRotation()
-      val message = Android.getString(activity, "decoder_not_implemented").getOrElse("decoder out of future pack ;-)")
       busyDialog.set(AppActivity.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
         if (busyCounter.get > 0) {
-          val text = Seq(message) ++ (for (i <- 1 until busySize)
-            yield busyBuffer(Random.nextInt(busyBufferSize)))
-          ProgressDialog.show(activity, "Please wait...", text.mkString("\n"), true)
+          busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
+          ProgressDialog.show(activity, "Please wait...", busyBuffer.mkString("\n"), true)
         } else
           null))
-      future {
-        Thread.sleep(busyKickerRate)
-        while (busyDialog.get(0).flatMap(d => d) match {
-          case Some(dialog) =>
-            activity.runOnUiThread(new Runnable {
-              def run = dialog.setMessage((for (i <- 1 to busySize)
-                yield busyBuffer(Random.nextInt(busyBufferSize))).mkString("\n"))
-            })
-            true
-          case None =>
-            false
-        }) Thread.sleep(busyKickerRate)
-      }
     }
   }
   @Loggable
@@ -845,20 +880,15 @@ object SSHDActivity extends Actor with Logging {
           busyDialog.unset()
           AppActivity.Inner.enableRotation()
       }
-    AppActivity.Inner.state.freeBusy
   }
-  private def addDataToBusyBuffer() = {
-    var value = Random.nextInt
-    val displayMask = 1 << 31;
-    var data = (for (i <- 1 to 24) yield {
-      var result = if ((value & displayMask) == 0) "0" else "1"
-      value <<= 1
-      if (i % 8 == 0)
-        result += " "
-      result
-    }).mkString
-    busyBuffer.append(data)
-  }
+  private def onUpdate(activity: SSHDActivity): Unit = busyDialog.get(0).foreach(_.foreach {
+    dialog =>
+      activity.runOnUiThread(new Runnable {
+        def run = {
+          dialog.setMessage(busyBuffer.mkString("\n"))
+        }
+      })
+  })
   object Dialog {
     lazy val NewConnection = AppActivity.Context.map(a => Android.getId(a, "new_connection")).getOrElse(0)
     lazy val ComponentInfo = AppActivity.Context.map(a => Android.getId(a, "component_info")).getOrElse(0)

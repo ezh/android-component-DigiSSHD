@@ -44,7 +44,8 @@ import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
+import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.Service
@@ -226,14 +227,30 @@ object SSHDService extends Logging {
                 if (rsa_key.exists())
                   rsa_key.delete()
                 if (dss_key.exists())
-                  dss_key.delete()
-                // -rw-r--r-- 644
-                generateKey(Array("-t", "rsa", "-f", rsa_key.getAbsolutePath())) &&
-                  generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath())) && {
-                    try { Android.execChmod(644, rsa_key, false) } catch { case e => log.warn(e.getMessage) }
-                    try { Android.execChmod(644, dss_key, false) } catch { case e => log.warn(e.getMessage) }
+                  dss_key.delete() // -rw-r--r-- 644
+                ({
+                  IAmMumble("RSA key generation")
+                  if (generateKey(Array("-t", "rsa", "-f", rsa_key.getAbsolutePath()))) {
+                    IAmMumble("RSA key generated")
+                    true
+                  } else {
+                    IAmWarn("RSA key generation failed")
+                    false
+                  }
+                }) && ({
+                  IAmMumble("DSS key generation")
+                  if (generateKey(Array("-t", "dss", "-f", dss_key.getAbsolutePath()))) {
+                    IAmMumble("DSS key generated")
+                    true
+                  } else {
+                    IAmWarn("DSS key generation failed")
                     true
                   }
+                }) && {
+                  try { Android.execChmod(644, rsa_key, false) } catch { case e => log.warn(e.getMessage) }
+                  try { Android.execChmod(644, dss_key, false) } catch { case e => log.warn(e.getMessage) }
+                  true
+                }
               } catch {
                 case e =>
                   log.error(e.getMessage(), e)
