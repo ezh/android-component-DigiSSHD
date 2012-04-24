@@ -24,7 +24,7 @@ package org.digimead.digi.ctrl.sshd.session
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DOption
@@ -125,10 +125,10 @@ class FilterBlock(val context: Activity) extends Block[FilterBlock.Item] with Lo
 
 object FilterBlock extends Logging {
   @volatile private var block: Option[FilterBlock] = None
-  lazy val iconADA = AppActivity.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_ada))
-  lazy val iconDAD = AppActivity.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_dad))
-  lazy val FILTER_REQUEST_ALLOW = AppActivity.Context.map(Android.getId(_, "filter_request_allow")).getOrElse(0)
-  lazy val FILTER_REQUEST_DENY = AppActivity.Context.map(Android.getId(_, "filter_request_deny")).getOrElse(0)
+  lazy val iconADA = AppComponent.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_ada))
+  lazy val iconDAD = AppComponent.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_dad))
+  lazy val FILTER_REQUEST_ALLOW = AppComponent.Context.map(Android.getId(_, "filter_request_allow")).getOrElse(0)
+  lazy val FILTER_REQUEST_DENY = AppComponent.Context.map(Android.getId(_, "filter_request_deny")).getOrElse(0)
 
   @Loggable
   def updateFilterItem() =

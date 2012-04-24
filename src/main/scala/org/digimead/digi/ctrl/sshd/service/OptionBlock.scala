@@ -25,7 +25,7 @@ import scala.actors.Futures.future
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DIntent
@@ -115,7 +115,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
               container.addView(layout)
               // leave UI thread
               future {
-                AppActivity.Inner.showDialogSafe[AlertDialog](activity, () => {
+                AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
                   val dialog = new AlertDialog.Builder(activity).
                     setTitle(R.string.dialog_port_title).
                     setView(container).
@@ -182,7 +182,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         future {
           SSHDActivity.activity.foreach {
             activity =>
-              AppActivity.Inner.showDialogSafe[AlertDialog](activity, () => {
+              AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
                 val dialog = new AlertDialog.Builder(activity).
                   setTitle(R.string.dialog_root_title).
                   setMessage(R.string.dialog_root_message).

@@ -34,7 +34,7 @@ import scala.collection.mutable.HashSet
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DProvider
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
@@ -173,7 +173,7 @@ object SessionAdapter extends Actor with Logging {
   private val adapter = new AtomicReference(new WeakReference[SessionAdapter](null))
   private val jscheduler = Executors.newSingleThreadScheduledExecutor()
 
-  AppActivity.LazyInit("start session.SessionAdapter actor and heartbeat") {
+  AppComponent.LazyInit("start session.SessionAdapter actor and heartbeat") {
     start
     schedule(1000)
   }

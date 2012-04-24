@@ -28,7 +28,7 @@ import scala.actors.threadpool.AtomicInteger
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DConstant
@@ -92,7 +92,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
             TabActivity.activity.foreach {
               activity =>
                 IAmMumble("disconnect all sessions")
-                AppActivity.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnectAll)
+                AppComponent.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnectAll)
             }
           }
         false
@@ -109,7 +109,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
       bundle.putString("componentPackage", item.component.componentPackage)
       bundle.putInt("processID", item.processID)
       bundle.putInt("connectionID", item.connection.connectionID)
-      AppActivity.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnect, bundle)
+      AppComponent.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnect, bundle)
   }
   @Loggable
   private def updateCursor(): Unit = {

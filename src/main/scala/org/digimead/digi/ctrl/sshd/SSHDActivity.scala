@@ -32,8 +32,8 @@ import scala.collection.mutable.Subscriber
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
@@ -67,6 +67,7 @@ import org.digimead.digi.ctrl.sshd.session.TabActivity
 import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ProgressDialog
+import android.content.pm.ActivityInfo
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.DialogInterface
@@ -104,6 +105,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onCreate(savedInstanceState: Bundle) = {
     if (android.os.Build.VERSION.SDK.toInt < 11)
       requestWindowFeature(Window.FEATURE_NO_TITLE)
+    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR)
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     SSHDActivity.activity = Some(this)
@@ -155,7 +157,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     })
 
     tabHost.setCurrentTab(2)
-
   }
   @Loggable
   override def onStart() {
@@ -163,7 +164,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   override def onResume() {
-    AppActivity.Inner.disableRotation()
+    AppComponent.Inner.disableRotation()
     super.onResume()
     runOnUiThread(new Runnable {
       def run {
@@ -173,11 +174,13 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         })
       }
     })
-    AppService.Inner.bind(this)
+    AppControl.Inner.bind(this)
     SSHDActivity.consistent = true
-    AppActivity.Inner.state.subscribe(SSHDActivity.stateSubscriber)
+    AppComponent.Inner.state.subscribe(SSHDActivity.stateSubscriber)
     if (SSHDActivity.consistent && SSHDActivity.focused)
       future {
+        // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
+        Thread.sleep(1000)
         initializeOnCreate
         initializeOnResume
       }
@@ -186,7 +189,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   override def onPause() {
     super.onPause()
-    AppActivity.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
+    AppComponent.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
     SSHDActivity.consistent = false
     SSHDActivity.focused = false
     SSHDActivity.initializeOnResume.set(true)
@@ -201,18 +204,20 @@ class SSHDActivity extends android.app.TabActivity with Activity {
    * user interface already visible and it is alive
    * now we may start processes under the hood
    *
-   * after initialization AppActivity.LazyInit.init do nothing
+   * after initialization AppComponent.LazyInit.init do nothing
    */
   @Loggable
   override def onWindowFocusChanged(hasFocus: Boolean) = {
     super.onWindowFocusChanged(hasFocus)
     SSHDActivity.focused = hasFocus
     if (SSHDActivity.consistent && SSHDActivity.focused)
-      AppActivity.Inner.enableSafeDialogs
+      AppComponent.Inner.enableSafeDialogs
     else
-      AppActivity.Inner.disableSafeDialogs
+      AppComponent.Inner.disableSafeDialogs
     if (SSHDActivity.consistent && SSHDActivity.focused)
       future {
+        // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
+        Thread.sleep(1000)
         initializeOnCreate
         initializeOnResume
       }
@@ -221,7 +226,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def onPrivateBroadcast(context: Context, intent: Intent) = {
     intent.getAction() match {
       case DIntent.Update =>
-      // we don't interested in different AppActivity DIntent.Update events
+      // we don't interested in different AppComponent DIntent.Update events
       case _ =>
         log.error("unknown private broadcast intent " + intent + " with action " + intent.getAction)
     }
@@ -230,7 +235,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def onPublicBroadcast(context: Context, intent: Intent) = {
     intent.getAction match {
       case DIntent.Update =>
-      // we don't interested in different AppActivity DIntent.Update events
+      // we don't interested in different AppComponent DIntent.Update events
       case _ =>
         log.error("unknown public broadcast intent " + intent + " with action " + intent.getAction)
     }
@@ -249,9 +254,9 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     info.TabActivity.UpdateActiveInterfaces(state)
     state match {
       case DState.Active =>
-        AppActivity.Inner.state.set(AppActivity.State(DState.Active))
+        AppComponent.Inner.state.set(AppComponent.State(DState.Active))
       case DState.Passive =>
-        AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+        AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
       case _ =>
     }
   }
@@ -264,17 +269,17 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     SSHDActivity.onUpdate(this)
   }
   @Loggable
-  private def onAppActivityStateChanged(state: AppActivity.State): Unit = for {
+  private def onAppComponentStateChanged(state: AppComponent.State): Unit = for {
     statusText <- statusText.get
   } {
     if (SSHDActivity.busyCounter.get > 0 && !SSHDActivity.busyDialog.isSet)
       SSHDActivity.onBusy(this)
     state match {
-      case AppActivity.State(DState.Initializing, message, callback) =>
+      case AppComponent.State(DState.Initializing, message, callback) =>
         log.debug("set status text to " + DState.Initializing)
         val text = Android.getCapitalized(SSHDActivity.this, "status_initializing").getOrElse("Initializing")
         runOnUiThread(new Runnable { def run = statusText.setText(text) })
-      case AppActivity.State(DState.Passive, message, callback) =>
+      case AppComponent.State(DState.Passive, message, callback) =>
         log.debug("set status text to " + DState.Passive)
         val text = Android.getCapitalized(SSHDActivity.this, "status_ready").getOrElse("Ready")
         runOnUiThread(new Runnable {
@@ -283,7 +288,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
             buttonToggleStartStop.get.foreach(_.setChecked(false))
           }
         })
-      case AppActivity.State(DState.Active, message, callback) =>
+      case AppComponent.State(DState.Active, message, callback) =>
         log.debug("set status text to " + DState.Active)
         val text = Android.getCapitalized(SSHDActivity.this, "status_active").getOrElse("Active")
         runOnUiThread(new Runnable {
@@ -292,7 +297,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
             buttonToggleStartStop.get.foreach(_.setChecked(true))
           }
         })
-      case AppActivity.State(DState.Broken, rawMessage, callback) =>
+      case AppComponent.State(DState.Broken, rawMessage, callback) =>
         log.debug("set status text to " + DState.Broken)
         val message = if (rawMessage != null)
           Android.getString(SSHDActivity.this, rawMessage).getOrElse(rawMessage)
@@ -300,11 +305,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           Android.getString(SSHDActivity.this, "unknown").getOrElse("unknown")
         val text = Android.getCapitalized(SSHDActivity.this, "status_error").getOrElse("Error: %s").format(message)
         runOnUiThread(new Runnable { def run = statusText.setText(text) })
-      case AppActivity.State(DState.Busy, message, callback) =>
+      case AppComponent.State(DState.Busy, message, callback) =>
         log.debug("set status text to " + DState.Busy)
         val text = Android.getCapitalized(SSHDActivity.this, "status_busy").getOrElse("Busy")
         runOnUiThread(new Runnable { def run = statusText.setText(text) })
-      case AppActivity.State(DState.Unknown, message, callback) =>
+      case AppComponent.State(DState.Unknown, message, callback) =>
         log.debug("skip notification with state DState.Unknown")
       case state =>
         log.fatal("unknown state " + state)
@@ -327,7 +332,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   def onClickStartStop(v: View): Unit = future {
     val button = v.asInstanceOf[ToggleButton]
-    AppActivity.Inner.state.get.code match {
+    AppComponent.Inner.state.get.code match {
       case DState.Active =>
         IAmBusy(SSHDActivity, Android.getString(this, "state_stopping_services").getOrElse("stopping services"))
         future {
@@ -357,7 +362,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   }
   @Loggable
   def onClickStatus(v: View) = future {
-    AppActivity.Inner.state.get.onClickCallback match {
+    AppComponent.Inner.state.get.onClickCallback match {
       case cb: Function0[_] => cb()
       case _ =>
     }
@@ -376,7 +381,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onOptionsItemSelected(item: MenuItem): Boolean =
     item.getItemId() match {
       case R.id.menu_help =>
-        AppActivity.Inner.showDialogSafe[AlertDialog](this, () => {
+        AppComponent.Inner.showDialogSafe[AlertDialog](this, () => {
           val dialog = new AlertDialog.Builder(this).
             setTitle(R.string.dialog_help_title).
             setMessage(R.string.dialog_help_message).
@@ -395,7 +400,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           intent.addCategory(Intent.CATEGORY_BROWSABLE)
           startActivity(intent)
         } catch {
-          case _ => AppActivity.Inner.showDialogSafe(this, FailedMarket.getId(this))
+          case _ => AppComponent.Inner.showDialogSafe(this, FailedMarket.getId(this))
         }
         true
       case R.id.menu_report =>
@@ -406,7 +411,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           val intent = new Intent(DIntent.HostActivity)
           startActivity(intent)
         } catch {
-          case _ => AppActivity.Inner.showDialogSafe(this, InstallControl.getId(this))
+          case _ => AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
         }
         true
       case _ =>
@@ -495,7 +500,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
                 def onClick(v: View) = {
                   log.info("permit connection")
                   data.putBoolean("result", true)
-                  AppActivity.Inner.giveTheSign(key, data)
+                  AppComponent.Inner.giveTheSign(key, data)
                   dialog.dismiss
                 }
               })
@@ -504,7 +509,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
                 def onClick(v: View) = {
                   log.info("deny connection")
                   data.putBoolean("result", false)
-                  AppActivity.Inner.giveTheSign(key, data)
+                  AppComponent.Inner.giveTheSign(key, data)
                   dialog.dismiss
                 }
               })
@@ -528,7 +533,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     val startFlag = new SyncVar[Boolean]()
 
     // stop bridge that possibly in running state
-    AppService.Inner ! AppService.Message.Stop(getPackageName, {
+    AppControl.Inner.callStop(getPackageName)() match {
       case true =>
         log.info(getPackageName + " stopped")
         stopFlag.set(true)
@@ -536,22 +541,22 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         // if fail to stop, then maybe there is something already running
         log.warn(getPackageName + " stop failed")
         stopFlag.set(true)
-    })
-    val result = if (stopFlag.get(DTimeout.long).getOrElse(false)) {
+    }
+    val result = if (stopFlag.get(DTimeout.longer).getOrElse(false)) {
       // change android service mode
       startService(new Intent(DIntent.HostService))
-      AppService.Inner ! AppService.Message.Start(getPackageName, {
+      AppControl.Inner.callStart(getPackageName)() match {
         case true =>
           log.info(getPackageName + " started")
           startFlag.set(true)
         case false =>
           log.warn(getPackageName + " start failed")
           startFlag.set(false)
-      })
-      startFlag.get(DTimeout.long).getOrElse(false)
+      }
+      startFlag.get(DTimeout.longer).getOrElse(false)
     } else
       false
-    AppActivity.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
+    AppComponent.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
     result
   }
   /*
@@ -562,7 +567,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     log.info("stopping " + getPackageName)
     val stopFlag = new SyncVar[Boolean]()
 
-    AppService.Inner ! AppService.Message.Stop(getPackageName, {
+    AppControl.Inner.callStop(getPackageName)() match {
       case true =>
         log.info(getPackageName + " stopped")
         stopFlag.set(true)
@@ -570,12 +575,12 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         // if fail to stop, then maybe there is something already running
         log.warn(getPackageName + " stop failed")
         stopFlag.set(true)
-    })
+    }
     val result = stopFlag.get(DTimeout.long).getOrElse(false)
     if (result)
-      AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+      AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     stopService(new Intent(DIntent.HostService))
-    AppActivity.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
+    AppComponent.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
     result
   }
   @Loggable
@@ -623,7 +628,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       }
       IAmMumble("Someone or something connect to " + component.name +
         " executable " + executable.name + " from " + ip.getOrElse(Android.getString(this, "unknown_source").getOrElse("unknown source")))
-      AppActivity.Inner.showDialogSafe(this, SSHDActivity.Dialog.NewConnection)
+      AppComponent.Inner.showDialogSafe(this, SSHDActivity.Dialog.NewConnection)
     }
   }
   @Loggable
@@ -631,11 +636,12 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (!SSHDActivity.initializeOnCreate.compareAndSet(true, false))
       return
     IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("loading on create logic"))
-    if (AppActivity.Inner.state.get.code == DState.Initializing)
-      AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+    if (AppComponent.Inner.state.get.code == DState.Initializing)
+      AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     SSHDActivity.addLazyInit
     info.TabActivity.addLazyInit
     session.TabActivity.addLazyInit
+    service.TabActivity.addLazyInit
     initializeOnResume
     IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("loaded on create logic"))
   }
@@ -643,10 +649,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def initializeOnResume(): Unit = {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
-    AppActivity.LazyInit.init
+    AppComponent.LazyInit.init
     session.SessionBlock.updateCursor
-    AppActivity.Inner.synchronizeStateWithICtrlHost()
-    AppService.Inner ! AppService.Message.ListPendingConnections(getPackageName, {
+    AppComponent.Inner.synchronizeStateWithICtrlHost()
+    AppControl.Inner.callListPendingConnections(getPackageName)() match {
       case Some(pendingConnections) =>
         IAmMumble(pendingConnections.size + " pending connection(s)")
         pendingConnections.foreach(connectionIntent => try {
@@ -671,10 +677,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
             log.error(e.getMessage, e)
         })
       case None =>
-    })
+    }
     runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
     Report.searchAndSubmit(this)
-    AppActivity.Inner.enableRotation()
+    AppComponent.Inner.enableRotation()
   }
 }
 
@@ -682,7 +688,7 @@ object SSHDActivity extends Actor with Logging {
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
   private val initializeOnCreate = new AtomicBoolean(true)
   private val initializeOnResume = new AtomicBoolean(true)
-  lazy val info = AppActivity.Inner.getCachedComponentInfo(locale, localeLanguage).get
+  lazy val info = AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage).get
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
   @volatile private var focused = false
@@ -693,10 +699,10 @@ object SSHDActivity extends Actor with Logging {
   private val busyCounter = new AtomicInteger()
   private val busySize = 5
   @volatile private var busyBuffer = Seq[String]()
-  //AppActivity state subscriber
-  val stateSubscriber = new Subscriber[AppActivity.State, AppActivity.StateContainer#Pub] {
-    def notify(pub: AppActivity.StateContainer#Pub, event: AppActivity.State) =
-      activity.foreach(_.onAppActivityStateChanged(event))
+  //AppComponent state subscriber
+  val stateSubscriber = new Subscriber[AppComponent.State, AppComponent.StateContainer#Pub] {
+    def notify(pub: AppComponent.StateContainer#Pub, event: AppComponent.State) =
+      activity.foreach(_.onAppComponentStateChanged(event))
   }
   // broadcast receivers
   private val privateReceiver = new BroadcastReceiver() {
@@ -783,7 +789,7 @@ object SSHDActivity extends Actor with Logging {
   start
   log.debug("alive")
 
-  def addLazyInit = AppActivity.LazyInit("SSHDActivity initialize onCreate", -50) {
+  def addLazyInit = AppComponent.LazyInit("SSHDActivity initialize onCreate", -50) {
     activity.foreach {
       activity =>
         // register BroadcastReceiver
@@ -833,7 +839,7 @@ object SSHDActivity extends Actor with Logging {
             busyCounter.incrementAndGet
             busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
             activity.foreach(onUpdate)
-            AppActivity.Inner.state.set(AppActivity.State(DState.Busy))
+            AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
             busyDialog.get(DTimeout.long)
           })
         case IAmMumble(origin, message, callback) =>
@@ -849,7 +855,7 @@ object SSHDActivity extends Actor with Logging {
           busyCounter.decrementAndGet
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
-          AppActivity.Inner.state.freeBusy
+          AppComponent.Inner.state.freeBusy
           busyDialog.put(null)
           busyDialog.unset()
         case message: AnyRef =>
@@ -862,8 +868,8 @@ object SSHDActivity extends Actor with Logging {
   @Loggable
   private def onBusy(activity: SSHDActivity): Unit = {
     if (!busyDialog.isSet) {
-      AppActivity.Inner.disableRotation()
-      busyDialog.set(AppActivity.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
+      AppComponent.Inner.disableRotation()
+      busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
         if (busyCounter.get > 0) {
           busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
           ProgressDialog.show(activity, "Please wait...", busyBuffer.mkString("\n"), true)
@@ -878,7 +884,7 @@ object SSHDActivity extends Actor with Logging {
         dialog =>
           dialog.dismiss
           busyDialog.unset()
-          AppActivity.Inner.enableRotation()
+          AppComponent.Inner.enableRotation()
       }
   }
   private def onUpdate(activity: SSHDActivity): Unit = busyDialog.get(0).foreach(_.foreach {
@@ -890,7 +896,7 @@ object SSHDActivity extends Actor with Logging {
       })
   })
   object Dialog {
-    lazy val NewConnection = AppActivity.Context.map(a => Android.getId(a, "new_connection")).getOrElse(0)
-    lazy val ComponentInfo = AppActivity.Context.map(a => Android.getId(a, "component_info")).getOrElse(0)
+    lazy val NewConnection = AppComponent.Context.map(a => Android.getId(a, "new_connection")).getOrElse(0)
+    lazy val ComponentInfo = AppComponent.Context.map(a => Android.getId(a, "component_info")).getOrElse(0)
   }
 }

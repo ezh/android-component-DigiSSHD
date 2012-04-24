@@ -32,8 +32,8 @@ import scala.actors.Futures.future
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
@@ -57,19 +57,22 @@ import android.content.Intent
 import android.os.IBinder
 
 class SSHDService extends Service {
-  private val binder = new SyncVar[SSHDService.Binder]()
+  private val ready = new SyncVar[Boolean]()
+  private val binder = new SSHDService.Binder(ready)
   log.debug("alive")
+
   @Loggable
   override def onCreate() = {
     super.onCreate()
     SSHDService.addLazyInit
     future {
-      AppActivity.LazyInit.init
-      binder.set(new SSHDService.Binder)
+      AppComponent.LazyInit.init
+      AppControl.Inner.bind(this)
+      ready.set(true)
     }
   }
   @Loggable
-  override def onBind(intent: Intent): IBinder = binder.get(DTimeout.long).getOrElse({ log.fatal("unable to get SSHDService binder"); null })
+  override def onBind(intent: Intent): IBinder = binder
   @Loggable
   override def onRebind(intent: Intent) = super.onRebind(intent)
   @Loggable
@@ -85,16 +88,16 @@ object SSHDService extends Logging {
     Logging.addLogger(FileLogger)
   log.debug("alive")
 
-  def addLazyInit = AppActivity.LazyInit("main service onCreate logic") {
+  def addLazyInit = AppComponent.LazyInit("main service onCreate logic") {
     // TODO
     /*    for {
-      context <- AppActivity.Context
+      context <- AppComponent.Context
       info <- AnyBase.info.get
     } {
-      AppActivity.Inner.state.set(AppActivity.State(DState.Passive))
+      AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
       IAmBusy(SSHDService, "service environment verification")
-      AppService.Inner ! AppService.Message.Prepare(context.getPackageName, info.appBuild, (r) => {
-        if (!r) AppActivity.Inner.state.set(AppActivity.State(DState.Broken, "inconsistent service environment"))
+      AppControl.Inner ! AppControl.Message.Prepare(context.getPackageName, info.appBuild, (r) => {
+        if (!r) AppComponent.Inner.state.set(AppComponent.State(DState.Broken, "inconsistent service environment"))
         IAmReady(SSHDService, "service environment verified")
       })
     }
@@ -105,9 +108,9 @@ object SSHDService extends Logging {
   def getExecutableInfo(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
-      context <- AppActivity.Context
-      appNativePath <- AppActivity.Inner.appNativePath
-      xml <- AppActivity.Inner.nativeManifest
+      context <- AppComponent.Context
+      appNativePath <- AppComponent.Inner.appNativePath
+      xml <- AppComponent.Inner.nativeManifest
     } yield {
       var executableID = 0
       executables.map(executable => {
@@ -117,13 +120,16 @@ object SSHDService extends Logging {
         val commandLine = executable match {
           case "dropbear" =>
             val internalPath = new SyncVar[File]()
-            AppService.Inner ! AppService.Message.ListDirectories(context.getPackageName, {
+            val externalPath = new SyncVar[File]()
+            AppControl.Inner.callListDirectories(context.getPackageName)() match {
               case Some((internal, external)) =>
                 internalPath.set(new File(internal))
-              case _ =>
-                log.warn("unable to get component directories")
+                externalPath.set(new File(external))
+              case r =>
+                log.warn("unable to get component directories, result " + r)
                 internalPath.set(null)
-            })
+                externalPath.set(null)
+            }
             internalPath.get(DTimeout.long) match {
               case Some(path) if path != null =>
                 val masterPassword = Option("123")
@@ -132,6 +138,7 @@ object SSHDService extends Logging {
                   "-i", // Start for inetd
                   "-E", // Log to stderr rather than syslog
                   "-F", // Don't fork into background
+                  "-H", externalPath.get(0).getOrElse(path).getAbsolutePath, // forced home path
                   "-d", new File(path, "dropbear_dss_host_key").getAbsolutePath, // Use dsskeyfile for the dss host key
                   "-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath) ++ // Use rsakeyfile for the rsa host key
                   masterPasswordOption) // Enable master password to any account
@@ -142,6 +149,7 @@ object SSHDService extends Logging {
                   "-i", // Start for inetd
                   "-E", // Log to stderr rather than syslog
                   "-F", // Don't fork into background
+                  "-H", "/", // forced home path
                   "-d", new File(path, "dropbear_dss_host_key").getAbsolutePath, // Use dsskeyfile for the dss host key
                   "-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath) ++ // Use rsakeyfile for the rsa host key
                   masterPasswordOption) // Enable master password to any account
@@ -174,30 +182,31 @@ object SSHDService extends Logging {
       log.error(e.getMessage, e)
       Seq()
   }
-  class Binder extends ICtrlComponent.Stub with Logging {
+  class Binder(ready: SyncVar[Boolean]) extends ICtrlComponent.Stub with Logging {
     log.debug("binder alive")
     @Loggable(result = false)
     def info(): ComponentInfo =
-      AppActivity.Inner.getComponentInfo(locale, localeLanguage).getOrElse(null)
+      AppComponent.Inner.getComponentInfo(locale, localeLanguage).getOrElse(null)
     @Loggable(result = false)
     def uid() = android.os.Process.myUid()
     @Loggable(result = false)
     def size() = 2
     @Loggable(result = false)
     def pre(id: Int, workdir: String) = {
+      ready.get(DTimeout.long).getOrElse({ log.fatal("unable to start DigiSSHD service") })
       for {
-        context <- AppActivity.Context
-        appNativePath <- AppActivity.Inner.appNativePath
+        context <- AppComponent.Context
+        appNativePath <- AppComponent.Inner.appNativePath
       } yield {
         assert(id == 0)
         val internalPath = new SyncVar[File]()
-        AppService.Inner ! AppService.Message.ListDirectories(context.getPackageName, {
+        AppControl.Inner.callListDirectories(context.getPackageName)() match {
           case Some((internal, external)) =>
             internalPath.set(new File(internal))
           case _ =>
             log.warn("unable to get component directories")
             internalPath.set(null)
-        })
+        }
         internalPath.get(DTimeout.long) match {
           case Some(path) if path != null =>
             val rsa_key = new File(path, "dropbear_rsa_host_key")
@@ -273,7 +282,7 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def accessRulesOrder(): Boolean = try {
-      AppActivity.Context.map(
+      AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
           getBoolean(DOption.ACLConnection, DOption.ACLConnection.default.asInstanceOf[Boolean])).
         getOrElse(DOption.ACLConnection.default.asInstanceOf[Boolean])
@@ -284,7 +293,7 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def accessRuleImplicitInteractive(): Boolean = try {
-      AppActivity.Context.map(
+      AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
           getBoolean(DOption.ConfirmConn, DOption.ConfirmConn.default.asInstanceOf[Boolean])).
         getOrElse(DOption.ConfirmConn.default.asInstanceOf[Boolean])
@@ -295,7 +304,7 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def accessAllowRules(): java.util.List[java.lang.String] = try {
-      AppActivity.Context.map(
+      AppComponent.Context.map(
         _.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE).
           getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
     } catch {
@@ -305,7 +314,7 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def accessDenyRules(): java.util.List[java.lang.String] = try {
-      AppActivity.Context.map(
+      AppComponent.Context.map(
         _.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE).
           getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
     } catch {
@@ -315,7 +324,7 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def interfaceRules(): java.util.Map[_, _] = try {
-      AppActivity.Context.map(
+      AppComponent.Context.map(
         _.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll).
         getOrElse(new java.util.HashMap[String, Any]())
     } catch {

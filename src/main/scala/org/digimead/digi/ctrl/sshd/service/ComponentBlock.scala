@@ -29,8 +29,8 @@ import scala.annotation.elidable
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DState
@@ -82,7 +82,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = {
     val bundle = new Bundle()
     bundle.putParcelable("info", item.executableInfo)
-    SSHDActivity.activity.foreach(AppActivity.Inner.showDialogSafe(_, Android.getId(context, "component_info"), bundle))
+    SSHDActivity.activity.foreach(AppComponent.Inner.showDialogSafe(_, Android.getId(context, "component_info"), bundle))
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
@@ -147,9 +147,9 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
             IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
         }
         true
-        case item =>
-          log.fatal("unknown item " + item)
-          false
+      case item =>
+        log.fatal("unknown item " + item)
+        false
     }
   }
   @Loggable
@@ -276,7 +276,7 @@ object ComponentBlock extends Logging {
           subinfo.setText(item.executableInfo.version + " / " + item.executableInfo.license)
           item.view = new WeakReference(view)
           icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          AppService.Inner ! AppService.Message.Status(context.getPackageName, {
+          AppControl.Inner.callStatus(context.getPackageName)() match {
             case Right(componentState) =>
               if (componentState.state == DState.Active)
                 item.init(context, icon, true)
@@ -284,7 +284,7 @@ object ComponentBlock extends Logging {
                 item.init(context, icon, false)
             case Left(error) =>
               item.init(context, icon, false)
-          })
+          }
           view
         case Some(view) =>
           view

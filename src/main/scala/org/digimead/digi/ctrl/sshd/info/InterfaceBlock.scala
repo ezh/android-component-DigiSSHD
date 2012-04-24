@@ -29,7 +29,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.message.Dispatcher
@@ -40,7 +40,7 @@ import org.digimead.digi.ctrl.sshd.service.FilterBlock
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.SSHDActivity
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -76,7 +76,7 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
     future {
       SSHDActivity.activity.foreach {
         activity =>
-          AppActivity.Inner.showDialogSafe[AlertDialog](activity, () => {
+          AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
             val inflater = activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
             val layout = inflater.inflate(R.layout.info_interfaces_dialog, null).asInstanceOf[ViewGroup]
             val dialog = new AlertDialog.Builder(new ContextThemeWrapper(activity, R.style.InterfacesLegendDialog)).
@@ -157,11 +157,10 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
     if (allInterfacesArePassive) {
       activeInterfaces = None
       updateAdapter
-    } else
-      AppService.Inner ! AppService.Message.ListInterfaces(context.getPackageName, (i) => {
-        activeInterfaces = i
-        updateAdapter
-      })
+    } else {
+      activeInterfaces = AppControl.Inner.callListActiveInterfaces(context.getPackageName)()
+      updateAdapter
+    }
   }
 }
 

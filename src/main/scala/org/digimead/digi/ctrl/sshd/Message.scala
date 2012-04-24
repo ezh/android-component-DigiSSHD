@@ -21,7 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd
 
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -37,7 +37,7 @@ object Message extends Logging {
     def process(message: DMessage): Unit = {
       val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
       intent.putExtra(DIntent.Message, message)
-      AppActivity.Inner.sendPrivateBroadcast(intent)
+      AppComponent.Inner.sendPrivateBroadcast(intent)
       if (message.isInstanceOf[IAmBusy])
         SSHDActivity !? message
       else

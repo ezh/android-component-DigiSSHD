@@ -22,7 +22,7 @@
 package org.digimead.digi.ctrl.sshd.info
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.CommunityBlock
 import org.digimead.digi.ctrl.lib.block.LegalBlock
 import org.digimead.digi.ctrl.lib.block.SupportBlock
@@ -37,6 +37,7 @@ import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.commonsware.cwac.merge.MergeAdapter
 
+import android.app.Activity
 import android.app.ListActivity
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -182,45 +183,42 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
     def onReceive(context: Context, intent: Intent) =
       interfaceBlock.foreach(_.updateAdapter())
   }
-  AppActivity.LazyInit("info.TabActivity initialize once") {
-    SSHDActivity.activity match {
-      case Some(activity) =>
-        adapter = Some(new MergeAdapter())
-        interfaceBlock = Some(new InterfaceBlock(activity))
-        supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
-          SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
-        communityBlock = Some(new CommunityBlock(activity, Uri.parse(SSHDActivity.info.project + "/wiki")))
-        thanksBlock = Some(new ThanksBlock(activity))
-        legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md"))))
-        for {
-          adapter <- adapter
-          interfaceBlock <- interfaceBlock
-          supportBlock <- supportBlock
-          communityBlock <- communityBlock
-          thanksBlock <- thanksBlock
-          legalBlock <- legalBlock
-        } {
-          interfaceBlock appendTo (adapter)
-          communityBlock appendTo (adapter)
-          supportBlock appendTo (adapter)
-          //thanksBlock appendTo (adapter)
-          legalBlock appendTo (adapter)
-          TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
-        }
-      case None =>
-        log.fatal("lost SSHDActivity context")
-    }
-  }
 
-  def addLazyInit = AppActivity.LazyInit("info.TabActivity initialize onCreate", 50) {
+  def addLazyInit = AppComponent.LazyInit("info.TabActivity initialize onCreate", 50) {
     SSHDActivity.activity match {
-      case Some(activity) =>
+      case Some(activity) if activity.isInstanceOf[Activity] =>
+        // initialize once from onCreate
+        if (adapter == None) {
+          adapter = Some(new MergeAdapter())
+          interfaceBlock = Some(new InterfaceBlock(activity))
+          supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
+            SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
+          communityBlock = Some(new CommunityBlock(activity, Uri.parse(SSHDActivity.info.project + "/wiki")))
+          thanksBlock = Some(new ThanksBlock(activity))
+          legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md"))))
+          for {
+            adapter <- adapter
+            interfaceBlock <- interfaceBlock
+            supportBlock <- supportBlock
+            communityBlock <- communityBlock
+            thanksBlock <- thanksBlock
+            legalBlock <- legalBlock
+          } {
+            interfaceBlock appendTo (adapter)
+            communityBlock appendTo (adapter)
+            supportBlock appendTo (adapter)
+            //thanksBlock appendTo (adapter)
+            legalBlock appendTo (adapter)
+            TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+          }
+        }
+        // initialize every time from onCreate
         // register UpdateInterfaceFilter BroadcastReceiver
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")
         activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
-      case None =>
-        log.fatal("lost SSHDActivity context")
+      case context =>
+        log.warn("inappropriate SSHDActivity context " + context)
     }
   }
   @Loggable

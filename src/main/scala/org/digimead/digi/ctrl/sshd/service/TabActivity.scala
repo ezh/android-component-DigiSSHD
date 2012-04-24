@@ -24,7 +24,7 @@ package org.digimead.digi.ctrl.sshd.service
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DState
@@ -174,7 +174,7 @@ class TabActivity extends ListActivity with Logging {
   def onClickServiceReinstall(v: View) = {
     IAmMumble("reinstall files/force prepare evironment")
     Toast.makeText(this, Android.getString(this, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
-/*    AppActivity.Inner ! AppActivity.Message.PrepareEnvironment(this, false, true, (success) =>
+    /*    AppComponent.Inner ! AppComponent.Message.PrepareEnvironment(this, false, true, (success) =>
       runOnUiThread(new Runnable() {
         def run = if (success)
           Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
@@ -196,32 +196,35 @@ object TabActivity extends Logging {
   @volatile private var componentBlock: Option[ComponentBlock] = None
   val FILTER_REQUEST = 10000
   val DIALOG_FILTER_REMOVE_ID = 0
-  AppActivity.LazyInit("service.TabActivity initialize once") {
+
+  def addLazyInit = AppComponent.LazyInit("service.TabActivity initialize onCreate", 50) {
     SSHDActivity.activity match {
-      case Some(activity) =>
-        adapter = Some(new MergeAdapter())
-        filterBlock = Some(new FilterBlock(activity))
-        optionBlock = Some(new OptionBlock(activity))
-        environmentBlock = Some(new EnvironmentBlock(activity))
-        componentBlock = Some(new ComponentBlock(activity))
-        for {
-          adapter <- adapter
-          filterBlock <- filterBlock
-          optionBlock <- optionBlock
-          environmentBlock <- environmentBlock
-          componentBlock <- componentBlock
-        } {
-          filterBlock appendTo (adapter)
-          optionBlock appendTo (adapter)
-          environmentBlock appendTo (adapter)
-          componentBlock appendTo (adapter)
-          TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+      case Some(activity) if activity.isInstanceOf[Activity] =>
+        // initialize once from onCreate
+        if (adapter == None) {
+          adapter = Some(new MergeAdapter())
+          filterBlock = Some(new FilterBlock(activity))
+          optionBlock = Some(new OptionBlock(activity))
+          environmentBlock = Some(new EnvironmentBlock(activity))
+          componentBlock = Some(new ComponentBlock(activity))
+          for {
+            adapter <- adapter
+            filterBlock <- filterBlock
+            optionBlock <- optionBlock
+            environmentBlock <- environmentBlock
+            componentBlock <- componentBlock
+          } {
+            filterBlock appendTo (adapter)
+            optionBlock appendTo (adapter)
+            environmentBlock appendTo (adapter)
+            componentBlock appendTo (adapter)
+            TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+          }
         }
-      case None =>
-        log.fatal("lost SSHDActivity context")
+      case context =>
+        log.warn("inappropriate SSHDActivity context " + context)
     }
   }
-
   def getActivity() = activity
   @Loggable
   def UpdateComponents(state: DState.Value) =

@@ -24,8 +24,8 @@ package org.digimead.digi.ctrl.sshd.session
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppActivity
-import org.digimead.digi.ctrl.lib.base.AppService
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
@@ -33,6 +33,7 @@ import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.commonsware.cwac.merge.MergeAdapter
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ListActivity
@@ -92,20 +93,20 @@ class TabActivity extends ListActivity with Logging {
           getOrElse("Disconnect all sessions?")).
         setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener {
           def onClick(dialog: DialogInterface, which: Int) {
-            TabActivity.sessionBlock.foreach(_.items.foreach(i => AppService.Inner ! AppService.
-              Message.Disconnect(i.component.componentPackage, i.processID, i.connection.connectionID)))
+            TabActivity.sessionBlock.foreach(_.items.foreach(i =>
+              AppControl.Inner.callDisconnect(i.component.componentPackage, i.processID, i.connection.connectionID)))
           }
         }).
         setNegativeButton(android.R.string.cancel, null).
         create()
     case id =>
-      AppActivity.Inner.setDialogSafe(null)
+      AppComponent.Inner.setDialogSafe(null)
       log.fatal("unknown dialog id " + id)
       null
   }
   @Loggable
   override def onPrepareDialog(id: Int, dialog: Dialog, args: Bundle): Unit = {
-    AppActivity.Inner.setDialogSafe(dialog)
+    AppComponent.Inner.setDialogSafe(dialog)
     id match {
       case id if id == TabActivity.Dialog.SessionDisconnect =>
         log.debug("prepare TabActivity.Dialog.SessionDisconnect dialog")
@@ -116,14 +117,14 @@ class TabActivity extends ListActivity with Logging {
         ok.setOnClickListener(new OnClickListener() {
           def onClick(v: View) = {
             val wd = new WeakReference(dialog)
-            AppService.Inner ! AppService.Message.Disconnect(componentPackage, processID, connectionID)
+            AppControl.Inner.callDisconnect(componentPackage, processID, connectionID)
             wd.get.foreach(_.dismiss)
           }
         })
       case id if id == TabActivity.Dialog.SessionDisconnectAll =>
         log.debug("prepare TabActivity.Dialog.SessionDisconnectAll dialog")
       case id =>
-        AppActivity.Inner.setDialogSafe(null)
+        AppComponent.Inner.setDialogSafe(null)
         log.fatal("unknown dialog id " + id)
     }
   }
@@ -197,43 +198,40 @@ object TabActivity extends Logging {
   @volatile private var filterBlock: Option[FilterBlock] = None
   @volatile private var optionBlock: Option[OptionBlock] = None
   @volatile private var sessionBlock: Option[SessionBlock] = None
-  AppActivity.LazyInit("session.TabActivity initialize once") {
-    SSHDActivity.activity match {
-      case Some(activity) =>
-        adapter = Some(new MergeAdapter())
-        filterBlock = Some(new FilterBlock(activity))
-        optionBlock = Some(new OptionBlock(activity))
-        sessionBlock = Some(new SessionBlock(activity))
-        for {
-          adapter <- adapter
-          filterBlock <- filterBlock
-          optionBlock <- optionBlock
-          sessionBlock <- sessionBlock
-        } {
-          filterBlock appendTo (adapter)
-          optionBlock appendTo (adapter)
-          sessionBlock appendTo (adapter)
-          TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
-        }
-      case None =>
-        log.fatal("lost SSHDActivity context")
-    }
-  }
 
-  def addLazyInit = AppActivity.LazyInit("session.TabActivity initialize onCreate", 50) {
+  def addLazyInit = AppComponent.LazyInit("session.TabActivity initialize onCreate", 50) {
     SSHDActivity.activity match {
-      case Some(activity) =>
+      case Some(activity) if activity.isInstanceOf[Activity] =>
+        // initialize once from onCreate
+        if (adapter == None) {
+          adapter = Some(new MergeAdapter())
+          filterBlock = Some(new FilterBlock(activity))
+          optionBlock = Some(new OptionBlock(activity))
+          sessionBlock = Some(new SessionBlock(activity))
+          for {
+            adapter <- adapter
+            filterBlock <- filterBlock
+            optionBlock <- optionBlock
+            sessionBlock <- sessionBlock
+          } {
+            filterBlock appendTo (adapter)
+            optionBlock appendTo (adapter)
+            sessionBlock appendTo (adapter)
+            TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+          }
+        }
+        // initialize every time from onCreate
         (for {
           sessionBlock <- sessionBlock
         } yield {
           SessionBlock.updateCursor()
         }).getOrElse({ log.fatal("unable to update sessionBlock") })
-      case None =>
-        log.fatal("lost SSHDActivity context")
+      case context =>
+        log.fatal("inappropriate SSHDActivity context " + context)
     }
   }
   object Dialog {
-    val SessionDisconnect = AppActivity.Context.map(a => Android.getId(a, "session_disconnect")).getOrElse(0)
-    val SessionDisconnectAll = AppActivity.Context.map(a => Android.getId(a, "session_disconnect_all")).getOrElse(0)
+    val SessionDisconnect = AppComponent.Context.map(a => Android.getId(a, "session_disconnect")).getOrElse(0)
+    val SessionDisconnectAll = AppComponent.Context.map(a => Android.getId(a, "session_disconnect_all")).getOrElse(0)
   }
 }
