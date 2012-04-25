@@ -36,6 +36,7 @@ import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
+import org.digimead.digi.ctrl.sshd.SSHDCommon
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -132,6 +133,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                           text.setText(port.toString)
                         })
                         context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+                        SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Int](context).toString)
                       } catch {
                         case e =>
                           log.error(e.getMessage, e)
@@ -163,7 +165,6 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                   })
                   dialog
                 })
-
               }
           }
         }
@@ -177,6 +178,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         val editor = pref.edit()
         editor.putBoolean(item.option, !lastState)
         editor.commit()
+        SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
       } else {
         // leave UI thread
         future {
@@ -193,6 +195,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                       editor.putBoolean(item.option, !lastState)
                       editor.commit()
                       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+                      SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
                     }
                   }).
                   setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -218,6 +221,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       editor.putBoolean(item.option, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+      SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState(context).toString)
   }
 }
 
@@ -225,9 +229,18 @@ object OptionBlock extends Logging {
   @volatile private var block: Option[OptionBlock] = None
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
-    def getState(context: Context): Boolean = {
+    def getState[T](context: Context)(implicit m: Manifest[T]): T = {
+      assert(m.erasure == option.kind)
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-      pref.getBoolean(option, false)
+      option.kind.getName match {
+        case "boolean" =>
+          pref.getBoolean(option, option.default.asInstanceOf[Boolean]).asInstanceOf[T]
+        case "int" =>
+          pref.getInt(option, option.default.asInstanceOf[Int]).asInstanceOf[T]
+        case k =>
+          log.fatal("unknown option kind " + k)
+          null.asInstanceOf[T]
+      }
     }
   }
   class Adapter(context: Activity, data: Seq[Item])
@@ -265,13 +278,13 @@ object OptionBlock extends Logging {
               })
               checkbox.setFocusable(false)
               checkbox.setFocusableInTouchMode(false)
-              checkbox.setChecked(item.getState(context))
+              checkbox.setChecked(item.getState[Boolean](context))
               view
             case c if c == classOf[Int] =>
               val view = inflater.inflate(Android.getId(context, "option_list_item_value", "layout"), null)
               val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
               val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-              value.setText(pref.getInt(item.option, 2222).toString)
+              value.setText(pref.getInt(item.option, item.getState[Int](context)).toString)
               view
           }
           val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]

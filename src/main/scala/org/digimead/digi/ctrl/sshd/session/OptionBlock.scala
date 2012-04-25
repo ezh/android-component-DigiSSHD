@@ -32,7 +32,9 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDCommon
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -52,8 +54,8 @@ import android.widget.TextView
 class OptionBlock(context: Activity) extends Logging {
   private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val items = Seq(
-    OptionBlock.Item(DOption.ConfirmConn, DOption.ConfirmConn),
-    OptionBlock.Item(DOption.WriteConnLog, DOption.WriteConnLog))
+    OptionBlock.Item(DOption.ConfirmConn, DOption.ConfirmConn))
+  //OptionBlock.Item(DOption.WriteConnLog, DOption.WriteConnLog))
   private lazy val adapter = new OptionBlock.Adapter(context, Android.getId(context, "option_list_item_multiple_choice", "layout"), items)
   OptionBlock.block = Some(this)
   def appendTo(adapter: MergeAdapter) {
@@ -77,6 +79,7 @@ class OptionBlock(context: Activity) extends Logging {
       editor.putBoolean(item.option, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+                        SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
   }
 }
 
@@ -86,7 +89,7 @@ object OptionBlock extends Logging {
     override def toString() = value
     def getState(context: Context): Boolean = {
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-      pref.getBoolean(option, false)
+      pref.getBoolean(option, option.default.asInstanceOf[Boolean])
     }
   }
   class Adapter(context: Activity, textViewResourceId: Int, data: Seq[Item])
