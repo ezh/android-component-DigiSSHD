@@ -23,6 +23,6 @@
     <string name="app_name">DigiSSHD</string>
     <string name="status_initializing">Инициализация&#8230;</string>
     <string name="status_ready">Готовность</string>
-    <string name="status_error">Ошибка: %1$s</string>
+    <string name="status_error">Ошибка, %1$s</string>
 
 </resources>

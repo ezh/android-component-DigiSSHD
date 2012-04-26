@@ -53,7 +53,7 @@ class SSHDActivityTest extends FunSuite with BeforeAndAfter with RobotEsTrick {
     //Logging.fileArg = 0
     //println("!!!!!!!" + Logging.androidArg)
     activity.onCreate(null)
-/*    FailedMarket.getId(activity) should (not equal (null) and not be (0) and not be (-1))
+    /*    FailedMarket.getId(activity) should (not equal (null) and not be (0) and not be (-1))
     val dialog = FailedMarket.createDialog(activity)
     dialog.show()
     val lastDialog = ShadowAlertDialog.getLatestAlertDialog()
