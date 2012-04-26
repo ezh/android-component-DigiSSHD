@@ -118,6 +118,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
       val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
       if (cursor == null) {
         log.warn("cursor from " + DProvider.Uri.Session + " unavailable")
+        updateInProgressLock.set(0)
         return
       }
       context.runOnUiThread(new Runnable() {
@@ -139,7 +140,8 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         updateCursor()
       } else
         updateInProgressLock.set(0)
-    }
+    } else
+      log.warn("update of session cursor already in progress, lock counter " + updateInProgressLock.get)
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SessionBlock.Item): Unit = {
@@ -259,7 +261,7 @@ object SessionBlock extends Logging {
   @volatile protected var block = new WeakReference[SessionBlock](null)
 
   @Loggable
-  def updateCursor =
+  def updateCursor(): Unit =
     future { block.get.foreach(_.updateCursor()) }
 
   class Item(val id: Int,

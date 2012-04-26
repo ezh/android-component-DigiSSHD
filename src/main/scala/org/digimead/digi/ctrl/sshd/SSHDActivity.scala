@@ -89,15 +89,18 @@ import android.widget.Button
 import android.widget.ScrollView
 import android.widget.TabHost
 import android.widget.TextView
+import android.widget.Toast
 import android.widget.ToggleButton
 
 class SSHDActivity extends android.app.TabActivity with Activity {
+  implicit val dispatcher = org.digimead.digi.ctrl.sshd.Message.dispatcher
   private lazy val statusText = new WeakReference(findViewById(R.id.status).asInstanceOf[TextView])
   private lazy val buttonToggleStartStop = new WeakReference(findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton])
   if (true)
     Logging.addLogger(Seq(AndroidLogger, FileLogger))
   else
     Logging.addLogger(FileLogger)
+  SSHDActivity.focused = false
   log.debug("alive")
 
   /** Called when the activity is first created. */
@@ -118,19 +121,19 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     // Create an Intent to launch an Activity for the tab (to be reused)
     // Initialize a TabSpec for each tab and add it to the TabHost
     intent = new Intent().setClass(this, classOf[org.digimead.digi.ctrl.sshd.service.TabActivity])
-    spec = tabHost.newTabSpec(classOf[org.digimead.digi.ctrl.sshd.service.TabActivity].getName()).setIndicator("Service",
+    spec = tabHost.newTabSpec(classOf[org.digimead.digi.ctrl.sshd.service.TabActivity].getName()).setIndicator(getString(R.string.app_name_service),
       res.getDrawable(R.drawable.ic_tab_service))
       .setContent(intent)
     tabHost.addTab(spec)
 
     intent = new Intent().setClass(this, classOf[session.TabActivity])
-    spec = tabHost.newTabSpec(classOf[session.TabActivity].getName()).setIndicator("Session",
+    spec = tabHost.newTabSpec(classOf[session.TabActivity].getName()).setIndicator(getString(R.string.app_name_session),
       res.getDrawable(R.drawable.ic_tab_session))
       .setContent(intent)
     tabHost.addTab(spec)
 
     intent = new Intent().setClass(this, classOf[info.TabActivity])
-    spec = tabHost.newTabSpec(classOf[info.TabActivity].getName()).setIndicator("Info",
+    spec = tabHost.newTabSpec(classOf[info.TabActivity].getName()).setIndicator(getString(R.string.app_name_information),
       res.getDrawable(R.drawable.ic_tab_info))
       .setContent(intent)
     tabHost.addTab(spec)
@@ -144,8 +147,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           log.info("activate tab " + getString(R.string.app_name_session))
           setTitle("%s: %s".format(getString(R.string.app_name), getString(R.string.app_name_session)))
         case id if id == classOf[info.TabActivity].getName() =>
-          log.info("activate tab " + getString(R.string.app_name_info))
-          setTitle("%s: %s".format(getString(R.string.app_name), getString(R.string.app_name_info)))
+          log.info("activate tab " + getString(R.string.app_name_information))
+          setTitle("%s: %s".format(getString(R.string.app_name), getString(R.string.app_name_information)))
         case id =>
           log.error("unknown tab " + tab)
       }
@@ -178,12 +181,13 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     SSHDActivity.consistent = true
     AppComponent.Inner.state.subscribe(SSHDActivity.stateSubscriber)
     if (SSHDActivity.consistent && SSHDActivity.focused)
-      future {
-        // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
-        Thread.sleep(1000)
-        initializeOnCreate
-        initializeOnResume
-      }
+      AppComponent.Inner.enableSafeDialogs
+    future {
+      // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
+      Thread.sleep(1000)
+      initializeOnCreate
+      initializeOnResume
+    }
   }
 
   @Loggable
@@ -191,7 +195,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     super.onPause()
     AppComponent.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
     SSHDActivity.consistent = false
-    SSHDActivity.focused = false
     SSHDActivity.initializeOnResume.set(true)
   }
   @Loggable
@@ -251,7 +254,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     log.trace("receive update broadcast " + intent.toUri(0))
     val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
     service.TabActivity.UpdateComponents(state)
-    info.TabActivity.UpdateActiveInterfaces(state)
+    info.TabActivity.updateActiveInterfaces(state)
     state match {
       case DState.Active =>
         AppComponent.Inner.state.set(AppComponent.State(DState.Active))
@@ -282,28 +285,20 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case AppComponent.State(DState.Passive, message, callback) =>
         log.debug("set status text to " + DState.Passive)
         val text = Android.getCapitalized(SSHDActivity.this, "status_ready").getOrElse("Ready")
-        runOnUiThread(new Runnable {
-          def run = {
-            statusText.setText(text)
-            buttonToggleStartStop.get.foreach(_.setChecked(false))
-          }
-        })
+        SSHDActivity.running = false
+        runOnUiThread(new Runnable { def run = statusText.setText(text) })
       case AppComponent.State(DState.Active, message, callback) =>
         log.debug("set status text to " + DState.Active)
         val text = Android.getCapitalized(SSHDActivity.this, "status_active").getOrElse("Active")
-        runOnUiThread(new Runnable {
-          def run = {
-            statusText.setText(text)
-            buttonToggleStartStop.get.foreach(_.setChecked(true))
-          }
-        })
+        SSHDActivity.running = true
+        runOnUiThread(new Runnable { def run = statusText.setText(text) })
       case AppComponent.State(DState.Broken, rawMessage, callback) =>
         log.debug("set status text to " + DState.Broken)
         val message = if (rawMessage != null)
           Android.getString(SSHDActivity.this, rawMessage).getOrElse(rawMessage)
         else
           Android.getString(SSHDActivity.this, "unknown").getOrElse("unknown")
-        val text = Android.getCapitalized(SSHDActivity.this, "status_error").getOrElse("Error: %s").format(message)
+        val text = Android.getCapitalized(SSHDActivity.this, "status_error").getOrElse("Error %s").format(message)
         runOnUiThread(new Runnable { def run = statusText.setText(text) })
       case AppComponent.State(DState.Busy, message, callback) =>
         log.debug("set status text to " + DState.Busy)
@@ -314,6 +309,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       case state =>
         log.fatal("unknown state " + state)
     }
+    runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setChecked(SSHDActivity.running)) })
     if (SSHDActivity.busyCounter.get == 0 && SSHDActivity.busyDialog.isSet)
       SSHDActivity.onReady(this)
   }
@@ -348,28 +344,19 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           })
         }
       case state =>
-        IAmWarn("unable to change component state while in " + state)
+        val message = "unable to move to next finite state while component is on an indeterminate position '" + state + "'"
+        IAmWarn(message)
         runOnUiThread(new Runnable {
-          def run {
-            buttonToggleStartStop.get.foreach {
-              button =>
-                button.setChecked(button.isChecked)
-            }
+          def run = {
+            buttonToggleStartStop.get.foreach(_.setChecked(SSHDActivity.running))
+            Toast.makeText(SSHDActivity.this, message, Toast.LENGTH_SHORT).show()
           }
         })
-      // TODO add IAmWarn Toast.makeText(...
     }
   }
   @Loggable
   def onClickStatus(v: View) = future {
-    AppComponent.Inner.state.get.onClickCallback match {
-      case cb: Function0[_] => cb()
-      case _ =>
-    }
-  }
-  @Loggable
-  def onUpdateServiceIntent() {
-
+    AppComponent.Inner.state.get.onClickCallback(this)
   }
   @Loggable
   override def onCreateOptionsMenu(menu: Menu): Boolean = {
@@ -396,7 +383,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         true
       case R.id.menu_gplay =>
         try {
-          val intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=pname:" + DConstant.marketPackage))
+          val intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=pname:" + DConstant.controlPackage))
           intent.addCategory(Intent.CATEGORY_BROWSABLE)
           startActivity(intent)
         } catch {
@@ -649,6 +636,14 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def initializeOnResume(): Unit = {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
+    // try to rebind DigiControl if DigiControl not installed
+    if (AppControl.Inner.isAvailable == Some(false)) {
+      log.debug("reinitialize DigiControl service")
+      AppControl.Inner.unbind()
+      AppControl.Inner.bind(this)
+      AppComponent.Inner.synchronizeStateWithICtrlHost()
+    }
+    // lazy init
     AppComponent.LazyInit.init
     session.SessionBlock.updateCursor
     AppComponent.Inner.synchronizeStateWithICtrlHost()
@@ -691,6 +686,7 @@ object SSHDActivity extends Actor with Logging {
   lazy val info = AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage).get
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
+  @volatile private var running = false
   @volatile private var focused = false
   @volatile private var consistent = false
   @volatile private var screenOrientation = 0
@@ -779,6 +775,37 @@ object SSHDActivity extends Actor with Logging {
         log.error(e.getMessage, e)
     }
   }
+  private val applicationInstallerReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      val apkPackage = intent.getData.toString()
+      log.debug("changed " + apkPackage)
+      if (apkPackage == "package:" + DConstant.controlPackage) {
+        future {
+          val i = AppComponent.Context.foreach {
+            case activity: Activity =>
+              IAmWarn("DigiControl (de)installed, restart DigiSSHD")
+              AppComponent.Inner.state.set(AppComponent.State(DState.Initializing))
+              Thread.sleep(DTimeout.normal)
+              SSHDActivity.initializeOnResume.set(true)
+              val i = activity.getBaseContext.getPackageManager.getLaunchIntentForPackage(activity.getPackageName())
+              i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+              activity.startActivity(i)
+          }
+        }
+      }
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
+  private val networkChangedReceiver = new BroadcastReceiver() {
+    def onReceive(context: Context, intent: Intent) = try {
+      future { org.digimead.digi.ctrl.sshd.info.TabActivity.updateActiveInterfaces(AppComponent.Inner.state.get.code) }
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+    }
+  }
   /*
    * initialize singletons
    */
@@ -829,6 +856,17 @@ object SSHDActivity extends Actor with Logging {
         val messageFilter = new IntentFilter(DIntent.Message)
         messageFilter.addDataScheme("code")
         activity.registerReceiver(messageReceiver, messageFilter, DPermission.Base, null)
+        // register ApplicationInstaller BroadcastReceiver
+        val applicationInstallerFilter = new IntentFilter()
+        applicationInstallerFilter.addAction(android.content.Intent.ACTION_PACKAGE_ADDED)
+        applicationInstallerFilter.addAction(android.content.Intent.ACTION_PACKAGE_CHANGED)
+        applicationInstallerFilter.addAction(android.content.Intent.ACTION_PACKAGE_INSTALL)
+        applicationInstallerFilter.addAction(android.content.Intent.ACTION_PACKAGE_REPLACED)
+        applicationInstallerFilter.addDataScheme("package")
+        activity.registerReceiver(applicationInstallerReceiver, applicationInstallerFilter)
+        // register NetworkChanged
+        val networkChangedFilter = new IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION)
+        activity.registerReceiver(networkChangedReceiver, networkChangedFilter)
     }
   }
   def act = {
@@ -865,6 +903,7 @@ object SSHDActivity extends Actor with Logging {
       }
     }
   }
+  def isRunning() = running
   @Loggable
   private def onBusy(activity: SSHDActivity): Unit = {
     if (!busyDialog.isSet) {

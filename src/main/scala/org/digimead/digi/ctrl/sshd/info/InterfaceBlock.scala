@@ -116,6 +116,7 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
           val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
           val acl = pref.getAll
           val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
+          log.debug("available interfaces: " + interfaces.keys.mkString(", "))
           // stage 1: set unused interfaces to passive
           if (acl.isEmpty) {
             // all adapters enabled

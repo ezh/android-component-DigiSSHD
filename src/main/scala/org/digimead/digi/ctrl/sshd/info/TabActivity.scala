@@ -222,12 +222,13 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
     }
   }
   @Loggable
-  def UpdateActiveInterfaces(state: DState.Value) = state match {
+  def updateActiveInterfaces(state: DState.Value) = state match {
     case DState.Active =>
       interfaceBlock.foreach(_.updateActiveInteraces(false))
     case DState.Passive =>
       interfaceBlock.foreach(_.updateActiveInteraces(true))
     case _ =>
+      interfaceBlock.foreach(_.updateActiveInteraces(SSHDActivity.isRunning))
   }
 }
 
