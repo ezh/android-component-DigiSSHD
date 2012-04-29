@@ -85,7 +85,7 @@ class SSHDService extends Service {
 object SSHDService extends Logging {
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
-  if (true)
+  if (SSHDActivity.DEBUG)
     Logging.addLogger(Seq(AndroidLogger, FileLogger))
   else
     Logging.addLogger(FileLogger)

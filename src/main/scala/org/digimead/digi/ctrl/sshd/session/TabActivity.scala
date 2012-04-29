@@ -22,6 +22,7 @@
 package org.digimead.digi.ctrl.sshd.session
 
 import scala.ref.WeakReference
+import scala.actors.Futures.future
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -115,7 +116,7 @@ class TabActivity extends ListActivity with Logging {
         val connectionID = args.getInt("connectionID")
         val ok = dialog.findViewById(android.R.id.button1).asInstanceOf[Button]
         ok.setOnClickListener(new OnClickListener() {
-          def onClick(v: View) = {
+          def onClick(v: View) = future {
             val wd = new WeakReference(dialog)
             AppControl.Inner.callDisconnect(componentPackage, processID, connectionID)
             wd.get.foreach(_.dismiss)

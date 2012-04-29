@@ -96,7 +96,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   implicit val dispatcher = org.digimead.digi.ctrl.sshd.Message.dispatcher
   private lazy val statusText = new WeakReference(findViewById(R.id.status).asInstanceOf[TextView])
   private lazy val buttonToggleStartStop = new WeakReference(findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton])
-  if (true)
+  if (SSHDActivity.DEBUG)
     Logging.addLogger(Seq(AndroidLogger, FileLogger))
   else
     Logging.addLogger(FileLogger)
@@ -106,9 +106,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   /** Called when the activity is first created. */
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
-    if (android.os.Build.VERSION.SDK.toInt < 11)
-      requestWindowFeature(Window.FEATURE_NO_TITLE)
-    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR)
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     SSHDActivity.activity = Some(this)
@@ -184,8 +181,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       future {
         // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
         Thread.sleep(1000)
-        initializeOnCreate
-        initializeOnResume
+        if (SSHDActivity.consistent) {
+          initializeOnCreate
+          initializeOnResume
+        }
       }
     }
   }
@@ -224,8 +223,10 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       future {
         // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
         Thread.sleep(1000)
-        initializeOnCreate
-        initializeOnResume
+        if (SSHDActivity.consistent) {
+          initializeOnCreate
+          initializeOnResume
+        }
       }
     } else {
       AppComponent.Inner.disableSafeDialogs
@@ -663,6 +664,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 }
 
 object SSHDActivity extends Actor with Logging {
+  val DEBUG = false
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
   private val initializeOnCreate = new AtomicBoolean(true)
   private val initializeOnResume = new AtomicBoolean(true)
@@ -672,7 +674,6 @@ object SSHDActivity extends Actor with Logging {
   @volatile private var running = false
   @volatile private var focused = false
   @volatile private var consistent = false
-  @volatile private var screenOrientation = 0
   // null - empty, None - dialog upcoming, Some - dialog in progress
   private val busyDialog = new SyncVar[Option[ProgressDialog]]()
   private val busyCounter = new AtomicInteger()

@@ -178,7 +178,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
 
 object ComponentBlock extends Logging {
   @volatile private var block: Option[ComponentBlock] = None
-  case class Item(value: String, id: Int) extends Block.Item {
+  case class Item(value: String, id: Int) extends Block.Item with Logging {
     private var activeDrawable: Option[Drawable] = None
     private var passiveDrawable: Option[Drawable] = None
     private var active: Option[Boolean] = None
@@ -194,7 +194,8 @@ object ComponentBlock extends Logging {
         view <- view.get
       } yield {
         log.debug("initialize background for " + this)
-        assert(activeDrawable == None && passiveDrawable == None)
+        if (activeDrawable != None || passiveDrawable != None)
+          log.fatal("activeDrawable != None (" + activeDrawable + ") || passiveDrawable != None (" + passiveDrawable + "), " + this)
         icon = new WeakReference(_icon)
         context = new WeakReference(_context)
         activeDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_work", "anim")))
@@ -310,15 +311,6 @@ object ComponentBlock extends Logging {
           description.setText("...")
           subinfo.setText("... / ...")
           icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          AppControl.Inner.callStatus(context.getPackageName, true)() match {
-            case Right(componentState) =>
-              if (componentState.state == DState.Active)
-                item.init(context, icon, true)
-              else
-                item.init(context, icon, false)
-            case Left(error) =>
-              item.init(context, icon, false)
-          }
           view
         case Some(view) =>
           view
