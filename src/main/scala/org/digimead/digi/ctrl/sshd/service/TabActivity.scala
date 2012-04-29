@@ -213,12 +213,13 @@ object TabActivity extends Logging {
             optionBlock <- optionBlock
             environmentBlock <- environmentBlock
             componentBlock <- componentBlock
+            activity <- TabActivity.activity
           } {
             filterBlock appendTo (adapter)
             optionBlock appendTo (adapter)
             environmentBlock appendTo (adapter)
             componentBlock appendTo (adapter)
-            TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+            activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) })
           }
         }
       case context =>

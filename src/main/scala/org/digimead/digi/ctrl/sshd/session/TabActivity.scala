@@ -230,6 +230,10 @@ object TabActivity extends Logging {
         log.fatal("inappropriate SSHDActivity context " + context)
     }
   }
+  def addLazyInitOnResume = AppComponent.LazyInit("service.TabActivity initialize onResume", 1000) {
+    SessionBlock.updateCursor
+  }
+
   object Dialog {
     val SessionDisconnect = AppComponent.Context.map(a => Android.getId(a, "session_disconnect")).getOrElse(0)
     val SessionDisconnectAll = AppComponent.Context.map(a => Android.getId(a, "session_disconnect_all")).getOrElse(0)

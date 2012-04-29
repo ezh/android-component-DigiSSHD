@@ -177,16 +177,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         })
       }
     })
-    AppControl.Inner.bind(this)
     SSHDActivity.consistent = true
     AppComponent.Inner.state.subscribe(SSHDActivity.stateSubscriber)
-    if (SSHDActivity.consistent && SSHDActivity.focused)
+    if (SSHDActivity.consistent && SSHDActivity.focused) {
       AppComponent.Inner.enableSafeDialogs
-    future {
-      // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
-      Thread.sleep(1000)
-      initializeOnCreate
-      initializeOnResume
+      future {
+        // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
+        Thread.sleep(1000)
+        initializeOnCreate
+        initializeOnResume
+      }
     }
   }
 
@@ -213,20 +213,27 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   override def onWindowFocusChanged(hasFocus: Boolean) = {
     super.onWindowFocusChanged(hasFocus)
     SSHDActivity.focused = hasFocus
-    if (SSHDActivity.consistent && SSHDActivity.focused)
+    if (SSHDActivity.consistent && SSHDActivity.focused) {
       AppComponent.Inner.enableSafeDialogs
-    else
-      AppComponent.Inner.disableSafeDialogs
-    if (SSHDActivity.consistent && SSHDActivity.focused)
+      buttonToggleStartStop.get.foreach { button =>
+        if (!SSHDActivity.initializeOnResume.get) {
+          log.debug("enable toggleStartStop button")
+          button.setEnabled(true)
+        }
+      }
       future {
         // screen may occasionally rotate, delay in 1 second prevent to lock on transient orientation
         Thread.sleep(1000)
         initializeOnCreate
         initializeOnResume
       }
+    } else {
+      AppComponent.Inner.disableSafeDialogs
+      buttonToggleStartStop.get.foreach { button => button.setEnabled(false) }
+    }
   }
   @Loggable
-  private def onPrivateBroadcast(context: Context, intent: Intent) = {
+  private def onPrivateBroadcast(intent: Intent) = {
     intent.getAction() match {
       case DIntent.Update =>
       // we don't interested in different AppComponent DIntent.Update events
@@ -235,7 +242,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  private def onPublicBroadcast(context: Context, intent: Intent) = {
+  private def onPublicBroadcast(intent: Intent) = {
     intent.getAction match {
       case DIntent.Update =>
       // we don't interested in different AppComponent DIntent.Update events
@@ -244,13 +251,13 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  private def onInterfaceFilterUpdateBroadcast(context: Context, intent: Intent) =
+  private def onInterfaceFilterUpdateBroadcast(intent: Intent) =
     IAmMumble("update interface filters")
   @Loggable
-  private def onConnectionFilterUpdateBroadcast(context: Context, intent: Intent) =
+  private def onConnectionFilterUpdateBroadcast(intent: Intent) =
     IAmMumble("update connection filters")
   @Loggable
-  private def onComponentUpdateBroadcast(context: Context, intent: Intent) = {
+  private def onComponentUpdateBroadcast(intent: Intent) = future {
     log.trace("receive update broadcast " + intent.toUri(0))
     val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
     service.TabActivity.UpdateComponents(state)
@@ -264,7 +271,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  private def onMessageBroadcast(context: Context, intent: Intent) = {
+  private def onMessageBroadcast(intent: Intent) = future {
     val message = intent.getParcelableExtra[DMessage](DIntent.Message)
     val logger = Logging.getLogger(message.origin.name)
     logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " <- " + message.origin.packageName)
@@ -344,7 +351,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           })
         }
       case state =>
-        val message = "unable to move to next finite state while component is on an indeterminate position '" + state + "'"
+        val message = "Unable to move component to next finite state while is on an indeterminate position '" + state + "'"
         IAmWarn(message)
         runOnUiThread(new Runnable {
           def run = {
@@ -622,7 +629,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def initializeOnCreate(): Unit = {
     if (!SSHDActivity.initializeOnCreate.compareAndSet(true, false))
       return
-    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("loading on create logic"))
+    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("device environment evaluation"))
+    AppControl.Inner.bind(this)
     if (AppComponent.Inner.state.get.code == DState.Initializing)
       AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     SSHDActivity.addLazyInit
@@ -630,52 +638,27 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     session.TabActivity.addLazyInit
     service.TabActivity.addLazyInit
     initializeOnResume
-    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("loaded on create logic"))
+    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("device environment evaluated"))
   }
   @Loggable
   private def initializeOnResume(): Unit = {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
-    // try to rebind DigiControl if DigiControl not installed
-    if (AppControl.Inner.isAvailable == Some(false)) {
-      log.debug("reinitialize DigiControl service")
-      AppControl.Inner.unbind()
-      AppControl.Inner.bind(this)
-      AppComponent.Inner.synchronizeStateWithICtrlHost()
-    }
-    // lazy init
+    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("component environment evaluation"))
+    SSHDActivity.addLazyInitOnResume
+    session.TabActivity.addLazyInitOnResume
     AppComponent.LazyInit.init
-    session.SessionBlock.updateCursor
-    AppComponent.Inner.synchronizeStateWithICtrlHost()
-    AppControl.Inner.callListPendingConnections(getPackageName)() match {
-      case Some(pendingConnections) =>
-        IAmMumble(pendingConnections.size + " pending connection(s)")
-        pendingConnections.foreach(connectionIntent => try {
-          log.debug("process sign request " + connectionIntent.getDataString)
-          val restoredIntent = connectionIntent.cloneFilter
-          val data = new Bundle
-          data.putInt("processID", connectionIntent.getIntExtra("processID", 0))
-          data.putInt("total", connectionIntent.getIntExtra("total", 0))
-          (for {
-            component <- Common.unparcelFromArray[ComponentInfo](connectionIntent.getByteArrayExtra("component"))
-            connection <- Common.unparcelFromArray[DConnection](connectionIntent.getByteArrayExtra("connection"))
-            executable <- Common.unparcelFromArray[ExecutableInfo](connectionIntent.getByteArrayExtra("executable"))
-          } yield {
-            data.putParcelable("component", component)
-            data.putParcelable("connection", connection)
-            data.putParcelable("executable", executable)
-            restoredIntent.replaceExtras(data)
-            onSignRequest(restoredIntent)
-          }) getOrElse (log.fatal("broken ListPendingConnections intent detected: " + connectionIntent))
-        } catch {
-          case e =>
-            log.error(e.getMessage, e)
-        })
-      case None =>
-    }
-    runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setEnabled(true)) })
-    Report.searchAndSubmit(this)
-    AppComponent.Inner.enableRotation()
+    AppComponent.Inner.synchronizeStateWithICtrlHost((s) => {
+      runOnUiThread(new Runnable {
+        def run = {
+          log.debug("enable toggleStartStop button")
+          findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton].setEnabled(true)
+        }
+      })
+      AppComponent.Inner.enableRotation()
+    })
+    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("component environment evaluated"))
+    future { Report.searchAndSubmit(this) }
   }
 }
 
@@ -704,7 +687,7 @@ object SSHDActivity extends Actor with Logging {
   private val privateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
       if (intent.getBooleanExtra("__private__", false))
-        activity.foreach(activity => activity.onPrivateBroadcast(context, intent))
+        activity.foreach(activity => activity.onPrivateBroadcast(intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -713,7 +696,7 @@ object SSHDActivity extends Actor with Logging {
   private val publicReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
       if (!intent.getBooleanExtra("__private__", false))
-        activity.foreach(activity => activity.onPublicBroadcast(context, intent))
+        activity.foreach(activity => activity.onPublicBroadcast(intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -721,7 +704,7 @@ object SSHDActivity extends Actor with Logging {
   }
   private val interfaceFilterUpdateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
-      activity.foreach(activity => activity.onInterfaceFilterUpdateBroadcast(context, intent))
+      activity.foreach(activity => activity.onInterfaceFilterUpdateBroadcast(intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -729,7 +712,7 @@ object SSHDActivity extends Actor with Logging {
   }
   private val connectionFilterUpdateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
-      activity.foreach(activity => activity.onConnectionFilterUpdateBroadcast(context, intent))
+      activity.foreach(activity => activity.onConnectionFilterUpdateBroadcast(intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -739,7 +722,7 @@ object SSHDActivity extends Actor with Logging {
     def onReceive(context: Context, intent: Intent) = try {
       val uri = Uri.parse(intent.getDataString())
       if (uri.getPath() == ("/org.digimead.digi.ctrl.sshd"))
-        activity.foreach(activity => activity.onComponentUpdateBroadcast(context, intent))
+        activity.foreach(activity => activity.onComponentUpdateBroadcast(intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -769,7 +752,7 @@ object SSHDActivity extends Actor with Logging {
     def onReceive(context: Context, intent: Intent) = try {
       val uri = Uri.parse(intent.getDataString())
       if (uri.getAuthority != "org.digimead.digi.ctrl.sshd")
-        activity.foreach(activity => activity.onMessageBroadcast(context, intent))
+        activity.foreach(activity => activity.onMessageBroadcast(intent))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -869,6 +852,37 @@ object SSHDActivity extends Actor with Logging {
         activity.registerReceiver(networkChangedReceiver, networkChangedFilter)
     }
   }
+  def addLazyInitOnResume = AppComponent.LazyInit("SSHDActivity initialize onResume", 1000) {
+    activity.foreach {
+      activity =>
+        AppControl.Inner.callListPendingConnections(activity.getPackageName)() match {
+          case Some(pendingConnections) =>
+            IAmMumble(pendingConnections.size + " pending connection(s)")
+            pendingConnections.foreach(connectionIntent => try {
+              log.debug("process sign request " + connectionIntent.getDataString)
+              val restoredIntent = connectionIntent.cloneFilter
+              val data = new Bundle
+              data.putInt("processID", connectionIntent.getIntExtra("processID", 0))
+              data.putInt("total", connectionIntent.getIntExtra("total", 0))
+              (for {
+                component <- Common.unparcelFromArray[ComponentInfo](connectionIntent.getByteArrayExtra("component"))
+                connection <- Common.unparcelFromArray[DConnection](connectionIntent.getByteArrayExtra("connection"))
+                executable <- Common.unparcelFromArray[ExecutableInfo](connectionIntent.getByteArrayExtra("executable"))
+              } yield {
+                data.putParcelable("component", component)
+                data.putParcelable("connection", connection)
+                data.putParcelable("executable", executable)
+                restoredIntent.replaceExtras(data)
+                activity.onSignRequest(restoredIntent)
+              }) getOrElse (log.fatal("broken ListPendingConnections intent detected: " + connectionIntent))
+            } catch {
+              case e =>
+                log.error(e.getMessage, e)
+            })
+          case None =>
+        }
+    }
+  }
   def act = {
     loop {
       react {
@@ -894,8 +908,10 @@ object SSHDActivity extends Actor with Logging {
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
           AppComponent.Inner.state.freeBusy
-          busyDialog.put(null)
-          busyDialog.unset()
+          if (!AppComponent.Inner.state.isBusy) {
+            busyDialog.put(null)
+            busyDialog.unset()
+          }
         case message: AnyRef =>
           log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
         case message =>

@@ -83,7 +83,9 @@
     <string name="dialog_root_title">Access Permission</string>
     <string name="dialog_root_message">Are you sure you want to grant superuser permission to native components?\n\nPlease note that your software must support this function. This option is ignored if you have a firmware with limited functionality.</string>
     <string name="dialog_port_title">Select network port</string>
-    <string name="dialog_port_message">Select new TCP port at range from 1024 to 32767. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/>&lt;br/>Please select only &lt;b>unprivileged&lt;/b> port values</string>
+    <string name="dialog_port_message">Select new TCP port at range from 1024 to 65535. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/>&lt;br/>Please select only &lt;b>unprivileged&lt;/b> port values</string>
+    <string name="dialog_auth_title">Set authentification</string>
+    <string name="dialog_auth_message">Component password</string>
     <string name="dialog_component_info_title">Component information</string>
     <string name="dialog_component_info_message">component: &lt;font color=\'white\'>%1$s&lt;/font> &lt;br/>
         description: &lt;font color=\'white\'>%2$s&lt;/font> &lt;br/>
@@ -101,9 +103,15 @@
     <string name="service_environment_reinstall">reinstall components</string>
     <string name="service_environment_reset">reset to default</string>
     <string name="option_port_name">component port</string>
-    <string name="option_port_description">TCP port, sshd is listing on</string>
+    <string name="option_port_description">TCP port, sshd is listening on</string>
     <string name="option_as_root_name">grant superuser permission</string>
     <string name="option_as_root_description">run components under root account</string>
+    <string name="option_rsa_name">RSA public key encryption</string>
+    <string name="option_rsa_description">use the RSA dropbear key</string>
+    <string name="option_dss_name">DSA public key encryption</string>
+    <string name="option_dss_description">use the DSS dropbear key</string>
+    <string name="option_auth_name">component authentication</string>
+    <string name="option_auth_description">default password: 123</string>
     <string name="option_confirm_connection_name">confirm connection</string>
     <string name="option_confirm_connection_description">ask for a permission at every unknown session</string>
     <string name="option_write_connection_log_name">write connection log</string>

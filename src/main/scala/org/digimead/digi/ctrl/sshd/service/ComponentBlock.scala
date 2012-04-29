@@ -67,7 +67,7 @@ import android.widget.Toast
 import annotation.elidable.ASSERTION
 
 class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
-  val items = getAppSeq
+  lazy val items = getAppSeq
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new ComponentBlock.Adapter(context, Android.getId(context, "component_list_item", "layout"), items)
   ComponentBlock.block = Some(this)
@@ -79,9 +79,9 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
     mergeAdapter.addAdapter(adapter)
   }
   @Loggable
-  def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = {
+  def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = future {
     val bundle = new Bundle()
-    bundle.putParcelable("info", item.executableInfo)
+    bundle.putParcelable("info", item.executableInfo())
     SSHDActivity.activity.foreach(AppComponent.Inner.showDialogSafe(_, Android.getId(context, "component_info"), bundle))
   }
   @Loggable
@@ -100,51 +100,60 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   override def onContextItemSelected(menuItem: MenuItem, item: ComponentBlock.Item): Boolean = {
     menuItem.getItemId match {
       case id if id == Android.getId(context, "block_component_jump_to_project") =>
-        try {
-          val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(item.executableInfo.project))
-          intent.addCategory(Intent.CATEGORY_BROWSABLE)
-          context.startActivity(intent)
-        } catch {
-          case e =>
-            IAmYell("Unable to open link: " + item.value, e)
+        future {
+          try {
+            val execInfo = item.executableInfo()
+            val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(execInfo.project))
+            intent.addCategory(Intent.CATEGORY_BROWSABLE)
+            context.startActivity(intent)
+          } catch {
+            case e =>
+              IAmYell("Unable to open link: " + item.value, e)
+          }
         }
         true
       case id if id == Android.getId(context, "block_component_copy_command_line") =>
-        try {
-          val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
-          clipboard.setText(item.executableInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
-          val message = Android.getString(context, "block_component_copy_command_line").
-            getOrElse("Copy command line to clipboard")
-          context.runOnUiThread(new Runnable {
-            def run = Toast.makeText(context, message, DConstant.toastTimeout).show()
-          })
-        } catch {
-          case e =>
-            IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
+        future {
+          try {
+            val execInfo = item.executableInfo()
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
+            clipboard.setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
+            val message = Android.getString(context, "block_component_copy_command_line").
+              getOrElse("Copy command line to clipboard")
+            context.runOnUiThread(new Runnable {
+              def run = Toast.makeText(context, message, DConstant.toastTimeout).show()
+            })
+          } catch {
+            case e =>
+              IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
+          }
         }
         true
       case id if id == Android.getId(context, "block_component_copy_info") =>
-        try {
-          val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
-          val env = item.executableInfo.env.mkString("""<br/>""")
-          val string = Android.getString(context, "dialog_component_info_message").get.format(item.executableInfo.name,
-            item.executableInfo.description,
-            item.executableInfo.project,
-            item.executableInfo.license,
-            item.executableInfo.version,
-            item.executableInfo.state,
-            item.executableInfo.port.getOrElse("-"),
-            item.executableInfo.commandLine.map(_.mkString(" ")).getOrElse("-"),
-            if (env.nonEmpty) env else "-")
-          clipboard.setText(Html.fromHtml(string).toString)
-          val message = Android.getString(context, "block_component_copy_info").
-            getOrElse("Copy information to clipboard")
-          context.runOnUiThread(new Runnable {
-            def run = Toast.makeText(context, message, DConstant.toastTimeout).show()
-          })
-        } catch {
-          case e =>
-            IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
+        future {
+          try {
+            val execInfo = item.executableInfo()
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
+            val env = execInfo.env.mkString("""<br/>""")
+            val string = Android.getString(context, "dialog_component_info_message").get.format(execInfo.name,
+              execInfo.description,
+              execInfo.project,
+              execInfo.license,
+              execInfo.version,
+              execInfo.state,
+              execInfo.port.getOrElse("-"),
+              execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"),
+              if (env.nonEmpty) env else "-")
+            clipboard.setText(Html.fromHtml(string).toString)
+            val message = Android.getString(context, "block_component_copy_info").
+              getOrElse("Copy information to clipboard")
+            context.runOnUiThread(new Runnable {
+              def run = Toast.makeText(context, message, DConstant.toastTimeout).show()
+            })
+          } catch {
+            case e =>
+              IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
+          }
         }
         true
       case item =>
@@ -176,7 +185,8 @@ object ComponentBlock extends Logging {
     private var icon: WeakReference[ImageView] = new WeakReference(null)
     private var context: WeakReference[Activity] = new WeakReference(null)
     private val lock = new ReentrantLock
-    def executableInfo: ExecutableInfo = SSHDService.getExecutableInfo(".").filter(_.executableID == id).head
+    def executableInfo(allowCallFromUI: Boolean = false): ExecutableInfo =
+      SSHDService.getExecutableInfo(".", allowCallFromUI).filter(_.executableID == id).head
     override def toString() = value
     @Loggable
     def init(_context: Activity, _icon: ImageView, _active: Boolean) = synchronized {
@@ -263,7 +273,8 @@ object ComponentBlock extends Logging {
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = data(position)
       item.view.get match {
-        case None =>
+        case None if AppControl.Inner.isAvailable.getOrElse(false) =>
+          val execInfo = item.executableInfo(true)
           val view = inflater.inflate(textViewResourceId, null)
           val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
           val description = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
@@ -271,12 +282,35 @@ object ComponentBlock extends Logging {
           val icon = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
           icon.setFocusable(false)
           icon.setFocusableInTouchMode(false)
-          name.setText(item.executableInfo.name)
-          description.setText(item.executableInfo.description)
-          subinfo.setText(item.executableInfo.version + " / " + item.executableInfo.license)
+          name.setText(execInfo.name)
+          description.setText(execInfo.description)
+          subinfo.setText(execInfo.version + " / " + execInfo.license)
           item.view = new WeakReference(view)
           icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          AppControl.Inner.callStatus(context.getPackageName)() match {
+          AppControl.Inner.callStatus(context.getPackageName, true)() match {
+            case Right(componentState) =>
+              if (componentState.state == DState.Active)
+                item.init(context, icon, true)
+              else
+                item.init(context, icon, false)
+            case Left(error) =>
+              item.init(context, icon, false)
+          }
+          view
+        case None =>
+          log.warn("build incomplete ComponentBlock item, ICtrlHost is absent")
+          val view = inflater.inflate(textViewResourceId, null)
+          val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
+          val description = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
+          val subinfo = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
+          val icon = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
+          icon.setFocusable(false)
+          icon.setFocusableInTouchMode(false)
+          name.setText("...")
+          description.setText("...")
+          subinfo.setText("... / ...")
+          icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
+          AppControl.Inner.callStatus(context.getPackageName, true)() match {
             case Right(componentState) =>
               if (componentState.state == DState.Active)
                 item.init(context, icon, true)

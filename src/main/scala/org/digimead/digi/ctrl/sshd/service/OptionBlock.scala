@@ -22,6 +22,7 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import scala.actors.Futures.future
+import scala.annotation.elidable
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -46,14 +47,11 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
-import android.text.method.LinkMovementMethod
 import android.text.Editable
 import android.text.Html
 import android.text.InputFilter
 import android.text.InputType
 import android.text.TextWatcher
-import android.util.TypedValue
-import android.view.ViewGroup.LayoutParams
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -61,13 +59,13 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.ListView
-import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
+import annotation.elidable.ASSERTION
 
 class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
-  val items = Seq(OptionBlock.Item(DOption.AsRoot, DOption.AsRoot), OptionBlock.Item(DOption.Port, DOption.Port))
+  val items = Seq(OptionBlock.asRootItem, OptionBlock.portItem, OptionBlock.rsaItem, OptionBlock.dssItem, OptionBlock.authItem)
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new OptionBlock.Adapter(context, items)
   OptionBlock.block = Some(this)
@@ -81,152 +79,242 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
   @Loggable
   def onListItemClick(l: ListView, v: View, item: OptionBlock.Item) = item.option match {
     case DOption.AsRoot =>
-      item.view.get.foreach {
-        view =>
-          val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
-          val lastState = checkbox.isChecked
-          context.runOnUiThread(new Runnable { def run = checkbox.setChecked(!lastState) })
-          onOptionClick(item, lastState)
-      }
+      onOptionClick(item, item.getState[Boolean](context))
     case DOption.Port =>
-      context.runOnUiThread(new Runnable {
-        def run {
-          SSHDActivity.activity.foreach {
-            activity =>
-              val container = new ScrollView(activity)
-              val layout = new LinearLayout(activity)
-              layout.setOrientation(LinearLayout.VERTICAL)
-              val padding = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 5, activity.getResources.getDisplayMetrics).toInt
-              layout.setPadding(padding, padding, padding, padding)
-              val message = new TextView(activity)
-              message.setMovementMethod(LinkMovementMethod.getInstance())
-              message.setPadding(0, 0, 0, padding)
-              message.setText(Html.fromHtml(Android.getString(activity, "dialog_port_message").getOrElse("Select new TCP port in range from 1024 to 32767")))
-              layout.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-              val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-              val input = new EditText(activity)
-              val maxLengthFilter = new InputFilter.LengthFilter(5)
-              val currentValue = pref.getInt(item.option, 2222)
-              input.setPadding(0, padding, 0, padding)
-              input.setId(Int.MaxValue)
-              input.setInputType(InputType.TYPE_CLASS_NUMBER)
-              input.setText(currentValue.toString)
-              input.setFilters(Array(maxLengthFilter))
-              layout.addView(input, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-              container.addView(layout)
-              // leave UI thread
-              future {
-                AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
-                  val dialog = new AlertDialog.Builder(activity).
-                    setTitle(R.string.dialog_port_title).
-                    setView(container).
-                    setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                      def onClick(dialog: DialogInterface, whichButton: Int) = try {
-                        val port = input.getText.toString.toInt
-                        log.debug("set port to " + port)
-                        val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-                        val editor = pref.edit()
-                        editor.putInt(item.option, port)
-                        editor.commit()
-                        item.view.get.foreach(view => {
-                          val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                          text.setText(port.toString)
-                        })
-                        context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-                        SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Int](context).toString)
-                      } catch {
-                        case e =>
-                          log.error(e.getMessage, e)
-                      }
-                    }).
-                    setNegativeButton(android.R.string.cancel, null).
-                    setIcon(android.R.drawable.ic_dialog_info).
-                    create()
-                  dialog.show()
-                  val ok = dialog.findViewById(android.R.id.button1)
-                  ok.setEnabled(false)
-                  input.addTextChangedListener(new TextWatcher {
-                    override def afterTextChanged(s: Editable) = try {
-                      val rawPort = s.toString
-                      if (rawPort.nonEmpty) {
-                        val port = rawPort.toInt
-                        if (port > 1023 && port < 32768 && port != currentValue)
-                          ok.setEnabled(true)
-                        else
-                          ok.setEnabled(false)
-                      } else
-                        ok.setEnabled(false)
-                    } catch {
-                      case e =>
-                        log.warn(e.getMessage, e)
-                    }
-                    override def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-                    override def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-                  })
-                  dialog
-                })
-              }
-          }
-        }
-      })
+      onListItemClickPort(l, v, item)
+    case OptionBlock.rsaItemOption =>
+      onOptionClick(item, item.getState[Boolean](context))
+    case OptionBlock.dssItemOption =>
+      onOptionClick(item, item.getState[Boolean](context))
+    case OptionBlock.authItemOption =>
+      onListItemClickAuth(l, v, item)
+    case item =>
+      log.fatal("unknown item " + item)
   }
+  def onListItemClickPort(l: ListView, v: View, item: OptionBlock.Item) = SSHDActivity.activity.foreach {
+    activity =>
+      // leave UI thread
+      future {
+        AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+          val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+          val currentValue = pref.getInt(item.option, 2222)
+          val maxLengthFilter = new InputFilter.LengthFilter(5)
+          val portLayout = LayoutInflater.from(context).inflate(R.layout.alertdialog_text, null)
+          val portField = portLayout.findViewById(android.R.id.edit).asInstanceOf[EditText]
+          portField.setInputType(InputType.TYPE_CLASS_NUMBER)
+          portField.setText(currentValue.toString)
+          portField.setFilters(Array(maxLengthFilter))
+          val dialog = new AlertDialog.Builder(activity).
+            setTitle(R.string.dialog_port_title).
+            setMessage(Html.fromHtml(Android.getString(activity, "dialog_port_message").
+              getOrElse("Select new TCP port in range from 1024 to 65535"))).
+            setView(portLayout).
+            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+              def onClick(dialog: DialogInterface, whichButton: Int) = try {
+                val port = portField.getText.toString.toInt
+                log.debug("set port to " + port)
+                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+                val editor = pref.edit()
+                editor.putInt(item.option, port)
+                editor.commit()
+                item.view.get.foreach(view => {
+                  val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
+                  text.setText(port.toString)
+                })
+                context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+                SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Int](context).toString)
+              } catch {
+                case e =>
+                  log.error(e.getMessage, e)
+              }
+            }).
+            setNegativeButton(android.R.string.cancel, null).
+            setIcon(android.R.drawable.ic_dialog_info).
+            create()
+          dialog.show()
+          val ok = dialog.findViewById(android.R.id.button1)
+          ok.setEnabled(false)
+          portField.addTextChangedListener(new TextWatcher {
+            override def afterTextChanged(s: Editable) = try {
+              val rawPort = s.toString
+              if (rawPort.nonEmpty) {
+                val port = rawPort.toInt
+                if (port > 1023 && port < 65536 && port != currentValue)
+                  ok.setEnabled(true)
+                else
+                  ok.setEnabled(false)
+              } else
+                ok.setEnabled(false)
+            } catch {
+              case e =>
+                log.warn(e.getMessage, e)
+            }
+            override def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+            override def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+          })
+          dialog
+        })
+      }
+  }
+  def onListItemClickAuth(l: ListView, v: View, item: OptionBlock.Item) = context.runOnUiThread(new Runnable {
+    def run {
+      SSHDActivity.activity.foreach {
+        activity =>
+          val authTypeLayout = LayoutInflater.from(context).inflate(R.layout.alertdialog_text, null)
+          val pwField = authTypeLayout.findViewById(android.R.id.edit).asInstanceOf[EditText]
+          pwField.setInputType(InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
+          pwField.setText(OptionBlock.authPasswordItem.getState[String](context))
+          AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+            val dialog = new AlertDialog.Builder(activity).
+              setView(authTypeLayout).
+              setTitle(R.string.dialog_auth_title).
+              setMessage(R.string.dialog_auth_message).
+              setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                def onClick(dialog: DialogInterface, whichButton: Int) {
+                  log.debug("set new password")
+                  val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                  val editor = pref.edit()
+                  val authType = OptionBlock.AuthType.Password.id
+                  editor.putInt(OptionBlock.authItemOption, authType)
+                  editor.putString(OptionBlock.authPasswordOption, pwField.getText.toString)
+                  editor.commit()
+                  SSHDCommon.optionChangedOnRestartNotify(context, item.option,
+                    OptionBlock.AuthType(authType).toString.toLowerCase + " \"" + pwField.getText.toString + "\"")
+                }
+              }).
+              setNegativeButton(android.R.string.cancel, null).
+              setIcon(android.R.drawable.ic_dialog_alert).
+              create()
+            dialog.show()
+            dialog
+          })
+      }
+    }
+  })
   @Loggable
   def onOptionClick(item: OptionBlock.Item, lastState: Boolean) = item.option match {
     case DOption.AsRoot =>
-      if (lastState) {
-        val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-        val editor = pref.edit()
-        editor.putBoolean(item.option, !lastState)
-        editor.commit()
-        SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
-      } else {
-        // leave UI thread
-        future {
-          SSHDActivity.activity.foreach {
-            activity =>
-              AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
-                val dialog = new AlertDialog.Builder(activity).
-                  setTitle(R.string.dialog_root_title).
-                  setMessage(R.string.dialog_root_message).
-                  setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    def onClick(dialog: DialogInterface, whichButton: Int) {
-                      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-                      val editor = pref.edit()
-                      editor.putBoolean(item.option, !lastState)
-                      editor.commit()
-                      context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-                      SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
-                    }
-                  }).
-                  setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                    def onClick(dialog: DialogInterface, whichButton: Int) {
-                      item.view.get.foreach {
-                        view =>
-                          val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
-                          checkbox.setChecked(lastState)
-                      }
-                    }
-                  }).
-                  setIcon(R.drawable.ic_danger).
-                  create()
-                dialog.show()
-                dialog
-              })
-          }
-        }
+      onOptionClickAsRoot(item, lastState)
+    case OptionBlock.rsaItemOption =>
+      onOptionClickPublicKey(item, lastState)
+    case OptionBlock.dssItemOption =>
+      onOptionClickPublicKey(item, lastState)
+    case item =>
+      log.fatal("unknown item " + item)
+  }
+  def onOptionClickPublicKey(item: OptionBlock.Item, lastState: Boolean) = {
+    val allow = item match {
+      case OptionBlock.rsaItem =>
+        if (!OptionBlock.dssItem.getState[Boolean](context) && item.getState[Boolean](context))
+          false // prevent RSA and DSS simultaneous shutdown
+        else
+          true
+      case OptionBlock.dssItem =>
+        if (!OptionBlock.rsaItem.getState[Boolean](context) && item.getState[Boolean](context))
+          false // prevent RSA and DSS simultaneous shutdown
+        else
+          true
+    }
+    if (allow) {
+      item.view.get.foreach {
+        view =>
+          val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+          context.runOnUiThread(new Runnable { def run = { checkbox.setChecked(!lastState) } })
       }
-    case _ =>
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
       val editor = pref.edit()
       editor.putBoolean(item.option, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-      SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState(context).toString)
+      SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
+    } else {
+      for {
+        rsaView <- OptionBlock.rsaItem.view.get
+        dssView <- OptionBlock.dssItem.view.get
+      } {
+        val rsaCheckbox = rsaView.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+        val dssCheckbox = dssView.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+        val message = Android.getString(context, "option_rsa_dss_at_least_one").getOrElse("at least one of the encription type must be selected from either RSA or DSA")
+        context.runOnUiThread(new Runnable {
+          def run = {
+            rsaCheckbox.setChecked(OptionBlock.rsaItem.getState[Boolean](context))
+            dssCheckbox.setChecked(OptionBlock.dssItem.getState[Boolean](context))
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+          }
+        })
+      }
+    }
+  }
+  def onOptionClickAsRoot(item: OptionBlock.Item, lastState: Boolean) = if (lastState) {
+    item.view.get.foreach {
+      view =>
+        val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+        context.runOnUiThread(new Runnable { def run = { checkbox.setChecked(!lastState) } })
+    }
+    val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+    val editor = pref.edit()
+    editor.putBoolean(item.option, !lastState)
+    editor.commit()
+    SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
+  } else {
+    // leave UI thread
+    future {
+      SSHDActivity.activity.foreach {
+        activity =>
+          AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+            val dialog = new AlertDialog.Builder(activity).
+              setTitle(R.string.dialog_root_title).
+              setMessage(R.string.dialog_root_message).
+              setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                def onClick(dialog: DialogInterface, whichButton: Int) {
+                  item.view.get.foreach {
+                    view =>
+                      val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+                      checkbox.setChecked(!lastState)
+                  }
+                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+                  val editor = pref.edit()
+                  editor.putBoolean(item.option, !lastState)
+                  editor.commit()
+                  context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+                  SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
+                }
+              }).
+              setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                def onClick(dialog: DialogInterface, whichButton: Int) {
+                  item.view.get.foreach {
+                    view =>
+                      val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+                      checkbox.setChecked(lastState)
+                  }
+                }
+              }).
+              setIcon(R.drawable.ic_danger).
+              create()
+            dialog.show()
+            dialog
+          })
+      }
+    }
   }
 }
 
 object OptionBlock extends Logging {
   @volatile private var block: Option[OptionBlock] = None
+  val asRootItem = Item(DOption.AsRoot, DOption.AsRoot)
+  val portItem = Item(DOption.Port, DOption.Port)
+  private val rsaItemOption = DOption.Value("rsa", classOf[Boolean], true: java.lang.Boolean)
+  val rsaItem = Item("rsa", rsaItemOption)
+  private val dssItemOption = DOption.Value("dss", classOf[Boolean], false: java.lang.Boolean)
+  val dssItem = Item("dss", dssItemOption)
+  private val authItemOption = DOption.Value("auth", classOf[Int], 1: java.lang.Integer)
+  val authItem = Item("auth", authItemOption)
+  private val authPasswordOption = DOption.Value("auth_password", classOf[String], "123": java.lang.String)
+  val authPasswordItem = Item("auth_password", authPasswordOption)
+  log.debug("define custom rsaItem with id " + rsaItemOption.id)
+  log.debug("define custom dssItem with id " + dssItemOption.id)
+  log.debug("define custom authItemOption with id " + authItemOption.id)
+  log.debug("define custom authPasswordOption with id " + authPasswordOption.id)
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState[T](context: Context)(implicit m: Manifest[T]): T = {
@@ -237,6 +325,8 @@ object OptionBlock extends Logging {
           pref.getBoolean(option, option.default.asInstanceOf[Boolean]).asInstanceOf[T]
         case "int" =>
           pref.getInt(option, option.default.asInstanceOf[Int]).asInstanceOf[T]
+        case "java.lang.String" =>
+          pref.getString(option, option.default.asInstanceOf[String]).asInstanceOf[T]
         case k =>
           log.fatal("unknown option kind " + k)
           null.asInstanceOf[T]
@@ -267,7 +357,6 @@ object OptionBlock extends Logging {
                     // apply immediately
                     future { block.foreach(_.onOptionClick(item, lastState)) }
                   } else {
-                    box.setChecked(!lastState)
                     box.setPressed(false)
                     box.invalidate()
                     box.refreshDrawableState()
@@ -282,9 +371,14 @@ object OptionBlock extends Logging {
               view
             case c if c == classOf[Int] =>
               val view = inflater.inflate(Android.getId(context, "option_list_item_value", "layout"), null)
-              val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-              val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
-              value.setText(pref.getInt(item.option, item.getState[Int](context)).toString)
+              item match {
+                case OptionBlock.portItem =>
+                  val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
+                  value.setText(item.getState[Int](context).toString)
+                case OptionBlock.authItem =>
+                  val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
+                  value.setText(AuthType(item.getState[Int](context)).toString.toLowerCase)
+              }
               view
           }
           val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
@@ -298,5 +392,8 @@ object OptionBlock extends Logging {
           view
       }
     }
+  }
+  object AuthType extends Enumeration {
+    val None, Password, Public = Value
   }
 }
