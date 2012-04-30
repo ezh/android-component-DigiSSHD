@@ -10,7 +10,7 @@
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * version 2 for more details (a copy is included in the LICENSE file that
+ * version 3 for more details (a copy is included in the LICENSE file that
  * accompanied this code).
  *
  * You should have received a copy of the GNU General Public License version
@@ -42,10 +42,10 @@ import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
 import org.digimead.digi.ctrl.lib.dialog.InstallControl
+import org.digimead.digi.ctrl.lib.dialog.Preference
 import org.digimead.digi.ctrl.lib.dialog.Report
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
-import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
@@ -67,7 +67,6 @@ import org.digimead.digi.ctrl.sshd.session.TabActivity
 import android.app.AlertDialog
 import android.app.Dialog
 import android.app.ProgressDialog
-import android.content.pm.ActivityInfo
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.DialogInterface
@@ -75,6 +74,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
+import android.preference.PreferenceManager
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
 import android.text.Html
@@ -83,7 +83,6 @@ import android.view.View.OnClickListener
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.Window
 import android.widget.TabHost.OnTabChangeListener
 import android.widget.Button
 import android.widget.ScrollView
@@ -96,16 +95,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   implicit val dispatcher = org.digimead.digi.ctrl.sshd.Message.dispatcher
   private lazy val statusText = new WeakReference(findViewById(R.id.status).asInstanceOf[TextView])
   private lazy val buttonToggleStartStop = new WeakReference(findViewById(R.id.toggleStartStop).asInstanceOf[ToggleButton])
-  if (SSHDActivity.DEBUG)
-    Logging.addLogger(Seq(AndroidLogger, FileLogger))
-  else
-    Logging.addLogger(FileLogger)
   SSHDActivity.focused = false
   log.debug("alive")
 
   /** Called when the activity is first created. */
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
+    Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
+      getString(Preference.debugLevelsListKey, "4"), this)
+    Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
+      getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     SSHDActivity.activity = Some(this)
@@ -188,7 +187,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       }
     }
   }
-
   @Loggable
   override def onPause() {
     super.onPause()
@@ -407,6 +405,15 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           startActivity(intent)
         } catch {
           case _ => AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+        }
+        true
+      case R.id.menu_options =>
+        try {
+          val intent = new Intent(this, classOf[SSHDPreference])
+          startActivity(intent)
+        } catch {
+          case e =>
+            log.error(e.getMessage, e)
         }
         true
       case _ =>
@@ -664,7 +671,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 }
 
 object SSHDActivity extends Actor with Logging {
-  val DEBUG = false
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
   private val initializeOnCreate = new AtomicBoolean(true)
   private val initializeOnResume = new AtomicBoolean(true)
@@ -790,12 +796,7 @@ object SSHDActivity extends Actor with Logging {
         log.error(e.getMessage, e)
     }
   }
-  if (SSHDActivity.DEBUG) {
-    Logging.isTraceEnabled = false
-  } else {
-    Logging.isTraceEnabled = false
-    Logging.isDebugEnabled = false
-  }
+  Logging.addLogger(FileLogger)
   /*
    * initialize singletons
    */

@@ -18,31 +18,27 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+android:id/iconpref"
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:paddingRight="?android:attr/scrollbarSize" >
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
 
-    <ImageView
-        android:id="@+id/icon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginLeft="6dip"
-        android:layout_marginRight="6dip"
-        android:contentDescription="@string/image_description" />
+    <ListPreference
+        android:defaultValue="4"
+        android:dialogIcon="@android:drawable/ic_dialog_info"
+        android:dialogTitle="@string/preference_debug_level"
+        android:enabled="true"
+        android:entries="@array/debugLevelDisplay"
+        android:entryValues="@array/debugLevelValue"
+        android:key="debug_level"
+        android:persistent="true"
+        android:selectable="true"
+        android:summary="@string/preference_debug_level_description"
+        android:title="@string/preference_debug_level" />
 
-    <TextView
-        android:id="@+id/label"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:paddingBottom="1dip"
-        android:paddingLeft="6dip"
-        android:paddingTop="1dip"
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="debug_android"
+        android:summaryOff="@string/preference_debug_android_off"
+        android:summaryOn="@string/preference_debug_android_on"
+        android:title="@string/preference_debug_android" />
 
-</LinearLayout>
+</PreferenceScreen>

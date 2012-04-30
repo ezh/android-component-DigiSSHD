@@ -10,7 +10,7 @@
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * version 2 for more details (a copy is included in the LICENSE file that
+ * version 3 for more details (a copy is included in the LICENSE file that
  * accompanied this code).
  *
  * You should have received a copy of the GNU General Public License version
@@ -24,12 +24,10 @@ package org.digimead.digi.ctrl.sshd
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
-import java.util.Locale
 
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
-import scala.annotation.elidable
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -40,10 +38,9 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
+import org.digimead.digi.ctrl.lib.dialog.Preference
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
-import org.digimead.digi.ctrl.lib.log.AndroidLogger
-import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmWarn
@@ -51,13 +48,13 @@ import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.Service
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
+import org.digimead.digi.ctrl.sshd.service.{OptionBlock => ServiceOptions}
 import org.digimead.digi.ctrl.ICtrlComponent
 
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
-import annotation.elidable.ASSERTION
+import android.preference.PreferenceManager
 
 class SSHDService extends Service {
   private val ready = new SyncVar[Boolean]()
@@ -66,6 +63,10 @@ class SSHDService extends Service {
 
   @Loggable
   override def onCreate() = {
+    Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
+      getString(Preference.debugLevelsListKey, "4"), this)
+    Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
+      getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
     super.onCreate()
     SSHDService.addLazyInit
     future {
@@ -83,10 +84,6 @@ class SSHDService extends Service {
 }
 
 object SSHDService extends Logging {
-  if (SSHDActivity.DEBUG)
-    Logging.addLogger(Seq(AndroidLogger, FileLogger))
-  else
-    Logging.addLogger(FileLogger)
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50) {

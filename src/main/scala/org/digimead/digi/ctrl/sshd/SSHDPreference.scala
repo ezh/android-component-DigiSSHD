@@ -21,28 +21,16 @@
 
 package org.digimead.digi.ctrl.sshd
 
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.DMessage
-import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.message.IAmBusy
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.dialog.Preference
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
-import android.content.Intent
-import android.net.Uri
+import android.preference.{ Preference => APreference }
 
-object Message extends Logging {
-  implicit val dispatcher: Dispatcher = new Dispatcher {
-    // process may be called before initialization, look for setLogLevel routine
-    def process(message: DMessage): Unit = if (AppComponent.Inner != null) {
-      val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
-      intent.putExtra(DIntent.Message, message)
-      AppComponent.Inner.sendPrivateBroadcast(intent)
-      if (message.isInstanceOf[IAmBusy])
-        SSHDActivity !? message
-      else
-        SSHDActivity ! message
-    }
+class SSHDPreference extends Preference {
+  implicit val logger = log
+  @Loggable
+  override protected def updatePrefSummary(p: APreference, key: String, notify: Boolean = false) {
+    super.updatePrefSummary(p, key, notify)
   }
 }
