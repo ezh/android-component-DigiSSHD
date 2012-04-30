@@ -83,15 +83,14 @@ class SSHDService extends Service {
 }
 
 object SSHDService extends Logging {
-  val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
-  val localeLanguage = Locale.getDefault().getLanguage()
   if (SSHDActivity.DEBUG)
     Logging.addLogger(Seq(AndroidLogger, FileLogger))
   else
     Logging.addLogger(FileLogger)
   log.debug("alive")
 
-  def addLazyInit = AppComponent.LazyInit("main service onCreate logic") {
+  def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50) {
+    future { AppComponent.Inner.getCachedComponentInfo(SSHDActivity.locale, SSHDActivity.localeLanguage) }
     // TODO
     /*    for {
       context <- AppComponent.Context
@@ -218,7 +217,7 @@ object SSHDService extends Logging {
     log.debug("binder alive")
     @Loggable(result = false)
     def info(): ComponentInfo =
-      AppComponent.Inner.getComponentInfo(locale, localeLanguage).getOrElse(null)
+      SSHDActivity.info
     @Loggable(result = false)
     def uid() = android.os.Process.myUid()
     @Loggable(result = false)

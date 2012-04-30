@@ -184,9 +184,9 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
       interfaceBlock.foreach(_.updateAdapter())
   }
 
-  def addLazyInit = AppComponent.LazyInit("info.TabActivity initialize onCreate", 50) {
-    SSHDActivity.activity match {
-      case Some(activity) if activity.isInstanceOf[Activity] =>
+  def addLazyInit = AppComponent.LazyInit("info.TabActivity initialize onCreate", 100) {
+    TabActivity.activity.foreach {
+      activity =>
         // initialize once from onCreate
         if (adapter == None) {
           adapter = Some(new MergeAdapter())
@@ -209,7 +209,7 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
             supportBlock appendTo (adapter)
             //thanksBlock appendTo (adapter)
             legalBlock appendTo (adapter)
-            TabActivity.activity.foreach(ctx => ctx.runOnUiThread(new Runnable { def run = ctx.setListAdapter(adapter) }))
+            activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) })
           }
         }
         // initialize every time from onCreate
@@ -217,8 +217,6 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")
         activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
-      case context =>
-        log.warn("inappropriate SSHDActivity context " + context)
     }
   }
   @Loggable

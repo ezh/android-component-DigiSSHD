@@ -52,6 +52,7 @@ import android.widget.TextView
 
 class TabActivity extends ListActivity with Logging {
   private lazy val lv = getListView()
+
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
@@ -200,7 +201,7 @@ object TabActivity extends Logging {
   @volatile private var optionBlock: Option[OptionBlock] = None
   @volatile private var sessionBlock: Option[SessionBlock] = None
 
-  def addLazyInit = AppComponent.LazyInit("session.TabActivity initialize onCreate", 50) {
+  def addLazyInit = AppComponent.LazyInit("session.TabActivity initialize onCreate", 100) {
     SSHDActivity.activity match {
       case Some(activity) if activity.isInstanceOf[Activity] =>
         // initialize once from onCreate

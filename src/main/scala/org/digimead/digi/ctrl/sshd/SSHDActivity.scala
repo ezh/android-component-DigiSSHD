@@ -668,9 +668,9 @@ object SSHDActivity extends Actor with Logging {
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
   private val initializeOnCreate = new AtomicBoolean(true)
   private val initializeOnResume = new AtomicBoolean(true)
-  lazy val info = AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage).get
   val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   val localeLanguage = Locale.getDefault().getLanguage()
+  lazy val info = AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage).get
   @volatile private var running = false
   @volatile private var focused = false
   @volatile private var consistent = false
@@ -790,6 +790,12 @@ object SSHDActivity extends Actor with Logging {
         log.error(e.getMessage, e)
     }
   }
+  if (SSHDActivity.DEBUG) {
+    Logging.isTraceEnabled = false
+  } else {
+    Logging.isTraceEnabled = false
+    Logging.isDebugEnabled = false
+  }
   /*
    * initialize singletons
    */
@@ -800,9 +806,10 @@ object SSHDActivity extends Actor with Logging {
   start
   log.debug("alive")
 
-  def addLazyInit = AppComponent.LazyInit("SSHDActivity initialize onCreate", -50) {
+  def addLazyInit = AppComponent.LazyInit("SSHDActivity initialize onCreate", 50) {
     activity.foreach {
       activity =>
+        future { AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage) }
         // register BroadcastReceiver
         val genericFilter = new IntentFilter()
         genericFilter.addAction(DIntent.Message)

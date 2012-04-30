@@ -55,6 +55,7 @@ import android.widget.Toast
 class TabActivity extends ListActivity with Logging {
   private[service] lazy val lv = new WeakReference(getListView())
   private var interfaceRemoveButton: Button = null
+
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -197,7 +198,7 @@ object TabActivity extends Logging {
   val FILTER_REQUEST = 10000
   val DIALOG_FILTER_REMOVE_ID = 0
 
-  def addLazyInit = AppComponent.LazyInit("service.TabActivity initialize onCreate", 50) {
+  def addLazyInit = AppComponent.LazyInit("service.TabActivity initialize onCreate", 100) {
     SSHDActivity.activity match {
       case Some(activity) if activity.isInstanceOf[Activity] =>
         // initialize once from onCreate
