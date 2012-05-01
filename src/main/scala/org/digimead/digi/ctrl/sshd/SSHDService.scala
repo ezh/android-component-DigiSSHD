@@ -41,6 +41,7 @@ import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.Preference
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmWarn
@@ -48,7 +49,7 @@ import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.Service
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.{OptionBlock => ServiceOptions}
+import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
 import org.digimead.digi.ctrl.ICtrlComponent
 
 import android.content.Context
@@ -68,10 +69,12 @@ class SSHDService extends Service {
     Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
       getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
     super.onCreate()
+    if (AppControl.Inner.isAvailable != Some(true))
+      future { AppControl.Inner.bind(getApplicationContext) }
+
     SSHDService.addLazyInit
     future {
       AppComponent.LazyInit.init
-      AppControl.Inner.bind(this)
       ready.set(true)
     }
   }
@@ -84,6 +87,7 @@ class SSHDService extends Service {
 }
 
 object SSHDService extends Logging {
+  Logging.addLogger(FileLogger)
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50) {

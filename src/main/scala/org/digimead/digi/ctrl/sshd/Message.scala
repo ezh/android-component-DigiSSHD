@@ -22,22 +22,27 @@
 package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmBusy
+import org.digimead.digi.ctrl.lib.util.Android
 
 import android.content.Intent
 import android.net.Uri
 
 object Message extends Logging {
   implicit val dispatcher: Dispatcher = new Dispatcher {
-    // process may be called before initialization, look for setLogLevel routine
-    def process(message: DMessage): Unit = if (AppComponent.Inner != null) {
+    // skip if process called before initialization, look for setLogLevel routine and onCreate sequence
+    def process(message: DMessage): Unit = for {
+      inner <- Option(AppComponent.Inner)
+      context <- AppComponent.Context
+    } {
       val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
       intent.putExtra(DIntent.Message, message)
+      intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
+      intent.putExtra(DIntent.DronePackage, context.getPackageName)
       AppComponent.Inner.sendPrivateBroadcast(intent)
       if (message.isInstanceOf[IAmBusy])
         SSHDActivity !? message

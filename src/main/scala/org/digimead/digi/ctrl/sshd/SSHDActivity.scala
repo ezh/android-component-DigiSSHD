@@ -98,7 +98,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   SSHDActivity.focused = false
   log.debug("alive")
 
-  /** Called when the activity is first created. */
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
     Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
@@ -108,6 +107,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     SSHDActivity.activity = Some(this)
+    if (AppControl.Inner.isAvailable != Some(true))
+      future { AppControl.Inner.bind(getApplicationContext) }
 
     val res = getResources() // Resource object to get Drawables
     val tabHost = getTabHost() // The activity TabHost
@@ -232,24 +233,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  private def onPrivateBroadcast(intent: Intent) = {
-    intent.getAction() match {
-      case DIntent.Update =>
-      // we don't interested in different AppComponent DIntent.Update events
-      case _ =>
-        log.error("unknown private broadcast intent " + intent + " with action " + intent.getAction)
-    }
-  }
-  @Loggable
-  private def onPublicBroadcast(intent: Intent) = {
-    intent.getAction match {
-      case DIntent.Update =>
-      // we don't interested in different AppComponent DIntent.Update events
-      case _ =>
-        log.error("unknown public broadcast intent " + intent + " with action " + intent.getAction)
-    }
-  }
-  @Loggable
   private def onInterfaceFilterUpdateBroadcast(intent: Intent) =
     IAmMumble("update interface filters")
   @Loggable
@@ -270,11 +253,11 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     }
   }
   @Loggable
-  private def onMessageBroadcast(intent: Intent) = future {
+  private def onMessageBroadcast(intent: Intent, droneName: String, dronePackage: String) = future {
     val message = intent.getParcelableExtra[DMessage](DIntent.Message)
     val logger = Logging.getLogger(message.origin.name)
-    logger.info(message.getClass.getName.split("""\.""").last + " " + message.message + " <- " + message.origin.packageName)
-    SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ message.message
+    logger.info(dronePackage + "/" + message.message)
+    SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ (droneName + "/" + message.message)
     SSHDActivity.onUpdate(this)
   }
   @Loggable
@@ -336,17 +319,17 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     val button = v.asInstanceOf[ToggleButton]
     AppComponent.Inner.state.get.code match {
       case DState.Active =>
-        IAmBusy(SSHDActivity, Android.getString(this, "state_stopping_services").getOrElse("stopping services"))
+        IAmBusy(SSHDActivity, Android.getString(this, "state_stopping_service").getOrElse("stopping service"))
         future {
           stop((s) => {
-            IAmReady(SSHDActivity, Android.getString(this, "state_stopped_services").getOrElse("stopped services"))
+            IAmReady(SSHDActivity, Android.getString(this, "state_stopped_service").getOrElse("stopped service"))
           })
         }
       case DState.Passive =>
-        IAmBusy(SSHDActivity, Android.getString(this, "state_starting_services").getOrElse("starting services"))
+        IAmBusy(SSHDActivity, Android.getString(this, "state_starting_service").getOrElse("starting service"))
         future {
           start((s) => {
-            IAmReady(SSHDActivity, Android.getString(this, "state_started_services").getOrElse("started services"))
+            IAmReady(SSHDActivity, Android.getString(this, "state_started_service").getOrElse("started service"))
           })
         }
       case state =>
@@ -628,7 +611,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           log.warn(e.getMessage)
           None
       }
-      IAmMumble("Someone or something connect to " + component.name +
+      IAmMumble("someone or something connect to " + component.name +
         " executable " + executable.name + " from " + ip.getOrElse(Android.getString(this, "unknown_source").getOrElse("unknown source")))
       AppComponent.Inner.showDialogSafe(this, SSHDActivity.Dialog.NewConnection)
     }
@@ -638,7 +621,8 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (!SSHDActivity.initializeOnCreate.compareAndSet(true, false))
       return
     IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("device environment evaluation"))
-    AppControl.Inner.bind(this)
+    if (AppControl.isICtrlHostInstalled(this))
+      IAmMumble("hive connection in progress")
     if (AppComponent.Inner.state.get.code == DState.Initializing)
       AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     SSHDActivity.addLazyInit
@@ -653,6 +637,24 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
     IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("component environment evaluation"))
+    /*
+     *  before service available
+     */
+    AppComponent.LazyInit.init
+    /*
+     *  service available
+     */
+    if (AppControl.isICtrlHostInstalled(this)) {
+      AppControl.Inner.get(DTimeout.normal) match {
+        case Some(s) =>
+          IAmMumble("hive connection is successful")
+        case None =>
+          IAmMumble("hive connection is failed")
+      }
+    }
+    /*
+     *  after service available/unavailable
+     */
     SSHDActivity.addLazyInitOnResume
     session.TabActivity.addLazyInitOnResume
     AppComponent.LazyInit.init
@@ -689,25 +691,6 @@ object SSHDActivity extends Actor with Logging {
   val stateSubscriber = new Subscriber[AppComponent.State, AppComponent.StateContainer#Pub] {
     def notify(pub: AppComponent.StateContainer#Pub, event: AppComponent.State) =
       activity.foreach(_.onAppComponentStateChanged(event))
-  }
-  // broadcast receivers
-  private val privateReceiver = new BroadcastReceiver() {
-    def onReceive(context: Context, intent: Intent) = try {
-      if (intent.getBooleanExtra("__private__", false))
-        activity.foreach(activity => activity.onPrivateBroadcast(intent))
-    } catch {
-      case e =>
-        log.error(e.getMessage, e)
-    }
-  }
-  private val publicReceiver = new BroadcastReceiver() {
-    def onReceive(context: Context, intent: Intent) = try {
-      if (!intent.getBooleanExtra("__private__", false))
-        activity.foreach(activity => activity.onPublicBroadcast(intent))
-    } catch {
-      case e =>
-        log.error(e.getMessage, e)
-    }
   }
   private val interfaceFilterUpdateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
@@ -759,7 +742,10 @@ object SSHDActivity extends Actor with Logging {
     def onReceive(context: Context, intent: Intent) = try {
       val uri = Uri.parse(intent.getDataString())
       if (uri.getAuthority != "org.digimead.digi.ctrl.sshd")
-        activity.foreach(activity => activity.onMessageBroadcast(intent))
+        for {
+          droneName <- Option(intent.getStringExtra(DIntent.DroneName))
+          dronePackage <- Option(intent.getStringExtra(DIntent.DronePackage))
+        } activity.foreach(activity => activity.onMessageBroadcast(intent, droneName, dronePackage))
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -811,13 +797,6 @@ object SSHDActivity extends Actor with Logging {
     activity.foreach {
       activity =>
         future { AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage) }
-        // register BroadcastReceiver
-        val genericFilter = new IntentFilter()
-        genericFilter.addAction(DIntent.Message)
-        genericFilter.addAction(DIntent.Update)
-        genericFilter.addAction(DIntent.UpdateInterfaceFilter)
-        activity.registerReceiver(privateReceiver, genericFilter, DPermission.Base, null)
-        activity.registerReceiver(publicReceiver, genericFilter)
         // register UpdateInterfaceFilter BroadcastReceiver
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")
