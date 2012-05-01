@@ -120,6 +120,7 @@ object SSHDService extends Logging {
         // get or throw block
         val block = (xml \\ "application").find(app => (app \ "name").text == executable).get
         val id = executableID
+        var env: Seq[String] = Seq()
         val commandLine = executable match {
           case "dropbear" =>
             val internalPath = new SyncVar[File]()
@@ -137,24 +138,44 @@ object SSHDService extends Logging {
               case Some(path) if path != null =>
                 val masterPassword = Option(ServiceOptions.authPasswordItem.getState[String](context))
                 val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
+                val rsaKey = if (ServiceOptions.rsaItem.getState[Boolean](context))
+                  Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
+                else
+                  Seq()
+                val dsaKey = if (ServiceOptions.dssItem.getState[Boolean](context))
+                  Seq("-d", new File(path, "dropbear_dss_host_key").getAbsolutePath)
+                else
+                  Seq()
+                Option(System.getenv("PATH")).map(s => {
+                  val oldPATH = s.substring(s.indexOf('=') + 1)
+                  env = Seq("PATH=" + oldPATH + ":" + path)
+                })
                 Some(Seq(new File(path, executable).getAbsolutePath,
                   "-i", // Start for inetd
                   "-E", // Log to stderr rather than syslog
                   "-F", // Don't fork into background
-                  "-H", externalPath.get(0).getOrElse(path).getAbsolutePath, // forced home path
-                  "-d", new File(path, "dropbear_dss_host_key").getAbsolutePath, // Use dsskeyfile for the dss host key
-                  "-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath) ++ // Use rsakeyfile for the rsa host key
+                  "-H", externalPath.get(0).getOrElse(path).getAbsolutePath) ++ // forced home path
+                  rsaKey ++ // Use rsakeyfile for the rsa host key
+                  dsaKey ++ // Use dsskeyfile for the dss host key
                   masterPasswordOption) // Enable master password to any account
               case Some(path) =>
                 val masterPassword = Option(ServiceOptions.authPasswordItem.getState[String](context))
                 val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
+                val rsaKey = if (ServiceOptions.rsaItem.getState[Boolean](context))
+                  Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
+                else
+                  Seq()
+                val dsaKey = if (ServiceOptions.dssItem.getState[Boolean](context))
+                  Seq("-d", new File(path, "dropbear_dss_host_key").getAbsolutePath)
+                else
+                  Seq()
                 Some(Seq(executable,
                   "-i", // Start for inetd
                   "-E", // Log to stderr rather than syslog
                   "-F", // Don't fork into background
-                  "-H", "/", // forced home path
-                  "-d", new File(path, "dropbear_dss_host_key").getAbsolutePath, // Use dsskeyfile for the dss host key
-                  "-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath) ++ // Use rsakeyfile for the rsa host key
+                  "-H", "/") ++ // forced home path
+                  rsaKey ++ // Use rsakeyfile for the rsa host key
+                  dsaKey ++ // Use dsskeyfile for the dss host key
                   masterPasswordOption) // Enable master password to any account
               case _ =>
                 None
@@ -168,7 +189,6 @@ object SSHDService extends Logging {
             Some(port)
           case "openssh" => None
         }
-        val env = Seq()
         val state = DState.Active
         val name = executable
         val version = (block \ "version").text

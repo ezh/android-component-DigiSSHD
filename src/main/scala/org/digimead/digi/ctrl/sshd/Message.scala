@@ -39,11 +39,13 @@ object Message extends Logging {
       inner <- Option(AppComponent.Inner)
       context <- AppComponent.Context
     } {
-      val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
-      intent.putExtra(DIntent.Message, message)
-      intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
-      intent.putExtra(DIntent.DronePackage, context.getPackageName)
-      AppComponent.Inner.sendPrivateBroadcast(intent)
+      if (message.logger != null) {
+        val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
+        intent.putExtra(DIntent.Message, message)
+        intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
+        intent.putExtra(DIntent.DronePackage, context.getPackageName)
+        AppComponent.Inner.sendPrivateBroadcast(intent)
+      }
       if (message.isInstanceOf[IAmBusy])
         SSHDActivity !? message
       else

@@ -45,6 +45,7 @@ import org.digimead.digi.ctrl.lib.dialog.InstallControl
 import org.digimead.digi.ctrl.lib.dialog.Preference
 import org.digimead.digi.ctrl.lib.dialog.Report
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
+import org.digimead.digi.ctrl.lib.info.ComponentState
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -241,7 +242,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   @Loggable
   private def onComponentUpdateBroadcast(intent: Intent) = future {
     log.trace("receive update broadcast " + intent.toUri(0))
-    val state = DState(intent.getIntExtra(DState.getClass.getName(), -1))
+    val state = intent.getParcelableExtra[ComponentState](DState.getClass.getName()).state
     service.TabActivity.UpdateComponents(state)
     info.TabActivity.updateActiveInterfaces(state)
     state match {
@@ -256,7 +257,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def onMessageBroadcast(intent: Intent, droneName: String, dronePackage: String) = future {
     val message = intent.getParcelableExtra[DMessage](DIntent.Message)
     val logger = Logging.getLogger(message.origin.name)
-    logger.info(dronePackage + "/" + message.message)
+    logger.info(dronePackage + "/" + message.message + " ts#" + message.ts)
     SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ (droneName + "/" + message.message)
     SSHDActivity.onUpdate(this)
   }
@@ -874,7 +875,7 @@ object SSHDActivity extends Actor with Logging {
   def act = {
     loop {
       react {
-        case IAmBusy(origin, message) =>
+        case IAmBusy(origin, message, ts) =>
           reply({
             busyCounter.incrementAndGet
             busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
@@ -882,16 +883,16 @@ object SSHDActivity extends Actor with Logging {
             AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
             busyDialog.get(DTimeout.long)
           })
-        case IAmMumble(origin, message, callback) =>
+        case IAmMumble(origin, message, callback, ts) =>
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
-        case IAmWarn(origin, message, callback) =>
+        case IAmWarn(origin, message, callback, ts) =>
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
-        case IAmYell(origin, message, stacktrace, callback) =>
+        case IAmYell(origin, message, stacktrace, callback, ts) =>
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
-        case IAmReady(origin, message) =>
+        case IAmReady(origin, message, ts) =>
           busyCounter.decrementAndGet
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
