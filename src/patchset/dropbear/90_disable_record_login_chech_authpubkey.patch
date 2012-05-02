@@ -1,6 +1,6 @@
-diff -rupN a/options.h b/options.h
---- a/options.h	2011-12-07 17:16:58.113968945 +0400
-+++ b/options.h	2011-12-07 17:16:58.178968287 +0400
+diff -pru dropbear.orig/options.h dropbear/options.h
+--- dropbear.orig/options.h	2012-05-02 11:47:09.507844319 +0400
++++ dropbear/options.h	2012-05-02 11:47:09.524844138 +0400
 @@ -173,6 +173,7 @@ much traffic. */
  /* PAM requires ./configure --enable-pam */
  /*#define ENABLE_SVR_PAM_AUTH*/
@@ -18,9 +18,9 @@ diff -rupN a/options.h b/options.h
  /* Some other defines (that mostly should be left alone) are defined
   * in sysoptions.h */
  #include "sysoptions.h"
-diff -rupN a/runopts.h b/runopts.h
---- a/runopts.h	2011-12-07 17:16:58.114968935 +0400
-+++ b/runopts.h	2011-12-07 17:16:58.178968287 +0400
+diff -pru dropbear.orig/runopts.h dropbear/runopts.h
+--- dropbear.orig/runopts.h	2012-05-02 11:47:09.507844319 +0400
++++ dropbear/runopts.h	2012-05-02 11:47:09.524844138 +0400
 @@ -89,6 +89,7 @@ typedef struct svr_runopts {
  
  	int noauthpass;
@@ -29,9 +29,9 @@ diff -rupN a/runopts.h b/runopts.h
  
  #ifdef ENABLE_SVR_REMOTETCPFWD
  	int noremotetcp;
-diff -rupN a/svr-auth.c b/svr-auth.c
---- a/svr-auth.c	2011-12-07 17:16:58.114968935 +0400
-+++ b/svr-auth.c	2011-12-07 17:16:58.179968277 +0400
+diff -pru dropbear.orig/svr-auth.c dropbear/svr-auth.c
+--- dropbear.orig/svr-auth.c	2012-05-02 11:47:09.508844308 +0400
++++ dropbear/svr-auth.c	2012-05-02 11:47:09.524844138 +0400
 @@ -58,7 +58,9 @@ static void authclear() {
  	
  	memset(&ses.authstate, 0, sizeof(ses.authstate));
@@ -64,9 +64,9 @@ diff -rupN a/svr-auth.c b/svr-auth.c
  #endif
  
  	/* nothing matched, we just fail */
-diff -rupN a/svr-authpubkey.c b/svr-authpubkey.c
---- a/svr-authpubkey.c	2011-12-07 17:16:58.022969866 +0400
-+++ b/svr-authpubkey.c	2011-12-07 17:16:58.179968277 +0400
+diff -pru dropbear.orig/svr-authpubkey.c dropbear/svr-authpubkey.c
+--- dropbear.orig/svr-authpubkey.c	2012-05-02 11:47:09.508844308 +0400
++++ dropbear/svr-authpubkey.c	2012-05-02 11:47:09.524844138 +0400
 @@ -417,6 +417,7 @@ static int checkfileperm(char * filename
  		TRACE(("leave checkfileperm: stat() != 0"))
  		return DROPBEAR_FAILURE;
@@ -83,18 +83,18 @@ diff -rupN a/svr-authpubkey.c b/svr-authpubkey.c
  
  	TRACE(("leave checkfileperm: success"))
  	return DROPBEAR_SUCCESS;
-diff -rupN a/svr-chansession.c b/svr-chansession.c
---- a/svr-chansession.c	2011-12-07 17:16:58.022969866 +0400
-+++ b/svr-chansession.c	2011-12-07 17:20:27.652847719 +0400
-@@ -279,6 +279,7 @@ static void closechansess(struct Channel
- 	m_free(chansess->cmd);
- 	m_free(chansess->term);
+diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
+--- dropbear.orig/svr-chansession.c	2012-05-02 11:47:09.508844308 +0400
++++ dropbear/svr-chansession.c	2012-05-02 11:47:09.524844138 +0400
+@@ -286,6 +286,7 @@ static void closechansess(struct Channel
+ 	m_free(chansess->original_command);
+ #endif
  
 +#ifndef DONT_RECORD_LOGIN
  	if (chansess->tty) {
  		/* write the utmp/wtmp login record */
  		li = chansess_login_alloc(chansess);
-@@ -288,6 +289,7 @@ static void closechansess(struct Channel
+@@ -295,6 +296,7 @@ static void closechansess(struct Channel
  		pty_release(chansess->tty);
  		m_free(chansess->tty);
  	}
@@ -102,7 +102,7 @@ diff -rupN a/svr-chansession.c b/svr-chansession.c
  
  #ifndef DISABLE_X11FWD
  	x11cleanup(chansess);
-@@ -769,11 +771,13 @@ static int ptycommand(struct Channel *ch
+@@ -776,11 +778,13 @@ static int ptycommand(struct Channel *ch
  
  		close(chansess->slave);
  
@@ -116,9 +116,10 @@ diff -rupN a/svr-chansession.c b/svr-chansession.c
  
  #ifdef DO_MOTD
  		if (svr_opts.domotd) {
-diff -rupN a/svr-runopts.c b/svr-runopts.c
---- a/svr-runopts.c	2011-12-07 17:16:58.114968935 +0400
-+++ b/svr-runopts.c	2011-12-07 17:21:26.931248477 +0400
+Только в dropbear: svr-chansession.c.orig
+diff -pru dropbear.orig/svr-runopts.c dropbear/svr-runopts.c
+--- dropbear.orig/svr-runopts.c	2012-05-02 11:47:09.508844308 +0400
++++ dropbear/svr-runopts.c	2012-05-02 11:47:09.525844127 +0400
 @@ -64,6 +64,7 @@ static void printhelp(const char * progn
  #if defined(ENABLE_SVR_PASSWORD_AUTH) || defined(ENABLE_SVR_PAM_AUTH)
  					"-s		Disable password logins\n"

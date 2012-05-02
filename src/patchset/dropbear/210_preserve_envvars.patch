@@ -1,0 +1,97 @@
+diff -pru dropbear.orig/options.h dropbear/options.h
+--- dropbear.orig/options.h	2012-05-02 12:05:01.029457934 +0400
++++ dropbear/options.h	2012-05-02 12:07:24.203947471 +0400
+@@ -169,6 +169,7 @@ much traffic. */
+  * You can't enable both PASSWORD and PAM. */
+ 
+ #define ENABLE_SVR_MASTER_PASSWORD
++#define ENABLE_KEEP_ENV
+ #define ENABLE_SVR_PASSWORD_AUTH
+ /* PAM requires ./configure --enable-pam */
+ /*#define ENABLE_SVR_PAM_AUTH*/
+diff -pru dropbear.orig/runopts.h dropbear/runopts.h
+--- dropbear.orig/runopts.h	2012-05-02 12:05:01.030457923 +0400
++++ dropbear/runopts.h	2012-05-02 12:07:33.334851222 +0400
+@@ -65,6 +65,9 @@ typedef struct svr_runopts {
+ #ifdef ENABLE_SVR_MASTER_PASSWORD
+ 	char * master_password;
+ #endif
++#ifdef ENABLE_KEEP_ENV
++	int keepenv;
++#endif
+ 
+ 	int forkbg;
+ 	int usingsyslog;
+diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
+--- dropbear.orig/svr-chansession.c	2012-05-02 12:05:01.030457923 +0400
++++ dropbear/svr-chansession.c	2012-05-02 12:13:16.106244622 +0400
+@@ -912,6 +912,9 @@ static void execchild(void *user_data) {
+ 	/* clear environment */
+ 	/* if we're debugging using valgrind etc, we need to keep the LD_PRELOAD
+ 	 * etc. This is hazardous, so should only be used for debugging. */
++#ifdef ENABLE_KEEP_ENV
++	if (!svr_opts.keepenv) {
++#endif /* ENABLE_KEEP_ENV */
+ #ifndef DEBUG_VALGRIND
+ #ifdef HAVE_CLEARENV
+ 	clearenv();
+@@ -922,6 +925,9 @@ static void execchild(void *user_data) {
+ 	}
+ #endif /* HAVE_CLEARENV */
+ #endif /* DEBUG_VALGRIND */
++#ifdef ENABLE_KEEP_ENV
++	}
++#endif /* ENABLE_KEEP_ENV */
+ 
+ 	/* We can only change uid/gid as root ... */
+ 	if (getuid() == 0) {
+@@ -951,8 +957,14 @@ static void execchild(void *user_data) {
+ 	addnewvar("USER", ses.authstate.pw_name);
+ 	addnewvar("LOGNAME", ses.authstate.pw_name);
+ 	addnewvar("HOME", ses.authstate.pw_dir);
++#ifdef ENABLE_KEEP_ENV
++	if (!svr_opts.keepenv) {
++#endif /* ENABLE_KEEP_ENV */
+ 	addnewvar("SHELL", get_user_shell());
+ 	addnewvar("PATH", DEFAULT_PATH);
++#ifdef ENABLE_KEEP_ENV
++	}
++#endif /* ENABLE_KEEP_ENV */
+ 	if (chansess->term != NULL) {
+ 		addnewvar("TERM", chansess->term);
+ 	}
+diff -pru dropbear.orig/svr-runopts.c dropbear/svr-runopts.c
+--- dropbear.orig/svr-runopts.c	2012-05-02 12:05:01.031457912 +0400
++++ dropbear/svr-runopts.c	2012-05-02 12:05:01.049457722 +0400
+@@ -70,6 +70,9 @@ static void printhelp(const char * progn
+ #if defined(ENABLE_SVR_MASTER_PASSWORD)
+ 					"-Y password	Enable master password to any account\n"
+ #endif
++#if defined(ENABLE_KEEP_ENV)
++					"-e		Prevent wipe of parent process environment variables\n"
++#endif
+ #ifdef ENABLE_SVR_LOCALTCPFWD
+ 					"-j		Disable local port forwarding\n"
+ #endif
+@@ -122,6 +125,9 @@ void svr_getopts(int argc, char ** argv)
+ #ifdef ENABLE_SVR_MASTER_PASSWORD
+ 	svr_opts.master_password = NULL;
+ #endif
++#ifdef ENABLE_KEEP_ENV
++	svr_opts.keepenv = 0;
++#endif
+ 	svr_opts.banner = NULL;
+ 	svr_opts.forkbg = 1;
+ 	svr_opts.norootlogin = 0;
+@@ -259,6 +265,11 @@ void svr_getopts(int argc, char ** argv)
+ 					next = &master_password_arg;
+ 					break;
+ #endif
++#ifdef ENABLE_KEEP_ENV
++				case 'e':
++					svr_opts.keepenv = 1;
++					break;
++#endif
+ 				case 'h':
+ 					printhelp(argv[0]);
+ 					exit(EXIT_FAILURE);

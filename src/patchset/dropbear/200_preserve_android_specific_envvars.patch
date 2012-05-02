@@ -1,6 +1,6 @@
-diff -rupN a/dbutil.c b/dbutil.c
---- a/dbutil.c	2011-12-07 18:11:54.197729872 +0400
-+++ b/dbutil.c	2011-12-07 18:11:54.442727473 +0400
+diff -pru dropbear.orig/dbutil.c dropbear/dbutil.c
+--- dropbear.orig/dbutil.c	2012-05-02 11:50:41.190582458 +0400
++++ dropbear/dbutil.c	2012-05-02 11:50:41.226582074 +0400
 @@ -545,8 +545,27 @@ void run_shell_command(const char* cmd,
  
  	/* close file descriptors except stdin/stdout/stderr
@@ -30,10 +30,10 @@ diff -rupN a/dbutil.c b/dbutil.c
  	}
  
  	execv(usershell, argv);
-diff -rupN a/svr-chansession.c b/svr-chansession.c
---- a/svr-chansession.c	2011-12-07 18:11:54.320728668 +0400
-+++ b/svr-chansession.c	2011-12-07 18:11:54.442727473 +0400
-@@ -877,6 +877,27 @@ static void execchild(void *user_data) {
+diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
+--- dropbear.orig/svr-chansession.c	2012-05-02 11:50:41.210582246 +0400
++++ dropbear/svr-chansession.c	2012-05-02 11:50:41.227582063 +0400
+@@ -888,6 +888,27 @@ static void execchild(void *user_data) {
  	reseedrandom();
  #endif
  
@@ -61,7 +61,7 @@ diff -rupN a/svr-chansession.c b/svr-chansession.c
  	/* clear environment */
  	/* if we're debugging using valgrind etc, we need to keep the LD_PRELOAD
  	 * etc. This is hazardous, so should only be used for debugging. */
-@@ -924,6 +945,14 @@ static void execchild(void *user_data) {
+@@ -935,6 +956,14 @@ static void execchild(void *user_data) {
  	if (chansess->term != NULL) {
  		addnewvar("TERM", chansess->term);
  	}
@@ -76,3 +76,4 @@ diff -rupN a/svr-chansession.c b/svr-chansession.c
  
  	if (chansess->tty) {
  		addnewvar("SSH_TTY", chansess->tty);
+Только в dropbear: svr-chansession.c.orig

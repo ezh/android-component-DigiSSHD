@@ -1,7 +1,7 @@
-diff -rNup a/svr-chansession.c b/svr-chansession.c
---- a/svr-chansession.c	2011-12-07 21:44:53.810266994 +0400
-+++ b/svr-chansession.c	2011-12-07 21:46:14.963439716 +0400
-@@ -677,7 +677,11 @@ static int sessioncommand(struct Channel
+diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
+--- dropbear.orig/svr-chansession.c	2012-05-02 11:52:38.204334940 +0400
++++ dropbear/svr-chansession.c	2012-05-02 11:52:38.220334768 +0400
+@@ -688,7 +688,11 @@ static int sessioncommand(struct Channel
  
  	if (ret == DROPBEAR_FAILURE) {
  		m_free(chansess->cmd);
@@ -14,9 +14,10 @@ diff -rNup a/svr-chansession.c b/svr-chansession.c
  	return ret;
  }
  
-diff -rNup a/svr-session.c b/svr-session.c
---- a/svr-session.c	2011-12-07 21:44:53.806267035 +0400
-+++ b/svr-session.c	2011-12-07 21:44:53.931265761 +0400
+Только в dropbear: svr-chansession.c.orig
+diff -pru dropbear.orig/svr-session.c dropbear/svr-session.c
+--- dropbear.orig/svr-session.c	2012-05-02 11:52:38.204334940 +0400
++++ dropbear/svr-session.c	2012-05-02 11:52:38.220334768 +0400
 @@ -147,6 +147,9 @@ void svr_dropbear_exit(int exitcode, con
  		snprintf(fmtbuf, sizeof(fmtbuf),
  				"Exit (%s): %s", 

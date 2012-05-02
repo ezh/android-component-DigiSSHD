@@ -1,6 +1,6 @@
-diff -rupN a/runopts.h b/runopts.h
---- a/runopts.h	2011-12-07 18:07:12.927481994 +0400
-+++ b/runopts.h	2011-12-07 18:07:13.078480519 +0400
+diff -pru dropbear.orig/runopts.h dropbear/runopts.h
+--- dropbear.orig/runopts.h	2012-05-02 11:49:33.709302791 +0400
++++ dropbear/runopts.h	2012-05-02 11:49:33.726302607 +0400
 @@ -60,6 +60,8 @@ typedef struct svr_runopts {
  	char * dsskeyfile;
  	char * bannerfile;
@@ -10,9 +10,9 @@ diff -rupN a/runopts.h b/runopts.h
  #ifdef ENABLE_SVR_MASTER_PASSWORD
  	char * master_password;
  #endif
-diff -rupN a/sftp-server/sftp-server.c b/sftp-server/sftp-server.c
---- a/sftp-server/sftp-server.c	2011-12-07 18:07:12.893482328 +0400
-+++ b/sftp-server/sftp-server.c	2011-12-07 18:07:13.078480519 +0400
+diff -pru dropbear.orig/sftp-server/sftp-server.c dropbear/sftp-server/sftp-server.c
+--- dropbear.orig/sftp-server/sftp-server.c	2012-05-02 11:49:33.717302703 +0400
++++ dropbear/sftp-server/sftp-server.c	2012-05-02 11:49:33.727302598 +0400
 @@ -73,6 +73,9 @@ u_int version;
  /* Disable writes */
  int readonly;
@@ -61,27 +61,34 @@ diff -rupN a/sftp-server/sftp-server.c b/sftp-server/sftp-server.c
  		case 'h':
  		default:
  			sftp_server_usage();
-diff -rupN a/svr-chansession.c b/svr-chansession.c
---- a/svr-chansession.c	2011-12-07 18:07:12.929481975 +0400
-+++ b/svr-chansession.c	2011-12-07 18:07:13.078480519 +0400
-@@ -628,7 +628,13 @@ static int sessioncommand(struct Channel
+diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
+--- dropbear.orig/svr-chansession.c	2012-05-02 11:49:33.710302780 +0400
++++ dropbear/svr-chansession.c	2012-05-02 11:49:33.727302598 +0400
+@@ -635,8 +635,18 @@ static int sessioncommand(struct Channel
  #ifdef SFTPSERVER_PATH
  			if ((cmdlen == 4) && strncmp(chansess->cmd, "sftp", 4) == 0) {
  				m_free(chansess->cmd);
 -				chansess->cmd = m_strdup(SFTPSERVER_PATH);
+-			} else 
++				char exepath[PATH_MAX] = {0};
++				readlink("/proc/self/exe", exepath, sizeof(exepath));
 +				if (svr_opts.fake_permissions) {
-+					char *cmd = m_malloc(sizeof(SFTPSERVER_PATH) + 3);
-+					strcpy(cmd, SFTPSERVER_PATH);
-+					chansess->cmd = strcat(cmd, " -U");
++					char *cmd = m_malloc(sizeof(exepath) + 6);
++					strncpy(cmd, exepath, strlen(exepath) - 8);
++					chansess->cmd = strcat(cmd, "sftp-server -U");
 +				} else {
-+				    chansess->cmd = m_strdup(SFTPSERVER_PATH);
-+                }
- 			} else 
++					char *cmd = m_malloc(sizeof(exepath) + 3);
++					strncpy(cmd, exepath, strlen(exepath) - 8);
++					chansess->cmd = strcat(cmd, "sftp-server");
++				}
++			} else
  #endif
  			{
-diff -rupN a/svr-runopts.c b/svr-runopts.c
---- a/svr-runopts.c	2011-12-07 18:07:12.930481966 +0400
-+++ b/svr-runopts.c	2011-12-07 18:08:40.140630968 +0400
+ 				m_free(chansess->cmd);
+Только в dropbear: svr-chansession.c.orig
+diff -pru dropbear.orig/svr-runopts.c dropbear/svr-runopts.c
+--- dropbear.orig/svr-runopts.c	2012-05-02 11:49:33.710302780 +0400
++++ dropbear/svr-runopts.c	2012-05-02 11:49:33.727302598 +0400
 @@ -61,6 +61,7 @@ static void printhelp(const char * progn
  					"-m		Don't display the motd on login\n"
  #endif
