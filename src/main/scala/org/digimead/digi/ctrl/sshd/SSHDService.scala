@@ -186,7 +186,7 @@ object SSHDService extends Logging {
         }
         val port = executable match {
           case "dropbear" =>
-            val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+            val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
             val port = pref.getInt(DOption.Port, 2222)
             Some(port)
           case "openssh" => None
@@ -239,14 +239,23 @@ object SSHDService extends Logging {
   class Binder(ready: SyncVar[Boolean]) extends ICtrlComponent.Stub with Logging {
     log.debug("binder alive")
     @Loggable(result = false)
-    def info(): ComponentInfo =
+    def info(): ComponentInfo = {
+      log.debug("process Binder::info")
       SSHDActivity.info
+    }
     @Loggable(result = false)
-    def uid() = android.os.Process.myUid()
+    def uid() = {
+      log.debug("process Binder::uid")
+      android.os.Process.myUid()
+    }
     @Loggable(result = false)
-    def size() = 2
+    def size() = {
+      log.debug("process Binder::size")
+      2
+    }
     @Loggable(result = false)
     def pre(id: Int, workdir: String) = {
+      log.debug("process Binder::pre for id " + id + " at " + workdir)
       ready.get(DTimeout.long).getOrElse({ log.fatal("unable to start DigiSSHD service") })
       for {
         context <- AppComponent.Context
@@ -303,18 +312,21 @@ object SSHDService extends Logging {
       }
     } getOrElse false
     @Loggable(result = false)
-    def executable(id: Int, workdir: String): ExecutableInfo =
+    def executable(id: Int, workdir: String): ExecutableInfo = {
+      log.debug("process Binder::executable for id " + id + " at " + workdir)
       SSHDService.getExecutableInfo(workdir).find(_.executableID == id).getOrElse(null)
+    }
     @Loggable(result = false)
     def post(id: Int, workdir: String): Boolean = {
-      log.debug("post(...)")
+      log.debug("process Binder::post for id " + id + " at " + workdir)
       assert(id == 0)
       true
     }
     @Loggable(result = false)
     def accessRulesOrder(): Boolean = try {
+      log.debug("process Binder::accessRulesOrder")
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
+        _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
           getBoolean(DOption.ACLConnection, DOption.ACLConnection.default.asInstanceOf[Boolean])).
         getOrElse(DOption.ACLConnection.default.asInstanceOf[Boolean])
     } catch {
@@ -324,8 +336,9 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def readBooleanProperty(property: Int): Boolean = try {
+      log.debug("process Binder::readBooleanProperty " + DOption(property))
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
+        _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
           getBoolean(DOption(property).asInstanceOf[DOption.OptVal].r,
             DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Boolean])).
         getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Boolean])
@@ -336,8 +349,9 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def readIntProperty(property: Int): Int = try {
+      log.debug("process Binder::readIntProperty " + DOption(property))
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
+        _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
           getInt(DOption(property).asInstanceOf[DOption.OptVal].r,
             DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Int])).
         getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Int])
@@ -348,8 +362,9 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def readStringProperty(property: Int): String = try {
+      log.debug("process Binder::readStringProperty " + DOption(property))
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE).
+        _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
           getString(DOption(property).asInstanceOf[DOption.OptVal].r,
             DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[String])).
         getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[String])
@@ -360,8 +375,9 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def accessAllowRules(): java.util.List[java.lang.String] = try {
+      log.debug("process Binder::accessAllowRules")
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE).
+        _.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE).
           getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
     } catch {
       case e =>
@@ -370,8 +386,9 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def accessDenyRules(): java.util.List[java.lang.String] = try {
+      log.debug("process Binder::accessDenyRules")
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE).
+        _.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE).
           getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
     } catch {
       case e =>
@@ -380,8 +397,9 @@ object SSHDService extends Logging {
     }
     @Loggable(result = false)
     def interfaceRules(): java.util.Map[_, _] = try {
+      log.debug("process Binder::interfaceRules")
       AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll).
+        _.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE).getAll).
         getOrElse(new java.util.HashMap[String, Any]())
     } catch {
       case e =>

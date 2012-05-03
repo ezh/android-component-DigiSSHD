@@ -71,14 +71,14 @@ class FilterBlock(val context: Activity) extends Block[FilterBlock.Item] with Lo
     if (item.isFilterADA) {
       IAmMumble("change ACL order to Deny, Allow, Implicit Deny")
       FilterBlock.iconDAD.foreach(v.setBackgroundDrawable)
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
       editor.putBoolean(DOption.ACLConnection, false)
       editor.commit()
     } else {
       IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
       FilterBlock.iconADA.foreach(v.setBackgroundDrawable)
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
       editor.putBoolean(DOption.ACLConnection, true)
       editor.commit()
@@ -141,7 +141,7 @@ object FilterBlock extends Logging {
     var rightPart = new WeakReference[TextView](null)
     def isFilterADA(): Boolean = view.get.map { // Allow, Deny, Allow
       view =>
-        val pref = view.getContext.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+        val pref = view.getContext.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
         pref.getBoolean(DOption.ACLConnection, true)
     } getOrElse (true)
     // run only from UI thread
@@ -150,11 +150,11 @@ object FilterBlock extends Logging {
       leftPart <- leftPart.get
       rightPart <- rightPart.get
     } {
-      val prefAllow = view.getContext.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
+      val prefAllow = view.getContext.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
       val allowAll = prefAllow.getAll
       val activeAllow = allowAll.values.toArray.filter(_.asInstanceOf[Boolean]).size
       val totalAllow = allowAll.size
-      val prefDeny = view.getContext.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
+      val prefDeny = view.getContext.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
       val denyAll = prefDeny.getAll
       val activeDeny = denyAll.values.toArray.filter(_.asInstanceOf[Boolean]).size
       val totalDeny = denyAll.size

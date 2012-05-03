@@ -116,12 +116,17 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
         future {
           try {
             val execInfo = item.executableInfo()
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
-            clipboard.setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
             val message = Android.getString(context, "block_component_copy_command_line").
               getOrElse("Copy command line to clipboard")
             context.runOnUiThread(new Runnable {
-              def run = Toast.makeText(context, message, DConstant.toastTimeout).show()
+              def run = try {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
+                clipboard.setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
+                Toast.makeText(context, message, DConstant.toastTimeout).show()
+              } catch {
+                case e =>
+                  IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
+              }
             })
           } catch {
             case e =>
@@ -133,7 +138,6 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
         future {
           try {
             val execInfo = item.executableInfo()
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
             val env = execInfo.env.mkString("""<br/>""")
             val string = Android.getString(context, "dialog_component_info_message").get.format(execInfo.name,
               execInfo.description,
@@ -144,11 +148,17 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
               execInfo.port.getOrElse("-"),
               execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"),
               if (env.nonEmpty) env else "-")
-            clipboard.setText(Html.fromHtml(string).toString)
             val message = Android.getString(context, "block_component_copy_info").
               getOrElse("Copy information to clipboard")
             context.runOnUiThread(new Runnable {
-              def run = Toast.makeText(context, message, DConstant.toastTimeout).show()
+              def run = try {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
+                clipboard.setText(Html.fromHtml(string).toString)
+                Toast.makeText(context, message, DConstant.toastTimeout).show()
+              } catch {
+                case e =>
+                  IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
+              }
             })
           } catch {
             case e =>

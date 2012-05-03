@@ -167,7 +167,7 @@ object FilterAdapter extends Logging {
           pending match {
             case None =>
               log.debug("update state of normal item " + value + " " + x)
-              val pref = context.getSharedPreferences(prefFilter, Context.MODE_WORLD_READABLE)
+              val pref = context.getSharedPreferences(prefFilter, Context.MODE_PRIVATE)
               val editor = pref.edit()
               editor.putBoolean(value, x)
               editor.commit()
@@ -189,7 +189,7 @@ object FilterAdapter extends Logging {
               })
             case Some(false) =>
               log.debug("update state of toDelete item " + value + " " + x)
-              val pref = context.getSharedPreferences(prefFilter, Context.MODE_WORLD_READABLE)
+              val pref = context.getSharedPreferences(prefFilter, Context.MODE_PRIVATE)
               val editor = pref.edit()
               editor.putBoolean(value, x)
               editor.commit()

@@ -96,7 +96,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       // leave UI thread
       future {
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
-          val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+          val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
           val currentValue = pref.getInt(item.option, 2222)
           val maxLengthFilter = new InputFilter.LengthFilter(5)
           val portLayout = LayoutInflater.from(context).inflate(R.layout.alertdialog_text, null)
@@ -113,7 +113,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
               def onClick(dialog: DialogInterface, whichButton: Int) = try {
                 val port = portField.getText.toString.toInt
                 log.debug("set port to " + port)
-                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                 val editor = pref.edit()
                 editor.putInt(item.option, port)
                 editor.commit()
@@ -221,7 +221,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
           val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
           context.runOnUiThread(new Runnable { def run = { checkbox.setChecked(!lastState) } })
       }
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
       editor.putBoolean(item.option, !lastState)
       editor.commit()
@@ -251,7 +251,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
         context.runOnUiThread(new Runnable { def run = { checkbox.setChecked(!lastState) } })
     }
-    val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+    val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
     val editor = pref.edit()
     editor.putBoolean(item.option, !lastState)
     editor.commit()
@@ -272,7 +272,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                       val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
                       checkbox.setChecked(!lastState)
                   }
-                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                   val editor = pref.edit()
                   editor.putBoolean(item.option, !lastState)
                   editor.commit()
@@ -319,7 +319,7 @@ object OptionBlock extends Logging {
     override def toString() = value
     def getState[T](context: Context)(implicit m: Manifest[T]): T = {
       assert(m.erasure == option.kind)
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       option.kind.getName match {
         case "boolean" =>
           pref.getBoolean(option, option.default.asInstanceOf[Boolean]).asInstanceOf[T]

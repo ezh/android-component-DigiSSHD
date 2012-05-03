@@ -99,7 +99,7 @@ class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         def run = {
           adapter.setNotifyOnChange(false)
           adapter.clear
-          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
           val acl = pref.getAll
           if (acl.isEmpty)
             adapter.add(FilterBlock.Item(FilterBlock.ALL, None, new WeakReference(context)))
@@ -131,7 +131,7 @@ object FilterBlock extends Logging {
       if (_state == None) {
         context.get.foreach {
           context =>
-            val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+            val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
             _state = Some(if (value == ALL) pref.getBoolean(FilterBlock.ALL, true) else pref.getBoolean(value, false))
         }
       }
@@ -142,7 +142,7 @@ object FilterBlock extends Logging {
         _state = Some(newState)
         context.get.foreach {
           context =>
-            val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+            val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
             val editor = pref.edit()
             editor.putBoolean(value, newState)
             editor.commit()

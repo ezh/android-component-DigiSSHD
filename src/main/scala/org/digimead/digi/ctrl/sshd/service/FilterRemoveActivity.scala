@@ -43,7 +43,7 @@ import android.widget.ListView
 class FilterRemoveActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = {
-    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
     val values = pref.getAll().toSeq.map(t => t._1).filter(_ != FilterBlock.ALL).sorted.map(FilterRemoveActivity.FilterItem(_, false))
     new FilterRemoveAdapter(this, values)
   }
@@ -96,7 +96,7 @@ class FilterRemoveActivity extends ListActivity with Logging {
   }
   @Loggable
   private def onSubmit() = {
-    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.remove(filter.value))
     editor.commit()

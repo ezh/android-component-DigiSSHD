@@ -65,7 +65,7 @@ class FilterActivity extends ListActivity with Logging {
   private var isActivityAllow = true
   lazy val adapter = new FilterAdapter(this, () => try {
     val prefFilter = if (isActivityAllow) DPreference.FilterConnectionAllow else DPreference.FilterConnectionDeny
-    getSharedPreferences(prefFilter, Context.MODE_WORLD_READABLE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]].
+    getSharedPreferences(prefFilter, Context.MODE_PRIVATE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]].
       map(t => FilterAdapter.Item(t._1, if (pendingToDelete(t._1)) Some(false) else None)(t._2, isActivityAllow)) ++ pendingToInclude
   } catch {
     case e =>
@@ -227,7 +227,7 @@ class FilterActivity extends ListActivity with Logging {
   @Loggable
   def onClickApply(v: View) {
     val prefFilter = if (isActivityAllow) DPreference.FilterConnectionAllow else DPreference.FilterConnectionDeny
-    val pref = getSharedPreferences(prefFilter, Context.MODE_WORLD_READABLE)
+    val pref = getSharedPreferences(prefFilter, Context.MODE_PRIVATE)
     val editor = pref.edit()
     pendingToDelete.foreach(acl => {
       if (isActivityAllow)

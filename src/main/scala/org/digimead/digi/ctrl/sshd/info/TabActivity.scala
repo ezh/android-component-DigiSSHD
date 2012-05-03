@@ -193,7 +193,8 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
           interfaceBlock = Some(new InterfaceBlock(activity))
           supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
             SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
-          communityBlock = Some(new CommunityBlock(activity, Uri.parse(SSHDActivity.info.project + "/wiki")))
+          communityBlock = Some(new CommunityBlock(activity, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
+            Some(Uri.parse(SSHDActivity.info.project + "/wiki"))))
           thanksBlock = Some(new ThanksBlock(activity))
           legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
           for {

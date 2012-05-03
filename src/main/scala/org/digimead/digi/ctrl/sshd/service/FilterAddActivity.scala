@@ -53,7 +53,7 @@ import android.widget.Toast
 class FilterAddActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
   private lazy val adapter = new FilterAddAdapter(this, () => {
-    val alreadyInUse = getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE).getAll().map(t => t._1).toSeq
+    val alreadyInUse = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
     predefinedFilters().diff(alreadyInUse) // drop "already in use" values
   })
   private lazy val inflater = getLayoutInflater()
@@ -217,7 +217,7 @@ class FilterAddActivity extends ListActivity with Logging {
   }
   @Loggable
   private def onSubmit() = {
-    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_WORLD_READABLE)
+    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
     val editor = pref.edit()
     adapter.getPending.foreach(filter => editor.putBoolean(filter, true))
     editor.commit()

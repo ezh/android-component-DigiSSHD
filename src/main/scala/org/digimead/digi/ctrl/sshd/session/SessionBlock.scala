@@ -156,8 +156,8 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         return
     }
     log.debug("create context menu for " + item.connection.connectionID + " with IP " + ip)
-    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
-    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
+    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
+    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
     menu.setHeaderTitle(ip)
     menu.setHeaderIcon(Android.getId(context, "ic_launcher", "drawable"))
     if (!propAllow.contains(ip))
@@ -187,8 +187,8 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         log.warn(e.getMessage)
         None
     }).getOrElse(Android.getString(context, "unknown_source").getOrElse("unknown source"))
-    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_WORLD_READABLE)
-    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_WORLD_READABLE)
+    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
+    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
     menuItem.getItemId match {
       case id if id == Android.getId(context, "session_always_allow") =>
         if (!propAllow.contains(ip)) {

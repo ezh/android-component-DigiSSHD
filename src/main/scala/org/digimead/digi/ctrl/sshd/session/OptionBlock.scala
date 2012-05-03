@@ -74,7 +74,7 @@ class OptionBlock(context: Activity) extends Logging {
   @Loggable
   def onOptionClick(item: OptionBlock.Item, lastState: Boolean) = item.option match {
     case _ =>
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
       editor.putBoolean(item.option, !lastState)
       editor.commit()
@@ -88,7 +88,7 @@ object OptionBlock extends Logging {
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState(context: Context): Boolean = {
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_WORLD_READABLE)
+      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       pref.getBoolean(option, option.default.asInstanceOf[Boolean])
     }
   }

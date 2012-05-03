@@ -436,7 +436,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           setTitle(Android.getString(this, "ask_ctrl_newconnection_title").
             getOrElse("Allow access?")).
           setMessage(Android.getString(this, "ask_ctrl_newconnection_content").
-            getOrElse("DigiControl needs your permission to start new session")).
+            getOrElse("DigiSSHD needs your permission to start new session")).
           setPositiveButton(android.R.string.ok, null).
           setNegativeButton(android.R.string.cancel, null).
           create()
