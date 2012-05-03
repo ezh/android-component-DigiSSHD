@@ -243,8 +243,6 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def onComponentUpdateBroadcast(intent: Intent) = future {
     log.trace("receive update broadcast " + intent.toUri(0))
     val state = intent.getParcelableExtra[ComponentState](DState.getClass.getName()).state
-    service.TabActivity.UpdateComponents(state)
-    info.TabActivity.updateActiveInterfaces(state)
     state match {
       case DState.Active =>
         AppComponent.Inner.state.set(AppComponent.State(DState.Active))
@@ -277,11 +275,13 @@ class SSHDActivity extends android.app.TabActivity with Activity {
         val text = Android.getCapitalized(SSHDActivity.this, "status_ready").getOrElse("Ready")
         SSHDActivity.running = false
         runOnUiThread(new Runnable { def run = statusText.setText(text) })
+        future { onAppPassive }
       case AppComponent.State(DState.Active, message, callback) =>
         log.debug("set status text to " + DState.Active)
         val text = Android.getCapitalized(SSHDActivity.this, "status_active").getOrElse("Active")
         SSHDActivity.running = true
         runOnUiThread(new Runnable { def run = statusText.setText(text) })
+        future { onAppActive }
       case AppComponent.State(DState.Broken, rawMessage, callback) =>
         log.debug("set status text to " + DState.Broken)
         val message = if (rawMessage != null)
@@ -302,6 +302,16 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     runOnUiThread(new Runnable { def run = buttonToggleStartStop.get.foreach(_.setChecked(SSHDActivity.running)) })
     if (SSHDActivity.busyCounter.get == 0 && SSHDActivity.busyDialog.isSet)
       SSHDActivity.onReady(this)
+  }
+  @Loggable
+  private def onAppActive() {
+    info.TabActivity.updateActiveInterfaces(DState.Active)
+    service.TabActivity.updateComponents(DState.Active)
+  }
+  @Loggable
+  private def onAppPassive() {
+    info.TabActivity.updateActiveInterfaces(DState.Passive)
+    service.TabActivity.updateComponents(DState.Passive)
   }
   @Loggable
   def onClickServiceFilterAdd(v: View) =
@@ -408,7 +418,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     Option(Common.onCreateDialog(id, this)).foreach(dialog => return dialog)
     id match {
       case id if id == SSHDActivity.Dialog.ComponentInfo =>
-        log.debug("create dialog ComponentInfo " + SSHDActivity.Dialog.NewConnection)
+        log.debug("create dialog ComponentInfo " + id)
         val container = new ScrollView(this)
         val message = new TextView(this)
         container.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -421,7 +431,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
           setIcon(R.drawable.ic_launcher).
           create()
       case id if id == SSHDActivity.Dialog.NewConnection =>
-        log.debug("create dialog NewConnection " + SSHDActivity.Dialog.NewConnection)
+        log.debug("create dialog NewConnection " + id)
         new AlertDialog.Builder(this).
           setTitle(Android.getString(this, "ask_ctrl_newconnection_title").
             getOrElse("Allow access?")).
@@ -439,7 +449,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     super.onPrepareDialog(id, dialog)
     id match {
       case id if id == SSHDActivity.Dialog.ComponentInfo =>
-        log.debug("prepare dialog ComponentInfo " + SSHDActivity.Dialog.NewConnection)
+        log.debug("prepare dialog ComponentInfo " + id)
         val message = dialog.findViewById(Int.MaxValue).asInstanceOf[TextView]
         val info = args.getParcelable("info").asInstanceOf[ExecutableInfo]
         val env = info.env.mkString("""<br/>""")
@@ -621,6 +631,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def initializeOnCreate(): Unit = {
     if (!SSHDActivity.initializeOnCreate.compareAndSet(true, false))
       return
+    log.debug("initializeOnCreate")
     IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("device environment evaluation"))
     if (AppControl.isICtrlHostInstalled(this))
       IAmMumble("hive connection in progress")
@@ -637,6 +648,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
   private def initializeOnResume(): Unit = {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
+    log.debug("initializeOnResume")
     IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("component environment evaluation"))
     /*
      *  before service available
@@ -842,34 +854,36 @@ object SSHDActivity extends Actor with Logging {
     }
   }
   def addLazyInitOnResume = AppComponent.LazyInit("SSHDActivity initialize onResume", 1000) {
-    activity.foreach {
-      activity =>
-        AppControl.Inner.callListPendingConnections(activity.getPackageName)() match {
-          case Some(pendingConnections) =>
-            IAmMumble(pendingConnections.size + " pending connection(s)")
-            pendingConnections.foreach(connectionIntent => try {
-              log.debug("process sign request " + connectionIntent.getDataString)
-              val restoredIntent = connectionIntent.cloneFilter
-              val data = new Bundle
-              data.putInt("processID", connectionIntent.getIntExtra("processID", 0))
-              data.putInt("total", connectionIntent.getIntExtra("total", 0))
-              (for {
-                component <- Common.unparcelFromArray[ComponentInfo](connectionIntent.getByteArrayExtra("component"))
-                connection <- Common.unparcelFromArray[DConnection](connectionIntent.getByteArrayExtra("connection"))
-                executable <- Common.unparcelFromArray[ExecutableInfo](connectionIntent.getByteArrayExtra("executable"))
-              } yield {
-                data.putParcelable("component", component)
-                data.putParcelable("connection", connection)
-                data.putParcelable("executable", executable)
-                restoredIntent.replaceExtras(data)
-                activity.onSignRequest(restoredIntent)
-              }) getOrElse (log.fatal("broken ListPendingConnections intent detected: " + connectionIntent))
-            } catch {
-              case e =>
-                log.error(e.getMessage, e)
-            })
-          case None =>
-        }
+    future {
+      activity.foreach {
+        activity =>
+          AppControl.Inner.callListPendingConnections(activity.getPackageName)() match {
+            case Some(pendingConnections) =>
+              IAmMumble(pendingConnections.size + " pending connection(s)")
+              pendingConnections.foreach(connectionIntent => try {
+                log.debug("process sign request " + connectionIntent.getDataString)
+                val restoredIntent = connectionIntent.cloneFilter
+                val data = new Bundle
+                data.putInt("processID", connectionIntent.getIntExtra("processID", 0))
+                data.putInt("total", connectionIntent.getIntExtra("total", 0))
+                (for {
+                  component <- Common.unparcelFromArray[ComponentInfo](connectionIntent.getByteArrayExtra("component"))
+                  connection <- Common.unparcelFromArray[DConnection](connectionIntent.getByteArrayExtra("connection"))
+                  executable <- Common.unparcelFromArray[ExecutableInfo](connectionIntent.getByteArrayExtra("executable"))
+                } yield {
+                  data.putParcelable("component", component)
+                  data.putParcelable("connection", connection)
+                  data.putParcelable("executable", executable)
+                  restoredIntent.replaceExtras(data)
+                  activity.onSignRequest(restoredIntent)
+                }) getOrElse (log.fatal("broken ListPendingConnections intent detected: " + connectionIntent))
+              } catch {
+                case e =>
+                  log.error(e.getMessage, e)
+              })
+            case None =>
+          }
+      }
     }
   }
   def act = {

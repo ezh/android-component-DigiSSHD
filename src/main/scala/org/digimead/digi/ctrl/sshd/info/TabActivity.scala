@@ -168,9 +168,9 @@ class TabActivity extends ListActivity with Logging {
 }
 
 object TabActivity extends Logging {
-  val legal = """<img src="ic_launcher">The DigiControl consists of a software program protected by copyright and other applicable
-intellectual property laws and treaties. Certain Licensed Software programs may be wholly
-or partially subject to other licenses. For details see the description of each individual package. <br/>
+  val legal = """<img src="ic_launcher">The DigiSSHD Project is licensed to you under the terms of the
+GNU General Public License (GPL) version 3 or later, a copy of which has been included in the LICENSE file.
+Please check the individual source files for details. <br/>
 Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   @volatile private[info] var activity: Option[TabActivity] = None
   @volatile private[info] var adapter: Option[MergeAdapter] = None
@@ -195,7 +195,7 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
             SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
           communityBlock = Some(new CommunityBlock(activity, Uri.parse(SSHDActivity.info.project + "/wiki")))
           thanksBlock = Some(new ThanksBlock(activity))
-          legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-DigiControl/blob/master/LICENSE.md"))))
+          legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
           for {
             adapter <- adapter
             interfaceBlock <- interfaceBlock

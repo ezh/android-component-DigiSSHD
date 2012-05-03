@@ -148,16 +148,17 @@ object SSHDService extends Logging {
                   Seq()
                 Option(System.getenv("PATH")).map(s => {
                   val oldPATH = s.substring(s.indexOf('=') + 1)
-                  env = Seq("PATH=" + oldPATH + ":" + path)
+                  env = Seq("PATH=" + path + ":" + oldPATH)
                 })
                 Some(Seq(new File(path, executable).getAbsolutePath,
-                  "-i", // Start for inetd
-                  "-E", // Log to stderr rather than syslog
-                  "-F", // Don't fork into background
+                  "-i", // start for inetd
+                  "-E", // log to stderr rather than syslog
+                  "-F", // don't fork into background
+                  "-e", // keep environment variables
                   "-H", externalPath.get(0).getOrElse(path).getAbsolutePath) ++ // forced home path
-                  rsaKey ++ // Use rsakeyfile for the rsa host key
-                  dsaKey ++ // Use dsskeyfile for the dss host key
-                  masterPasswordOption) // Enable master password to any account
+                  rsaKey ++ // use rsakeyfile for the rsa host key
+                  dsaKey ++ // use dsskeyfile for the dss host key
+                  masterPasswordOption) // enable master password to any account
               case Some(path) =>
                 val masterPassword = Option(ServiceOptions.authPasswordItem.getState[String](context))
                 val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
@@ -170,13 +171,14 @@ object SSHDService extends Logging {
                 else
                   Seq()
                 Some(Seq(executable,
-                  "-i", // Start for inetd
-                  "-E", // Log to stderr rather than syslog
-                  "-F", // Don't fork into background
+                  "-i", // start for inetd
+                  "-E", // log to stderr rather than syslog
+                  "-F", // don't fork into background
+                  "-e", // keep environment variables
                   "-H", "/") ++ // forced home path
-                  rsaKey ++ // Use rsakeyfile for the rsa host key
-                  dsaKey ++ // Use dsskeyfile for the dss host key
-                  masterPasswordOption) // Enable master password to any account
+                  rsaKey ++ // use rsakeyfile for the rsa host key
+                  dsaKey ++ // use dsskeyfile for the dss host key
+                  masterPasswordOption) // enable master password to any account
               case _ =>
                 None
             }
