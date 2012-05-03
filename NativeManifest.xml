@@ -10,7 +10,7 @@
 	</application>
 	<application>
 		<name>dropbear</name>
-		<version>2011.54</version>
+		<version>2012.55</version>
 		<project>http://matt.ucc.asn.au/dropbear/dropbear.html</project>
 		<description>provide ssh service</description>
 		<license>MIT</license>

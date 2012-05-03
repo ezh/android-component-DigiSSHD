@@ -229,6 +229,6 @@ object TabActivity extends Logging {
   }
   def getActivity() = activity
   @Loggable
-  def UpdateComponents(state: DState.Value) =
+  def updateComponents(state: DState.Value) =
     componentBlock.foreach(_.updateComponentsState(state))
 }

@@ -137,6 +137,7 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
                 }
             }
           }
+          log.debug("active interfaces: " + activeInterfaces.mkString(", "))
           // stage 2: set particular interfaces to active
           activeInterfaces.foreach(_ match {
             case n if n.isEmpty =>
