@@ -23,6 +23,7 @@ package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DIntent
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.Dispatcher
@@ -47,7 +48,7 @@ object Message extends Logging {
         AppComponent.Inner.sendPrivateBroadcast(intent)
       }
       if (message.isInstanceOf[IAmBusy])
-        SSHDActivity !? message
+        SSHDActivity !? (DTimeout.normal, message) orElse ({ log.fatal("request hang"); None })
       else
         SSHDActivity ! message
     }

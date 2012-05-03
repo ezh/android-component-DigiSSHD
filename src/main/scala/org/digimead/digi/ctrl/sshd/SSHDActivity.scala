@@ -890,23 +890,32 @@ object SSHDActivity extends Actor with Logging {
     loop {
       react {
         case IAmBusy(origin, message, ts) =>
+          log.info("receive message IAmBusy from " + origin)
           reply({
             busyCounter.incrementAndGet
             busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
             activity.foreach(onUpdate)
             AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
             busyDialog.get(DTimeout.long)
+            log.debug("return from message IAmBusy from " + origin)
           })
         case IAmMumble(origin, message, callback, ts) =>
+          log.info("receive message IAmMumble from " + origin)
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
+          log.debug("return from message IAmMumble from " + origin)
         case IAmWarn(origin, message, callback, ts) =>
+          log.info("receive message IAmWarn from " + origin)
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
+          log.debug("return from message IAmWarn from " + origin)
         case IAmYell(origin, message, stacktrace, callback, ts) =>
+          log.info("receive message IAmYell from " + origin)
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
+          log.debug("return from message IAmYell from " + origin)
         case IAmReady(origin, message, ts) =>
+          log.info("receive message IAmReady from " + origin)
           busyCounter.decrementAndGet
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
@@ -915,6 +924,7 @@ object SSHDActivity extends Actor with Logging {
             busyDialog.put(null)
             busyDialog.unset()
           }
+          log.debug("return from message IAmReady from " + origin)
         case message: AnyRef =>
           log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
         case message =>
