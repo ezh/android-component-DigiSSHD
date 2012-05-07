@@ -37,7 +37,7 @@ import android.widget.Toast
 
 object SSHDCommon {
   def optionChangedOnRestartNotify(context: Activity, option: DOption.OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
-    if (AppComponent.Inner.state.get.code == DState.Passive) {
+    if (AppComponent.Inner.state.get.value == DState.Passive) {
       val message = Android.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)
       IAmMumble(message)(logger, dispatcher)
       future {

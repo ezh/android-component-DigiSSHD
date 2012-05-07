@@ -18,7 +18,7 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/service_state"
     android:layout_width="fill_parent"
@@ -42,13 +42,14 @@
             android:layout_width="0dip"
             android:layout_height="fill_parent"
             android:layout_weight="1"
+            android:clickable="true"
             android:ellipsize="marquee"
+            android:focusable="true"
             android:gravity="center"
             android:marqueeRepeatLimit="marquee_forever"
+            android:onClick="onClickStatus"
             android:scrollHorizontally="true"
             android:singleLine="true"
-            android:clickable="true"
-            android:onClick="onClickStatus"
             android:text="@string/status_initializing"
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:textColor="#ffffff" />

@@ -635,7 +635,7 @@ class SSHDActivity extends android.app.TabActivity with Activity {
     IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("device environment evaluation"))
     if (AppControl.isICtrlHostInstalled(this))
       IAmMumble("hive connection in progress")
-    if (AppComponent.Inner.state.get.code == DState.Initializing)
+    if (AppComponent.Inner.state.get.value == DState.Initializing)
       AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     SSHDActivity.addLazyInit
     info.TabActivity.addLazyInit
@@ -681,7 +681,14 @@ class SSHDActivity extends android.app.TabActivity with Activity {
       AppComponent.Inner.enableRotation()
     })
     IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("component environment evaluated"))
-    future { Report.searchAndSubmit(this) }
+    future {
+      Report.searchAndSubmit(this)
+      if (AppControl.Inner.isAvailable == Some(false) &&
+        AppComponent.Inner.state.get.value == DState.Broken &&
+        AppComponent.Inner.state.get.onClickCallback != null &&
+        this.getWindow.isActive)
+        AppComponent.Inner.state.get.onClickCallback(this)
+    }
   }
 }
 
@@ -789,7 +796,7 @@ object SSHDActivity extends Actor with Logging {
   }
   private val networkChangedReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
-      future { org.digimead.digi.ctrl.sshd.info.TabActivity.updateActiveInterfaces(AppComponent.Inner.state.get.code) }
+      future { org.digimead.digi.ctrl.sshd.info.TabActivity.updateActiveInterfaces(AppComponent.Inner.state.get.value) }
     } catch {
       case e =>
         log.error(e.getMessage, e)

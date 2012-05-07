@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
-	<id>DigiSSH</id>
-	<name>DigiSSH</name>
+	<id>DigiSSHD</id>
+	<name>DigiSSHD</name>
 	<version>0.1</version>
 	<description>Secure Shell Server</description>
 	<description lang="ru">Secure Shell сервер</description>
@@ -14,6 +14,6 @@
 	<icon-ldpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-ldpi/ic_launcher.png</icon-ldpi>
 	<icon-mdpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-mdpi/ic_launcher.png</icon-mdpi>
 	<icon-xhdpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-xhdpi/ic_launcher.png</icon-xhdpi>
-	<market>market://details?id=this.is.app</market>
+	<market>market://details?id=org.digimead.digi.ctrl.sshd</market>
 	<package-name>org.digimead.digi.ctrl.sshd</package-name>
 </manifest>
