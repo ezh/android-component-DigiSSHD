@@ -101,6 +101,9 @@ class SSHDActivity extends android.app.TabActivity with Activity {
 
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
+    // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
+    // if we started actors from the singleton
+    SSHDActivity.start
     Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
       getString(Preference.debugLevelsListKey, "4"), this)
     Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
@@ -809,8 +812,6 @@ object SSHDActivity extends Actor with Logging {
   session.SessionAdapter
   session.TabActivity
   service.TabActivity
-  // start actor
-  start
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDActivity initialize onCreate", 50) {
