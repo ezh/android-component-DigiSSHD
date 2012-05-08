@@ -64,6 +64,9 @@ class SSHDService extends Service {
 
   @Loggable
   override def onCreate() = {
+    // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
+    // if we started actors from the singleton
+    SSHDActivity.start // Yes, SSHDActivity from SSHDService
     Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
       getString(Preference.debugLevelsListKey, "4"), this)
     Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
@@ -154,6 +157,8 @@ object SSHDService extends Logging {
                   "-i", // start for inetd
                   "-E", // log to stderr rather than syslog
                   "-F", // don't fork into background
+                  "-D", // use DigiNNN integration
+                  "-U", // fake user RW permissions in SFTP
                   "-e", // keep environment variables
                   "-H", externalPath.get(0).getOrElse(path).getAbsolutePath) ++ // forced home path
                   rsaKey ++ // use rsakeyfile for the rsa host key
@@ -174,6 +179,8 @@ object SSHDService extends Logging {
                   "-i", // start for inetd
                   "-E", // log to stderr rather than syslog
                   "-F", // don't fork into background
+                  "-D", // use DigiNNN integration
+                  "-U", // fake user RW permissions in SFTP
                   "-e", // keep environment variables
                   "-H", "/") ++ // forced home path
                   rsaKey ++ // use rsakeyfile for the rsa host key
