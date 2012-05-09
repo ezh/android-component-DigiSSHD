@@ -33,7 +33,7 @@ import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.declaration.DProvider
+import org.digimead.digi.ctrl.lib.declaration.DControlProvider
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
@@ -115,9 +115,9 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
   private def updateCursor(): Unit = {
     if (updateInProgressLock.getAndIncrement() == 0) {
       log.debug("recreate session cursor")
-      val cursor = context.getContentResolver().query(Uri.parse(DProvider.Uri.Session.toString), null, null, null, null)
+      val cursor = context.getContentResolver().query(Uri.parse(DControlProvider.Uri.Session.toString), null, null, null, null)
       if (cursor == null) {
-        log.warn("cursor from " + DProvider.Uri.Session + " unavailable")
+        log.warn("cursor from " + DControlProvider.Uri.Session + " unavailable")
         updateInProgressLock.set(0)
         return
       }

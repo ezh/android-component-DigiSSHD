@@ -36,7 +36,7 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DConnection
-import org.digimead.digi.ctrl.lib.declaration.DProvider
+import org.digimead.digi.ctrl.lib.declaration.DControlProvider
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -65,7 +65,7 @@ class SessionAdapter(context: Activity, layout: Int)
     val cursor = getCursor()
     if (!cursor.moveToPosition(position))
       throw new IllegalStateException("couldn't move cursor to position " + position)
-    val id = cursor.getInt(DProvider.Field.ID.id)
+    val id = cursor.getInt(DControlProvider.Field.ID.id)
     item.get(id).flatMap(_.view.get) match {
       case None =>
         val view = inflater.inflate(layout, null)
@@ -91,7 +91,7 @@ class SessionAdapter(context: Activity, layout: Int)
             state.setFocusable(false)
             state.setFocusableInTouchMode(false)
             subinfo.setText(Android.getString(context, "time_minutes").getOrElse("%02dm %02ds").format(0, 0))
-            val processID = cursor.getInt(DProvider.Field.ProcessID.id)
+            val processID = cursor.getInt(DControlProvider.Field.ProcessID.id)
             item.durationField = new WeakReference(subinfo)
             item.view = new WeakReference(view)
             item.position = Some(position)
@@ -107,25 +107,25 @@ class SessionAdapter(context: Activity, layout: Int)
     getItem(c).getOrElse({ log.fatal("session item lost"); c })
   }
   def getItem(cursor: Cursor): Option[SessionBlock.Item] = {
-    val key = cursor.getInt(DProvider.Field.ID.id)
+    val key = cursor.getInt(DControlProvider.Field.ID.id)
     item.get(key) match {
       case Some(item) =>
         Option(item)
       case None =>
-        val processID = cursor.getInt(DProvider.Field.ProcessID.id)
+        val processID = cursor.getInt(DControlProvider.Field.ProcessID.id)
         (for {
           component <- Option(if (v < 11)
-            cursor.getString(DProvider.Field.Component.id).getBytes("ISO-8859-1")
+            cursor.getString(DControlProvider.Field.Component.id).getBytes("ISO-8859-1")
           else
-            cursor.getBlob(DProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
+            cursor.getBlob(DControlProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
           executable <- Option(if (v < 11)
-            cursor.getString(DProvider.Field.Executable.id).getBytes("ISO-8859-1")
+            cursor.getString(DControlProvider.Field.Executable.id).getBytes("ISO-8859-1")
           else
-            cursor.getBlob(DProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
+            cursor.getBlob(DControlProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
           connection <- Option(if (v < 11)
-            cursor.getString(DProvider.Field.Connection.id).getBytes("ISO-8859-1")
+            cursor.getString(DControlProvider.Field.Connection.id).getBytes("ISO-8859-1")
           else
-            cursor.getBlob(DProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
+            cursor.getBlob(DControlProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
         } yield {
           item(key) = new SessionBlock.Item(key, processID, component, executable, connection)
           item(key)
@@ -153,7 +153,7 @@ class SessionAdapter(context: Activity, layout: Int)
         val pos = cursor.getPosition
         if (cursor.moveToFirst) {
           val existsIDs = HashSet[Int](item.keys.toSeq: _*)
-          do { existsIDs.remove(cursor.getInt(DProvider.Field.ID.id)) } while (cursor.moveToNext)
+          do { existsIDs.remove(cursor.getInt(DControlProvider.Field.ID.id)) } while (cursor.moveToNext)
           existsIDs.foreach(n => {
             log.debug("remove item " + n)
             item.remove(n)
