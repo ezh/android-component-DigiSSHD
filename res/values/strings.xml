@@ -22,9 +22,14 @@
 <resources>
 
     <string name="app_name">DigiSSHD</string>
-    <string name="app_name_service">Service</string>
-    <string name="app_name_session">Sessions</string>
-    <string name="app_name_information">Information</string>
+    <string name="app_name_service">DigiSSHD: Service</string>
+    <string name="tab_name_service">Service</string>
+    <string name="app_name_sessions">DigiSSHD: Sessions</string>
+    <string name="tab_name_sessions">Sessions</string>
+    <string name="app_name_information">DigiSSHD: Information</string>
+    <string name="tab_name_information">Information</string>
+    <string name="app_name_options">DigiSSHD: Options</string>
+    <string name="app_name_users">DigiSSHD: Users</string>
     <string name="app_name_filter_add">DigiSSHD: Add filter</string>
     <string name="app_name_filter_remove">DigiSSHD: Remove filter</string>
     <string name="app_name_filter">DigiSSHD: Filter</string>
@@ -66,8 +71,9 @@
     <string name="service_filter_unable_remove">unable to remove last filter</string>
     <string name="service_environment">service_environment</string>
     <string name="service_software">service_software</string>
-    <string name="service_environment_reinstall">service_environment_reinstall</string>
-    <string name="service_environment_copytoclipboard">service_environment_copytoclipboard</string>
+    <string name="service_environment_users">manage\nusers</string>
+    <string name="service_environment_reinstall">reinstall\ncomponents</string>
+    <string name="service_environment_reset">reset\nto defaults</string>
     <string name="reinstall">reinstall</string>
     <string name="reinstall_complete">reinstall_complete</string>
     <string name="copy_to_clipboard">copy_to_clipboard</string>
@@ -100,8 +106,6 @@
     <string name="APPLICATION_GS_CLIENT_SECRET">N0x2RFNXaTFyTXIwdk91aVZnUWsydTI5</string>
     <string name="APPLICATION_GS_TOKEN">MS9YazNJNjBZb0VxMWlLZEU3MUgzS3JGSjZpd29OZWpZNlRsOWh5b2FSUTZF</string>
     <string name="APPLICATION_GS_BUCKET">YW5kcm9pZC1kaWdpLXNzaGQtcmVwb3J0</string>
-    <string name="service_environment_reinstall">reinstall components</string>
-    <string name="service_environment_reset">reset to default</string>
     <string name="option_port_name">component port</string>
     <string name="option_port_description">TCP port, sshd is listening on</string>
     <string name="option_as_root_name">grant superuser permission</string>
@@ -111,7 +115,7 @@
     <string name="option_dss_name">DSA public key encryption</string>
     <string name="option_dss_description">use the DSS dropbear key</string>
     <string name="option_auth_name">component authentication</string>
-    <string name="option_auth_description">default password: 123</string>
+    <string name="option_auth_description">system account is \"android\"</string>
     <string name="option_confirm_connection_name">confirm connection</string>
     <string name="option_confirm_connection_description">ask for a permission at every unknown session</string>
     <string name="option_write_connection_log_name">write connection log</string>
@@ -134,5 +138,17 @@
     <string name="session_filter_deselected">filter %1$s deactivated</string>
     <string name="session_filter_willbeselected">filter %1$s will be activated</string>
     <string name="session_filter_willbedeselected">filter %1$s will be deactivated</string>
+    <string name="dialog_recovery_title">Automatic recovery</string>
+    <string name="dialog_recovery_message">Do you want to start automatic recovery sequence? It will try to shutdown all started components, reinitialize internals and reset error state. If automatic recovery wouldn\'t help, please, let us know with error report from the context menu.</string>
+    <string name="users_block_all">Block All</string>
+    <string name="users_delete_all">Delete All</string>
+    <string name="users_name">Login</string>
+    <string name="users_home">Home directory</string>
+    <string name="users_password">Password</string>
+    <string name="users_header">long tap for customize</string>
+    <string name="users_home_directory_not_exists_title">users_home_directory_not_exists_title</string>
+    <string name="users_home_directory_not_exists_message">users_home_directory_not_exists_message</string>
+    <string name="users_update_user_title">Update user \"%s\"</string>
+    <string name="users_update_user_message">Do you want to save the changes?</string>
 
 </resources>

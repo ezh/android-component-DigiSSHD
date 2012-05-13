@@ -28,13 +28,18 @@ import java.io.InputStreamReader
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
-import scala.collection.JavaConversions._
+import scala.annotation.elidable
+import scala.collection.JavaConversions.mapAsScalaMap
+import scala.collection.JavaConversions.seqAsJavaList
 
+import org.digimead.digi.ctrl.ICtrlComponent
+import org.digimead.digi.ctrl.lib.DService
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
+import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
@@ -45,19 +50,22 @@ import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmWarn
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
-import org.digimead.digi.ctrl.lib.Service
+import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
-import org.digimead.digi.ctrl.ICtrlComponent
 
+import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager.NameNotFoundException
 import android.os.IBinder
 import android.preference.PreferenceManager
+import annotation.elidable.ASSERTION
 
-class SSHDService extends Service {
+class SSHDService extends Service with DService {
   private val ready = new SyncVar[Boolean]()
   private val binder = new SSHDService.Binder(ready)
   log.debug("alive")
@@ -72,9 +80,32 @@ class SSHDService extends Service {
     Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
       getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
     super.onCreate()
+    onCreateExt(this)
     if (AppControl.Inner.isAvailable != Some(true))
-      future { AppControl.Inner.bind(getApplicationContext) }
-
+      future {
+        log.debug("try to bind " + DConstant.controlPackage)
+        AppComponent.Inner.minVersionRequired(DConstant.controlPackage) match {
+          case Some(minVersion) => try {
+            val pm = getPackageManager()
+            val pi = pm.getPackageInfo(DConstant.controlPackage, 0)
+            val version = new Version(pi.versionName)
+            log.debug(DConstant.controlPackage + " minimum version '" + minVersion + "' and current version '" + version + "'")
+            if (version.compareTo(minVersion) == -1) {
+              val message = Android.getString(this, "error_digicontrol_minimum_version").
+                getOrElse("Required minimum version of DigiControl: %s. Current version is %s").format(minVersion, version)
+              IAmYell(message)
+              AppControl.Inner.bindStub("error_digicontrol_minimum_version", minVersion.toString, version.toString)
+            } else {
+              AppControl.Inner.bind(getApplicationContext)
+            }
+          } catch {
+            case e: NameNotFoundException =>
+              log.debug("DigiControl package " + DConstant.controlPackage + " not found")
+          }
+          case None =>
+            AppControl.Inner.bind(getApplicationContext)
+        }
+      }
     SSHDService.addLazyInit
     future {
       AppComponent.LazyInit.init
@@ -87,6 +118,11 @@ class SSHDService extends Service {
   override def onRebind(intent: Intent) = super.onRebind(intent)
   @Loggable
   override def onUnbind(intent: Intent): Boolean = super.onUnbind(intent)
+  @Loggable
+  override def onDestroy() {
+    onDestroyExt(this)
+    super.onDestroy()
+  }
 }
 
 object SSHDService extends Logging {

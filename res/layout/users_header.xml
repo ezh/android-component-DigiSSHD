@@ -19,22 +19,18 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
 -->
-<resources>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/users_header_dynamic"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#ff888888"
+    android:orientation="vertical" >
 
-    <item name="help" type="id"/>
-    <item name="component_info" type="id"/>
-    <item name="block_component_jump_to_project" type="id"/>
-    <item name="block_component_copy_command_line" type="id"/>
-    <item name="block_component_copy_info" type="id"/>
-    <item name="filter_request_allow" type="id"/>
-    <item name="filter_request_deny" type="id"/>
-    <item name="session_always_allow" type="id"/>
-    <item name="session_always_deny" type="id"/>
-    <item name="session_always_allow_net" type="id"/>
-    <item name="session_always_deny_net" type="id"/>
-    <item name="users_disable" type="id"/>
-    <item name="users_enable" type="id"/>
-    <item name="users_delete" type="id"/>
-    <item name="users_copy_info" type="id"/>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="10dip"
+        android:gravity="right"
+        android:text="@string/users_header" />
 
-</resources>
+</LinearLayout>

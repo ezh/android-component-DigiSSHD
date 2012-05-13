@@ -22,6 +22,8 @@
 package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider
+import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider.value2uri
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -30,6 +32,7 @@ import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.util.Android
 
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 
@@ -41,16 +44,42 @@ object Message extends Logging {
       context <- AppComponent.Context
     } {
       if (message.logger != null) {
-        val intent = new Intent(DIntent.Message, Uri.parse("code://org.digimead.digi.ctrl.sshd"))
-        intent.putExtra(DIntent.Message, message)
-        intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
-        intent.putExtra(DIntent.DronePackage, context.getPackageName)
-        AppComponent.Inner.sendPrivateBroadcast(intent)
+        try {
+          val intent = new Intent(DIntent.Message, Uri.parse("code://" + context.getPackageName))
+          intent.putExtra(DIntent.Message, message)
+          intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
+          intent.putExtra(DIntent.DronePackage, context.getPackageName)
+          AppComponent.Inner.sendPrivateBroadcast(intent)
+        } catch {
+          case e =>
+            log.warn("Message::Dispatcher sendPrivateBroadcast " + e.getMessage)
+        }
+        // push in history
+        try {
+          val values = new ContentValues()
+          values.put(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiControl"))
+          values.put(DIntent.DronePackage, context.getPackageName)
+          /*
+           * [error] both method put in class ContentValues of type (x$1: java.lang.String,x$2: java.lang.Double)Unit
+           * [error] and  method put in class ContentValues of type (x$1: java.lang.String,x$2: java.lang.Float)Unit
+           * [error] match argument types (java.lang.String,Long)
+           * [error]     values.put(DHistoryProvider.Field.ActivityTS.toString, message.
+           * TODO submit Scala ticket
+           */
+          values.put(DHistoryProvider.Field.ActivityTS.toString, Long.box(message.ts))
+          values.put(DHistoryProvider.Field.ActivitySeverity.toString, message.getClass.getName)
+          values.put(DHistoryProvider.Field.ActivityMessage.toString, message.message)
+          context.getContentResolver.insert(DHistoryProvider.Uri.Activity, values)
+        } catch {
+          case e =>
+            log.warn("Message::Dispatcher getContentResolver.insert " + e.getMessage)
+        }
       }
-      if (message.isInstanceOf[IAmBusy])
-        SSHDActivity !? (DTimeout.normal, message) orElse ({ log.fatal("request hang"); None })
-      else
-        SSHDActivity ! message
+      if (SSHDActivity.isConsistent)
+        if (message.isInstanceOf[IAmBusy])
+          SSHDActivity !? (DTimeout.normal, message) orElse ({ log.fatal("request hang"); None })
+        else
+          SSHDActivity ! message
     }
   }
 }

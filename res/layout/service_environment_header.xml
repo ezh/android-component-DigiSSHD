@@ -30,7 +30,7 @@
         layout="@layout/header" />
 
     <TableLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:stretchColumns="*" >
 
@@ -40,6 +40,17 @@
 
             <!-- android:background="#00ff00" -->
 
+            <Button
+                android:id="@+id/service_environment_users_button"
+                style="@style/ButtonNormalText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:drawableTop="@drawable/ic_users"
+                android:onClick="onClickUsers"
+                android:text="@string/service_environment_users" >
+            </Button>
+            
             <Button
                 android:id="@+id/service_environment_reinstall_button"
                 style="@style/ButtonNormalText"

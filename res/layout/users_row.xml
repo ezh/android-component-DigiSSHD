@@ -18,53 +18,55 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="?android:attr/listPreferredItemHeight"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingLeft="16dip"
-    android:paddingRight="12dip" > <!-- android:minHeight="?android:attr/listPreferredItemHeightSmall" -->
+    android:paddingRight="?android:attr/scrollbarSize" >
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="0dip"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:gravity="center_vertical"
         android:orientation="vertical" >
-
-        <!-- android:textColor="?android:attr/textColorAlertDialogListItem" -->
 
         <TextView
             android:id="@android:id/text1"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="marquee"
-            android:gravity="center_vertical|left"
-            android:singleLine="true"
-            android:textAppearance="?android:attr/textAppearanceMedium" />
-
-        <!-- android:textColor="?android:attr/textColorAlertDialogListItem" -->
+            android:gravity="center_vertical"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:maxLines="1"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            android:scrollHorizontally="true"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textColor="@android:color/primary_text_dark" />
 
         <TextView
             android:id="@android:id/text2"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="marquee"
-            android:gravity="center_vertical|left"
-            android:singleLine="true"
-            android:textAppearance="?android:attr/textAppearanceSmall" />
+            android:gravity="center_vertical"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:maxLines="1"
+            android:paddingBottom="1dip"
+            android:paddingLeft="6dip"
+            android:paddingTop="1dip"
+            android:scrollHorizontally="true"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="@android:color/secondary_text_dark" />
     </LinearLayout>
 
-    <TextView
-        android:id="@android:id/content"
+    <CheckedTextView
+        android:id="@android:id/checkbox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:ellipsize="marquee"
-        android:gravity="center"
-        android:paddingRight="12dip"
-        android:singleLine="false"
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:checkMark="?android:attr/textCheckMark"
+        android:gravity="center" />
 
 </LinearLayout>

@@ -174,7 +174,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                   log.debug("set new password")
                   val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                   val editor = pref.edit()
-                  val authType = OptionBlock.AuthType.Password.id
+                  val authType = OptionBlock.AuthType.SingleUser.id
                   editor.putInt(OptionBlock.authItemOption, authType)
                   editor.putString(OptionBlock.authPasswordOption, pwField.getText.toString)
                   editor.commit()
@@ -342,6 +342,7 @@ object OptionBlock extends Logging {
         case None =>
           val view = item.option.kind match {
             case c if c == classOf[Boolean] =>
+              // show root | RSA | DSA options
               val view = inflater.inflate(Android.getId(context, "option_list_item_multiple_choice", "layout"), null)
               val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
               checkbox.setOnTouchListener(new View.OnTouchListener {
@@ -372,12 +373,20 @@ object OptionBlock extends Logging {
             case c if c == classOf[Int] =>
               val view = inflater.inflate(Android.getId(context, "option_list_item_value", "layout"), null)
               item match {
+                // show port
                 case OptionBlock.portItem =>
                   val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
                   value.setText(item.getState[Int](context).toString)
+                // show auth type
                 case OptionBlock.authItem =>
                   val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                  value.setText(AuthType(item.getState[Int](context)).toString.toLowerCase)
+                  val authType = AuthType(item.getState[Int](context)).toString
+                  Android.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
+                    case Some(string) =>
+                      value.setText(string)
+                    case None =>
+                      value.setText(authType.toLowerCase.replaceAll(""" """, "\n"))
+                  }
               }
               view
           }
@@ -394,6 +403,9 @@ object OptionBlock extends Logging {
     }
   }
   object AuthType extends Enumeration {
-    val None, Password, Public = Value
+    val None = Value("none")
+    val SingleUser = Value("single user")
+    val MultiUser = Value("multi user")
+    val Public = Value("public key")
   }
 }

@@ -30,8 +30,10 @@ import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.SSHDUsers
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 
@@ -186,6 +188,15 @@ class TabActivity extends ListActivity with Logging {
   def onClickServiceReset(v: View) = {
     IAmMumble("reset settings")
   }
+  @Loggable
+  def onClickUsers(v: View) = {
+    try {
+      startActivity(new Intent(this, classOf[SSHDUsers]))
+    } catch {
+      case e =>
+        IAmYell("Unable to open activity for " + classOf[SSHDUsers].getName, e)
+    }
+  }
 }
 
 object TabActivity extends Logging {
@@ -199,8 +210,8 @@ object TabActivity extends Logging {
   val DIALOG_FILTER_REMOVE_ID = 0
 
   def addLazyInit = AppComponent.LazyInit("service.TabActivity initialize onCreate", 100) {
-    SSHDActivity.activity match {
-      case Some(activity) if activity.isInstanceOf[Activity] =>
+    activity.foreach {
+      activity =>
         // initialize once from onCreate
         if (adapter == None) {
           adapter = Some(new MergeAdapter())
@@ -223,8 +234,6 @@ object TabActivity extends Logging {
             activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) })
           }
         }
-      case context =>
-        log.warn("inappropriate SSHDActivity context " + context)
     }
   }
   def getActivity() = activity

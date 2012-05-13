@@ -3,6 +3,7 @@
 	<id>DigiSSHD</id>
 	<name>DigiSSHD</name>
 	<version>0.1</version>
+	<required version="0.1.01">org.digimead.digi.ctrl</required>
 	<description>Secure Shell Server</description>
 	<description lang="ru">Secure Shell сервер</description>
 	<project>http://github.com/ezh/android-component-DigiSSHD</project>
