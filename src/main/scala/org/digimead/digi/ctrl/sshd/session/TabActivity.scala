@@ -96,7 +96,7 @@ class TabActivity extends ListActivity with Logging {
         setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener {
           def onClick(dialog: DialogInterface, which: Int) {
             TabActivity.sessionBlock.foreach(_.items.foreach(i =>
-              AppControl.Inner.callDisconnect(i.component.componentPackage, i.processID, i.connection.connectionID)))
+              future { AppControl.Inner.callDisconnect(i.component.componentPackage, i.processID, i.connection.connectionID) }))
           }
         }).
         setNegativeButton(android.R.string.cancel, null).
@@ -119,7 +119,7 @@ class TabActivity extends ListActivity with Logging {
         ok.setOnClickListener(new OnClickListener() {
           def onClick(v: View) = future {
             val wd = new WeakReference(dialog)
-            AppControl.Inner.callDisconnect(componentPackage, processID, connectionID)
+            future { AppControl.Inner.callDisconnect(componentPackage, processID, connectionID) }
             wd.get.foreach(_.dismiss)
           }
         })

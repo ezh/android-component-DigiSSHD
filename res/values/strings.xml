@@ -30,11 +30,11 @@
     <string name="tab_name_information">Information</string>
     <string name="app_name_options">DigiSSHD: Options</string>
     <string name="app_name_users">DigiSSHD: Users</string>
-    <string name="app_name_filter_add">DigiSSHD: Add filter</string>
-    <string name="app_name_filter_remove">DigiSSHD: Remove filter</string>
+    <string name="app_name_filter_add">DigiSSHD: Add interface filters</string>
+    <string name="app_name_filter_remove">DigiSSHD: Remove interface filters</string>
     <string name="app_name_filter">DigiSSHD: Filter</string>
-    <string name="app_name_filter_allow">DigiSSHD: Allow filter</string>
-    <string name="app_name_filter_deny">DigiSSHD: Deny filter</string>
+    <string name="app_name_filter_allow">DigiSSHD: Allow connection filters</string>
+    <string name="app_name_filter_deny">DigiSSHD: Deny connection filters</string>
     <string name="image_description">…</string>
     <string name="info_interfaces">interfaces</string>
     <string name="info_support">support</string>

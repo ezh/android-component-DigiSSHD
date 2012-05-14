@@ -284,7 +284,7 @@ object ComponentBlock extends Logging {
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = data(position)
       item.view.get match {
-        case None if AppControl.Inner.isAvailable.getOrElse(false) =>
+        case None =>
           val execInfo = item.executableInfo(true)
           val view = inflater.inflate(textViewResourceId, null)
           val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
@@ -298,17 +298,20 @@ object ComponentBlock extends Logging {
           subinfo.setText(execInfo.version + " / " + execInfo.license)
           item.view = new WeakReference(view)
           icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          AppControl.Inner.callStatus(context.getPackageName, true)() match {
-            case Right(componentState) =>
-              if (componentState.state == DState.Active)
-                item.init(context, icon, true)
-              else
+          if (AppControl.Inner.isAvailable.getOrElse(false)) {
+            AppControl.Inner.callStatus(context.getPackageName, true)() match {
+              case Right(componentState) =>
+                if (componentState.state == DState.Active)
+                  item.init(context, icon, true)
+                else
+                  item.init(context, icon, false)
+              case Left(error) =>
                 item.init(context, icon, false)
-            case Left(error) =>
-              item.init(context, icon, false)
-          }
+            }
+          } else
+            item.init(context, icon, false)
           view
-        case None =>
+/*        case None =>
           log.warn("build incomplete ComponentBlock item, ICtrlHost is absent")
           val view = inflater.inflate(textViewResourceId, null)
           val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
@@ -321,7 +324,7 @@ object ComponentBlock extends Logging {
           description.setText("...")
           subinfo.setText("... / ...")
           icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          view
+          view*/
         case Some(view) =>
           view
       }

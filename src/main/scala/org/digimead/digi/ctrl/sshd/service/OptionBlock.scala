@@ -21,6 +21,8 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import scala.actors.Futures.future
 import scala.annotation.elidable
 import scala.ref.WeakReference
@@ -28,9 +30,9 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
@@ -160,26 +162,35 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     def run {
       SSHDActivity.activity.foreach {
         activity =>
-          val authTypeLayout = LayoutInflater.from(context).inflate(R.layout.alertdialog_text, null)
-          val pwField = authTypeLayout.findViewById(android.R.id.edit).asInstanceOf[EditText]
-          pwField.setInputType(InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
-          pwField.setText(OptionBlock.authPasswordItem.getState[String](context))
           AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+            val authTypeValue = new AtomicInteger(OptionBlock.authItem.getState[Int](context))
+            //activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
+            //getInt(, OptionBlock.authItemOption.)
             val dialog = new AlertDialog.Builder(activity).
-              setView(authTypeLayout).
               setTitle(R.string.dialog_auth_title).
-              setMessage(R.string.dialog_auth_message).
+              setSingleChoiceItems(R.array.auth_type, authTypeValue.get - 1, new DialogInterface.OnClickListener() {
+                def onClick(dialog: DialogInterface, which: Int) { authTypeValue.set(which + 1) }
+              }).
               setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                 def onClick(dialog: DialogInterface, whichButton: Int) {
                   log.debug("set new password")
                   val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                   val editor = pref.edit()
-                  val authType = OptionBlock.AuthType.SingleUser.id
-                  editor.putInt(OptionBlock.authItemOption, authType)
-                  editor.putString(OptionBlock.authPasswordOption, pwField.getText.toString)
+                  editor.putInt(OptionBlock.authItemOption, authTypeValue.get)
                   editor.commit()
+                  OptionBlock.authItem.view.get.foreach(view => {
+                    val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
+                    val authType = OptionBlock.AuthType(authTypeValue.get).toString
+                    Android.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
+                      case Some(string) =>
+                        text.setText(string)
+                      case None =>
+                        text.setText(authType.toLowerCase.replaceAll(""" """, "\n"))
+                    }
+                  })
+                  context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + OptionBlock.authItemOption)))
                   SSHDCommon.optionChangedOnRestartNotify(context, item.option,
-                    OptionBlock.AuthType(authType).toString.toLowerCase + " \"" + pwField.getText.toString + "\"")
+                    "\"" + OptionBlock.AuthType(authTypeValue.get).toString.toLowerCase + "\"")
                 }
               }).
               setNegativeButton(android.R.string.cancel, null).
@@ -309,12 +320,9 @@ object OptionBlock extends Logging {
   val dssItem = Item("dss", dssItemOption)
   private val authItemOption = DOption.Value("auth", classOf[Int], 1: java.lang.Integer)
   val authItem = Item("auth", authItemOption)
-  private val authPasswordOption = DOption.Value("auth_password", classOf[String], "123": java.lang.String)
-  val authPasswordItem = Item("auth_password", authPasswordOption)
   log.debug("define custom rsaItem with id " + rsaItemOption.id)
   log.debug("define custom dssItem with id " + dssItemOption.id)
   log.debug("define custom authItemOption with id " + authItemOption.id)
-  log.debug("define custom authPasswordOption with id " + authPasswordOption.id)
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState[T](context: Context)(implicit m: Manifest[T]): T = {

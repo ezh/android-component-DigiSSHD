@@ -146,5 +146,9 @@
         <item>zephyrus</item>
         <item>zeus</item>
     </string-array>
+    <string-array name="auth_type">
+        <item>single user</item>
+        <item>multi user</item>
+    </string-array>
 
 </resources>

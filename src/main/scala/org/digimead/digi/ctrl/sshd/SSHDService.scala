@@ -46,12 +46,15 @@ import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.Preference
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.util.Hash
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -63,6 +66,7 @@ import android.content.Intent
 import android.content.pm.PackageManager.NameNotFoundException
 import android.os.IBinder
 import android.preference.PreferenceManager
+import android.util.Base64
 import annotation.elidable.ASSERTION
 
 class SSHDService extends Service with DService {
@@ -164,19 +168,40 @@ object SSHDService extends Logging {
           case "dropbear" =>
             val internalPath = new SyncVar[File]()
             val externalPath = new SyncVar[File]()
-            AppControl.Inner.callListDirectories(context.getPackageName, allowCallFromUI)() match {
-              case Some((internal, external)) =>
-                internalPath.set(new File(internal))
-                externalPath.set(new File(external))
-              case r =>
-                log.warn("unable to get component directories, result " + r)
-                internalPath.set(null)
-                externalPath.set(null)
+            if (AppControl.Inner.isAvailable.getOrElse(false)) {
+              AppControl.Inner.callListDirectories(context.getPackageName, allowCallFromUI)() match {
+                case Some((internal, external)) =>
+                  internalPath.set(new File(internal))
+                  externalPath.set(new File(external))
+                case r =>
+                  log.warn("unable to get component directories, result " + r)
+                  internalPath.set(null)
+                  externalPath.set(null)
+              }
+            } else {
+              log.warn("unable to get component directories, service unavailable")
+              internalPath.set(null)
+              externalPath.set(null)
             }
+            val masterPassword = ServiceOptions.AuthType(ServiceOptions.authItem.getState[Int](context)) match {
+              case ServiceOptions.AuthType.SingleUser =>
+                SSHDUsers.list.find(_.name == "android") match {
+                  case Some(systemUser) =>
+                    Some(systemUser.password)
+                  case None =>
+                    log.fatal("system user not found")
+                    None
+                }
+              case ServiceOptions.AuthType.MultiUser =>
+                None
+              case invalid =>
+                log.fatal("invalid authenticatin type \"" + invalid + "\"")
+                None
+            }
+            val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
+            val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
             internalPath.get(DTimeout.long) match {
               case Some(path) if path != null =>
-                val masterPassword = Option(ServiceOptions.authPasswordItem.getState[String](context))
-                val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
                 val rsaKey = if (ServiceOptions.rsaItem.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
                 else
@@ -189,20 +214,19 @@ object SSHDService extends Logging {
                   val oldPATH = s.substring(s.indexOf('=') + 1)
                   env = Seq("PATH=" + path + ":" + oldPATH)
                 })
+                val forceHomePathOption = if (masterPassword.isEmpty) Seq() else Seq("-H", externalPath.get(0).getOrElse(path).getAbsolutePath)
                 Some(Seq(new File(path, executable).getAbsolutePath,
                   "-i", // start for inetd
                   "-E", // log to stderr rather than syslog
                   "-F", // don't fork into background
-                  "-D", // use DigiNNN integration
                   "-U", // fake user RW permissions in SFTP
-                  "-e", // keep environment variables
-                  "-H", externalPath.get(0).getOrElse(path).getAbsolutePath) ++ // forced home path
+                  "-e") ++ // keep environment variables
+                  forceHomePathOption ++ // forced home path
                   rsaKey ++ // use rsakeyfile for the rsa host key
                   dsaKey ++ // use dsskeyfile for the dss host key
+                  digiIntegrationOption ++ // DigiNNN integration
                   masterPasswordOption) // enable master password to any account
-              case Some(path) =>
-                val masterPassword = Option(ServiceOptions.authPasswordItem.getState[String](context))
-                val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
+              case Some(path) if path == null =>
                 val rsaKey = if (ServiceOptions.rsaItem.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
                 else
@@ -211,16 +235,17 @@ object SSHDService extends Logging {
                   Seq("-d", new File(path, "dropbear_dss_host_key").getAbsolutePath)
                 else
                   Seq()
+                val forceHomePathOption = if (masterPassword.isEmpty) Seq() else Seq("-H", "/")
                 Some(Seq(executable,
                   "-i", // start for inetd
                   "-E", // log to stderr rather than syslog
                   "-F", // don't fork into background
-                  "-D", // use DigiNNN integration
                   "-U", // fake user RW permissions in SFTP
-                  "-e", // keep environment variables
-                  "-H", "/") ++ // forced home path
+                  "-e") ++ // keep environment variables
+                  forceHomePathOption ++ // forced home path
                   rsaKey ++ // use rsakeyfile for the rsa host key
                   dsaKey ++ // use dsskeyfile for the dss host key
+                  digiIntegrationOption ++ // DigiNNN integration
                   masterPasswordOption) // enable master password to any account
               case _ =>
                 None
@@ -315,6 +340,14 @@ object SSHDService extends Logging {
         }
         internalPath.get(DTimeout.long) match {
           case Some(path) if path != null =>
+            // create groups file
+            val groups = new File(path, "groups")
+            if (!groups.exists) {
+              log.debug("create groups stub for scp")
+              Common.writeToFile(groups, "id -g\n")
+              Android.execChmod(755, groups)
+            }
+            // create security keys
             (if (ServiceOptions.rsaItem.getState[Boolean](context)) {
               val rsa_key = new File(path, "dropbear_rsa_host_key")
               if (rsa_key.exists()) {
@@ -448,6 +481,56 @@ object SSHDService extends Logging {
       case e =>
         log.error(e.getMessage, e)
         new java.util.HashMap[String, Any]()
+    }
+    @Loggable(result = false)
+    def user(name: String): UserInfo = try {
+      log.debug("process Binder::user " + name)
+      AppComponent.Context.flatMap {
+        context =>
+          context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE).getString(name, null) match {
+            case data: String =>
+              Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
+                UserInfo.getClass.getClassLoader).map(userInfo => {
+                  val userHome = userInfo.name match {
+                    case "android" => getAndroidPath(context)
+                    case _ => userInfo.home
+                  }
+                  userInfo.copy(password = Hash.crypt(userInfo.password), home = userHome)
+                })
+            case null =>
+              None
+          }
+      } getOrElse null
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        null
+    }
+    @Loggable
+    private def getAndroidPath(context: Context): String = {
+      val internalPath = new SyncVar[File]()
+      val externalPath = new SyncVar[File]()
+      if (AppControl.Inner.isAvailable.getOrElse(false)) {
+        AppControl.Inner.callListDirectories(context.getPackageName)() match {
+          case Some((internal, external)) =>
+            internalPath.set(new File(internal))
+            externalPath.set(new File(external))
+          case r =>
+            log.warn("unable to get component directories, result " + r)
+            internalPath.set(null)
+            externalPath.set(null)
+        }
+      } else {
+        log.warn("unable to get component directories, service unavailable")
+        internalPath.set(null)
+        externalPath.set(null)
+      }
+      internalPath.get(DTimeout.long) match {
+        case Some(path) if path != null =>
+          externalPath.get(0).getOrElse(path).getAbsolutePath
+        case _ =>
+          "/"
+      }
     }
   }
 }

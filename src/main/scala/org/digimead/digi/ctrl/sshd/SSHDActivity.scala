@@ -84,6 +84,7 @@ import android.preference.PreferenceManager
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
+import android.view.ContextMenu
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -109,6 +110,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
 
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
+    SSHDActivity.activity = Some(this)
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
     SSHDActivity.start
@@ -119,7 +121,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     super.onCreate(savedInstanceState)
     onCreateExt(this)
     setContentView(R.layout.main)
-    SSHDActivity.activity = Some(this)
     if (AppControl.Inner.isAvailable != Some(true))
       future {
         log.debug("try to bind " + DConstant.controlPackage)
@@ -186,6 +187,8 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       }
     })
 
+    tabHost.setCurrentTab(2)
+
     buttonToggleStartStop1.get.foreach(b => {
       b.setChecked(false)
       b.setEnabled(false)
@@ -195,7 +198,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       b.setEnabled(false)
     })
 
-    tabHost.setCurrentTab(2)
+    statusText.get.foreach(registerForContextMenu)
 
     SSHDActivity.ic_grow = Some(getResources.getDrawable(R.drawable.ic_grow))
     SSHDActivity.ic_shrink = Some(getResources.getDrawable(R.drawable.ic_shrink))
@@ -208,7 +211,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   override def onResume() {
     AppComponent.Inner.disableRotation()
     super.onResume()
-    onResumeExt(this)
+    onResumeExt(this, super.registerReceiver)
     for {
       buttonToggleStartStop1 <- buttonToggleStartStop1.get
       buttonToggleStartStop2 <- buttonToggleStartStop2.get
@@ -254,7 +257,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   override def onPause() {
     super.onPause()
-    onPauseExt(this)
+    onPauseExt(this, super.unregisterReceiver)
     AppComponent.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
     SSHDActivity.consistent = false
     SSHDActivity.initializeOnResume.set(true)
@@ -292,6 +295,43 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       AppComponent.Inner.disableSafeDialogs
       buttonToggleStartStop1.get.foreach(_.setEnabled(false))
       buttonToggleStartStop2.get.foreach(_.setEnabled(false))
+    }
+  }
+  @Loggable
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = {
+    log.debug("create context menu")
+    menu.setHeaderTitle(Android.getString(this, "history_menu_title").getOrElse("History"))
+    Android.getId(this, "ic_launcher", "drawable") match {
+      case i if i != 0 =>
+        menu.setHeaderIcon(i)
+      case _ =>
+    }
+    // TODO
+    //    menu.add(Menu.NONE, Android.getId(this, "history_menu_complex"), 1,
+    //      Android.getString(this, "history_menu_complex").getOrElse("Complex"))
+    menu.add(Menu.NONE, Android.getId(this, "history_menu_activity"), 1,
+      Android.getString(this, "history_menu_activity").getOrElse("Activity"))
+    //menu.add(Menu.NONE, Android.getId(this, "history_menu_sessions"), 1,
+    //  Android.getString(this, "history_menu_sessions").getOrElse("Sessions"))
+  }
+  @Loggable
+  override def onContextItemSelected(menuItem: MenuItem): Boolean = {
+    menuItem.getItemId match {
+      case id if id == Android.getId(this, "history_menu_complex") =>
+        false
+      case id if id == Android.getId(this, "history_menu_activity") =>
+        try {
+          startActivity(new Intent(DIntent.HostHistoryActivity))
+        } catch {
+          case e =>
+            IAmYell("Unable to open activity for " + DIntent.HostHistoryActivity, e)
+        }
+        true
+      case id if id == Android.getId(this, "history_menu_sessions") =>
+        false
+      case item =>
+        log.fatal("skip unknown context item " + item)
+        false
     }
   }
   @Loggable
@@ -341,7 +381,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         future { onAppActive }
         Some(Android.getCapitalized(SSHDActivity.this, "status_active").getOrElse("Active"))
       case AppComponent.State(DState.Broken, rawMessage, callback) =>
-        log.debug("set status text to " + DState.Broken)
+        log.debug("set status text to " + DState.Broken + " with raw message: " + rawMessage)
         val message = if (rawMessage.length > 1)
           Android.getString(SSHDActivity.this, rawMessage.head, rawMessage.tail: _*).getOrElse(rawMessage.head)
         else if (rawMessage.length == 1)
@@ -377,7 +417,10 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   private def onAppComponentStateError(reason: Seq[String]) = reason match {
     case Seq("error_digicontrol_minimum_version", _*) =>
       AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
-    case _ =>
+    case Seq("error_digicontrol_not_found") =>
+      AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+    case err =>
+      log.error("component is trying to recover from error \"" + err + "\"")
       if (onAppComponentStateHelper.compareAndSet(false, true)) {
         log.debug("set recover in progress flag")
         AppComponent.Inner.showDialogSafe[AlertDialog](this, () => {
@@ -644,17 +687,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     }
     super.onPrepareDialog(id, dialog, args)
   }
-  override def registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter): Intent = {
-    registerReceiverExt(() => super.registerReceiver(receiver, filter),
-      receiver, filter)
-  }
-  override def registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter, broadcastPermission: String, scheduler: Handler): Intent = {
-    registerReceiverExt(() => super.registerReceiver(receiver, filter, broadcastPermission, scheduler),
-      receiver, filter, broadcastPermission, scheduler)
-  }
-  override def unregisterReceiver(receiver: BroadcastReceiver) = {
-    unregisterReceiverExt(() => super.unregisterReceiver(receiver), receiver)
-  }
   @Loggable
   override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent): Unit =
     if (requestCode == session.FilterBlock.FILTER_REQUEST_ALLOW || requestCode == session.FilterBlock.FILTER_REQUEST_DENY)
@@ -842,6 +874,17 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         this.getWindow.isActive)
         AppComponent.Inner.state.get.onClickCallback(this)
     }
+  }
+  override def registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter): Intent = {
+    registerReceiverExt(() => super.registerReceiver(receiver, filter),
+      receiver, filter)
+  }
+  override def registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter, broadcastPermission: String, scheduler: Handler): Intent = {
+    registerReceiverExt(() => super.registerReceiver(receiver, filter, broadcastPermission, scheduler),
+      receiver, filter, broadcastPermission, scheduler)
+  }
+  override def unregisterReceiver(receiver: BroadcastReceiver): Unit = {
+    unregisterReceiverExt(() => super.unregisterReceiver(receiver), receiver)
   }
 }
 

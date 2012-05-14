@@ -42,6 +42,7 @@ import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.FileChooser
 import org.digimead.digi.ctrl.lib.dialog.InstallControl
+import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmWarn
@@ -58,11 +59,11 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
 import android.text.ClipboardManager
 import android.text.Editable
+import android.text.InputFilter
 import android.text.InputType
+import android.text.Spanned
 import android.text.TextWatcher
 import android.text.method.PasswordTransformationMethod
 import android.util.Base64
@@ -81,49 +82,7 @@ import android.widget.TextView
 import android.widget.Toast
 import annotation.elidable.ASSERTION
 
-protected case class User(name: String, password: String, home: String, enabled: Boolean) extends Parcelable {
-  def this(in: Parcel) = this(name = in.readString,
-    password = in.readString,
-    home = in.readString,
-    enabled = (in.readByte == 1))
-  def writeToParcel(out: Parcel, flags: Int) {
-    User.log.debug("writeToParcel SSHDUsers.User with flags " + flags)
-    out.writeString(name)
-    out.writeString(password)
-    out.writeString(home)
-    out.writeByte(if (enabled) 1 else 0)
-  }
-  def describeContents() = 0
-  def save(context: Context) {
-    val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
-    val editor = userPref.edit
-    editor.putString(name, Base64.encodeToString(Common.parcelToArray(this), Base64.DEFAULT))
-    editor.commit
-  }
-  def remove(context: Context) {
-    val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
-    val editor = userPref.edit
-    editor.remove(name)
-    editor.commit
-  }
-}
-
-protected object User extends Logging {
-  override val log = Logging.getLogger(this)
-  final val CREATOR: Parcelable.Creator[User] = new Parcelable.Creator[User]() {
-    def createFromParcel(in: Parcel): User = try {
-      log.debug("createFromParcel new SSHDUsers.User")
-      new User(in)
-    } catch {
-      case e =>
-        log.error(e.getMessage, e)
-        null
-    }
-    def newArray(size: Int): Array[User] = new Array[User](size)
-  }
-}
-
-class SSHDUsers extends ListActivity with Logging with Passwords {
+class SSHDUsers extends ListActivity with Logging {
   private lazy val inflater = getLayoutInflater()
   private lazy val buttonGrowShrink = new WeakReference(findViewById(R.id.buttonGrowShrink).asInstanceOf[ImageButton])
   private lazy val dynamicHeader = new WeakReference({
@@ -140,11 +99,12 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
   private lazy val userHome = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_home).asInstanceOf[TextView]).getOrElse(null))
   private lazy val userPassword = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_password).asInstanceOf[TextView]).getOrElse(null))
   private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_show_password).asInstanceOf[ImageButton]).getOrElse(null))
-  private val lastActiveUser = new AtomicReference[Option[User]](None)
+  private val lastActiveUserInfo = new AtomicReference[Option[UserInfo]](None)
   log.debug("alive")
 
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
+    SSHDUsers.activity = Some(this)
     super.onCreate(savedInstanceState)
     setContentView(R.layout.users)
     SSHDUsers.adapter.foreach(setListAdapter)
@@ -158,16 +118,19 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
         def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
         def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
+      userName.setFilters(Array(SSHDUsers.userNameFilter))
       userHome.addTextChangedListener(new TextWatcher() {
         def afterTextChanged(s: Editable) { updateFieldsState }
         def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
         def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
+      userHome.setFilters(Array(SSHDUsers.userHomeFilter))
       userPassword.addTextChangedListener(new TextWatcher() {
         def afterTextChanged(s: Editable) { updateFieldsState }
         def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
         def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
+      userPassword.setFilters(Array(SSHDUsers.userPasswordFilter))
     }
     val lv = getListView()
     registerForContextMenu(getListView())
@@ -214,8 +177,8 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
     userPassword <- userPassword.get
   } {
     adapter.getItem(position) match {
-      case user: User =>
-        lastActiveUser.set(Some(user))
+      case user: UserInfo =>
+        lastActiveUserInfo.set(Some(user))
         userName.setText(user.name)
         userHome.setText(user.home)
         userPassword.setText(user.password)
@@ -232,7 +195,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
     menuInfo match {
       case info: AdapterContextMenuInfo =>
         adapter.getItem(info.position) match {
-          case item: User =>
+          case item: UserInfo =>
             menu.setHeaderTitle(item.name)
             menu.setHeaderIcon(Android.getId(v.getContext, "ic_users", "drawable"))
             if (item.enabled)
@@ -260,7 +223,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
     } yield {
       val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
       adapter.getItem(info.position) match {
-        case item: User =>
+        case item: UserInfo =>
           menuItem.getItemId match {
             case id if id == Android.getId(this, "users_disable") =>
               new AlertDialog.Builder(this).
@@ -273,13 +236,13 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
                     IAmWarn(message)
                     Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
                     val newUser = item.copy(enabled = false)
-                    newUser.save(SSHDUsers.this)
+                    SSHDUsers.save(SSHDUsers.this, newUser)
                     val position = adapter.getPosition(item)
                     adapter.remove(item)
                     adapter.insert(newUser, position)
                     updateFieldsState()
-                    if (lastActiveUser.get.exists(_ == item))
-                      lastActiveUser.set(Some(newUser))
+                    if (lastActiveUserInfo.get.exists(_ == item))
+                      lastActiveUserInfo.set(Some(newUser))
                   }
                 }).
                 setNegativeButton(android.R.string.cancel, null).
@@ -297,13 +260,13 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
                     IAmWarn(message)
                     Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
                     val newUser = item.copy(enabled = true)
-                    newUser.save(SSHDUsers.this)
+                    SSHDUsers.save(SSHDUsers.this, newUser)
                     val position = adapter.getPosition(item)
                     adapter.remove(item)
                     adapter.insert(newUser, position)
                     updateFieldsState()
-                    if (lastActiveUser.get.exists(_ == item))
-                      lastActiveUser.set(Some(newUser))
+                    if (lastActiveUserInfo.get.exists(_ == item))
+                      lastActiveUserInfo.set(Some(newUser))
                   }
                 }).
                 setNegativeButton(android.R.string.cancel, null).
@@ -321,10 +284,10 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
                     IAmWarn(message)
                     Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
                     adapter.remove(item)
-                    item.remove(SSHDUsers.this)
+                    SSHDUsers.remove(SSHDUsers.this, item)
                     updateFieldsState()
-                    if (lastActiveUser.get.exists(_ == item))
-                      lastActiveUser.set(None)
+                    if (lastActiveUserInfo.get.exists(_ == item))
+                      lastActiveUserInfo.set(None)
                   }
                 }).
                 setNegativeButton(android.R.string.cancel, null).
@@ -372,7 +335,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
       val home = userHome.getText.toString.trim
       val password = userPassword.getText.toString.trim
       assert(name.nonEmpty && home.nonEmpty && password.nonEmpty, "one of user fields is empty")
-      lastActiveUser.get match {
+      lastActiveUserInfo.get match {
         case Some(user) if name == "android" =>
           new AlertDialog.Builder(this).
             setTitle(Android.getString(v.getContext, "users_update_user_title").getOrElse("Update user \"%s\"").format(name)).
@@ -384,8 +347,8 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
                 IAmWarn(message)
                 Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
                 val newUser = user.copy(password = password)
-                lastActiveUser.set(Some(newUser))
-                newUser.save(v.getContext)
+                lastActiveUserInfo.set(Some(newUser))
+                SSHDUsers.save(v.getContext, newUser)
                 val position = adapter.getPosition(user)
                 adapter.remove(user)
                 adapter.insert(newUser, position)
@@ -407,8 +370,8 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
                 IAmWarn(message)
                 Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
                 val newUser = user.copy(name = name, password = password, home = home)
-                lastActiveUser.set(Some(newUser))
-                newUser.save(v.getContext)
+                lastActiveUserInfo.set(Some(newUser))
+                SSHDUsers.save(v.getContext, newUser)
                 val position = adapter.getPosition(user)
                 adapter.remove(user)
                 adapter.insert(newUser, position)
@@ -429,9 +392,9 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
                   getOrElse("created user \"%s\"").format(name)
                 IAmWarn(message)
                 Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-                val newUser = User(name, password, home, true)
-                lastActiveUser.set(Some(newUser))
-                newUser.save(v.getContext)
+                val newUser = UserInfo(name, password, home, true)
+                lastActiveUserInfo.set(Some(newUser))
+                SSHDUsers.save(v.getContext, newUser)
                 val position = (SSHDUsers.list :+ newUser).sortBy(_.name).indexOf(newUser)
                 adapter.insert(newUser, position)
                 updateFieldsState()
@@ -458,12 +421,12 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
             SSHDUsers.list.foreach(user => {
               IAmMumble("disable user \"%s\"".format(user.name))
               val newUser = user.copy(enabled = false)
-              newUser.save(v.getContext)
+              SSHDUsers.save(v.getContext, newUser)
               val position = adapter.getPosition(user)
               adapter.remove(user)
               adapter.insert(newUser, position)
-              if (lastActiveUser.get.exists(_ == user))
-                lastActiveUser.set(Some(newUser))
+              if (lastActiveUserInfo.get.exists(_ == user))
+                lastActiveUserInfo.set(Some(newUser))
             })
             adapter.setNotifyOnChange(true)
             adapter.notifyDataSetChanged
@@ -491,10 +454,10 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
             adapter.setNotifyOnChange(false)
             SSHDUsers.list.foreach(user => if (user.name != "android") {
               IAmMumble("remove \"%s\" user account".format(user.name))
-              user.remove(v.getContext)
+              SSHDUsers.remove(v.getContext, user)
               adapter.remove(user)
-              if (lastActiveUser.get.exists(_ == user))
-                lastActiveUser.set(None)
+              if (lastActiveUserInfo.get.exists(_ == user))
+                lastActiveUserInfo.set(None)
             })
             adapter.setNotifyOnChange(true)
             adapter.notifyDataSetChanged
@@ -547,9 +510,9 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
       AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
   }
   @Loggable
-  def onClickGenerateNewUser(v: View) = future {
+  def onClickGenerateNewUserInfo(v: View) = future {
     try {
-      lastActiveUser.set(None)
+      lastActiveUserInfo.set(None)
       // name
       val names = getResources.getStringArray(R.array.names)
       val rand = new Random(System.currentTimeMillis())
@@ -560,13 +523,13 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
           val rawName = names(random_index)
           name = (SSHDUsers.nameMaximumLength - rawName.length) match {
             case len if len >= 4 =>
-              rawName + randomInt(0, 9999)
+              rawName + SSHDUsers.randomInt(0, 9999)
             case len if len > 3 =>
-              rawName + randomInt(0, 999)
+              rawName + SSHDUsers.randomInt(0, 999)
             case len if len > 2 =>
-              rawName + randomInt(0, 99)
+              rawName + SSHDUsers.randomInt(0, 99)
             case len if len > 1 =>
-              rawName + randomInt(0, 9)
+              rawName + SSHDUsers.randomInt(0, 9)
             case _ =>
               rawName
           }
@@ -585,7 +548,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
           internalPath.set(null)
           externalPath.set(null)
       }
-      val home = externalPath.get(DTimeout.normal).getOrElse({
+      val home = externalPath.get(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
         val sdcard = new File("/sdcard")
         if (!sdcard.exists)
           new File("/")
@@ -593,7 +556,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
           sdcard
       }).getAbsolutePath
       // password
-      val password = generate()
+      val password = SSHDUsers.generate()
       for {
         userName <- userName.get
         userHome <- userHome.get
@@ -616,7 +579,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
   @Loggable
   def onClickChangeHomeDirectory(v: View): Unit = userHome.get.foreach {
     userHome =>
-      if (lastActiveUser.get.exists(_.name == "android")) {
+      if (lastActiveUserInfo.get.exists(_.name == "android")) {
         Toast.makeText(v.getContext, Android.getString(v.getContext, "users_home_android_warning").
           getOrElse("unable to change home directory of system user"), Toast.LENGTH_SHORT).show()
         return
@@ -670,7 +633,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
     } else {
       SSHDUsers.showPassword = true
       userPasswordShowButton.setSelected(true)
-      userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS)
+      userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
     }
   }
   @Loggable
@@ -683,7 +646,7 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
     deleteAll <- deleteAll.get
   } {
     // set userName userHome userPassword
-    if (lastActiveUser.get.exists(_.name == "android")) {
+    if (lastActiveUserInfo.get.exists(_.name == "android")) {
       userName.setEnabled(false)
       userHome.setEnabled(false)
       userPassword.setEnabled(true)
@@ -693,8 +656,8 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
       userPassword.setEnabled(true)
     }
     // set apply
-    if (lastActiveUser.get.nonEmpty) {
-      if (lastActiveUser.get.exists(u =>
+    if (lastActiveUserInfo.get.nonEmpty) {
+      if (lastActiveUserInfo.get.exists(u =>
         u.name == userName.getText.toString.trim &&
           u.home.toString == userHome.getText.toString.trim &&
           u.password == userPassword.getText.toString.trim))
@@ -727,25 +690,25 @@ class SSHDUsers extends ListActivity with Logging with Passwords {
   }
 }
 
-object SSHDUsers extends Logging {
+object SSHDUsers extends Logging with Passwords {
   @volatile private var activity: Option[SSHDUsers] = None
   private val nameMaximumLength = 16
   @volatile private var showPassword = false
-  private lazy val adapter: Option[ArrayAdapter[User]] = SSHDActivity.activity.map {
+  private lazy val adapter: Option[ArrayAdapter[UserInfo]] = SSHDActivity.activity orElse activity map {
     activity =>
       val userPref = activity.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
       val users = userPref.getAll.map({
         case (name, data) => try {
-          Common.unparcelFromArray[User](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
-            User.getClass.getClassLoader)
+          Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
+            UserInfo.getClass.getClassLoader)
         } catch {
           case e =>
             log.warn(e.getMessage, e)
             None
         }
       }).flatten.toList
-      Some(new ArrayAdapter[User](activity, R.layout.users_row, android.R.id.text1,
-        new ArrayList[User](checkAndroidUser(users).sortBy(_.name))) {
+      Some(new ArrayAdapter[UserInfo](activity, R.layout.users_row, android.R.id.text1,
+        new ArrayList[UserInfo](checkAndroidUserInfo(users).sortBy(_.name))) {
         override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
           val item = getItem(position)
           val view = super.getView(position, convertView, parent)
@@ -759,14 +722,67 @@ object SSHDUsers extends Logging {
         }
       })
   } getOrElse { log.fatal("unable to create SSHDUsers adapter"); None }
+  private val userNameFilter = new InputFilter {
+    /*
+     * man 5 passwd:
+     * The login name may be up to 31 characters long. For compatibility with
+     * legacy software, a login name should start with a letter and consist
+     * solely of letters, numbers, dashes and underscores. The login name must
+     * never begin with a hyphen (`-'); also, it is strongly suggested that nei-
+     * ther uppercase characters nor dots (`.') be part of the name, as this
+     * tends to confuse mailers. 
+     */
+    def filter(source: CharSequence, start: Int, end: Int,
+      dest: Spanned, dstart: Int, dend: Int): CharSequence = {
+      for (i <- start until end)
+        if (!(numbers ++ alphabet ++ """_-""").exists(_ == source.charAt(i)))
+          return ""
+      if (source.toString.nonEmpty && dest.toString.isEmpty &&
+        """_-""".exists(_ == source.toString.head))
+        return ""
+      return null
+    }
+  }
+  private val userHomeFilter = new InputFilter {
+    def filter(source: CharSequence, start: Int, end: Int,
+      dest: Spanned, dstart: Int, dend: Int): CharSequence = {
+      for (i <- start until end)
+        if ("""|\?*<":>+[]'""".toList.exists(_ == source.charAt(i)))
+          return ""
+      return null
+    }
+  }
+  private val userPasswordFilter = new InputFilter {
+    def filter(source: CharSequence, start: Int, end: Int,
+      dest: Spanned, dstart: Int, dend: Int): CharSequence = {
+      for (i <- start until end)
+        if (!defaultPasswordCharacters.exists(_ == source.charAt(i)))
+          return ""
+      return null
+    }
+  }
   log.debug("alive")
 
-  def list(): List[User] = adapter.map(adapter =>
+  def list(): List[UserInfo] = adapter.map(adapter =>
     (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())
   @Loggable
-  private def checkAndroidUser(in: List[User]): List[User] = if (!in.exists(_.name == "android")) {
+  private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
     log.debug("add default system user \"android\"")
-    in :+ User("android", "123", "variable location", true)
+    in :+ UserInfo("android", "123", "variable location", true)
   } else
     in
+  @Loggable
+  private def save(context: Context, user: UserInfo) {
+    val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
+    val editor = userPref.edit
+    editor.putString(user.name, Base64.encodeToString(Common.parcelToArray(user), Base64.DEFAULT))
+    editor.commit
+  }
+  @Loggable
+  private def remove(context: Context, user: UserInfo) {
+    val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
+    val editor = userPref.edit
+    editor.remove(user.name)
+    editor.commit
+  }
 }

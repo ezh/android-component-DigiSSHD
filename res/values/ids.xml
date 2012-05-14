@@ -36,5 +36,8 @@
     <item name="users_enable" type="id"/>
     <item name="users_delete" type="id"/>
     <item name="users_copy_info" type="id"/>
+    <item name="history_menu_complex" type="id"/>
+    <item name="history_menu_activity" type="id"/>
+    <item name="history_menu_sessions" type="id"/>
 
 </resources>
