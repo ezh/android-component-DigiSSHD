@@ -311,8 +311,8 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     //      Android.getString(this, "history_menu_complex").getOrElse("Complex"))
     menu.add(Menu.NONE, Android.getId(this, "history_menu_activity"), 1,
       Android.getString(this, "history_menu_activity").getOrElse("Activity"))
-    //menu.add(Menu.NONE, Android.getId(this, "history_menu_sessions"), 1,
-    //  Android.getString(this, "history_menu_sessions").getOrElse("Sessions"))
+    menu.add(Menu.NONE, Android.getId(this, "history_menu_sessions"), 1,
+      Android.getString(this, "history_menu_sessions").getOrElse("Sessions"))
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem): Boolean = {
@@ -321,14 +321,28 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         false
       case id if id == Android.getId(this, "history_menu_activity") =>
         try {
-          startActivity(new Intent(DIntent.HostHistoryActivity))
+          val intent = new Intent(DIntent.HostHistoryActivity)
+          intent.putExtra(DIntent.DroneName, Android.getString(this, "app_name").getOrElse("DigiSSHD"))
+          intent.putExtra(DIntent.DronePackage, this.getPackageName)
+          startActivity(intent)
         } catch {
           case e =>
             IAmYell("Unable to open activity for " + DIntent.HostHistoryActivity, e)
+            onAppComponentStateError(AppComponent.Inner.state.get.rawMessage)
         }
         true
       case id if id == Android.getId(this, "history_menu_sessions") =>
-        false
+        try {
+          val intent = new Intent(DIntent.HostHistorySessions)
+          intent.putExtra(DIntent.DroneName, Android.getString(this, "app_name").getOrElse("DigiSSHD"))
+          intent.putExtra(DIntent.DronePackage, this.getPackageName)
+          startActivity(intent)
+        } catch {
+          case e =>
+            IAmYell("Unable to open activity for " + DIntent.HostHistorySessions, e)
+            onAppComponentStateError(AppComponent.Inner.state.get.rawMessage)
+        }
+        true
       case item =>
         log.fatal("skip unknown context item " + item)
         false

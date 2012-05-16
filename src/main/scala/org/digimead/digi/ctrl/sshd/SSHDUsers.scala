@@ -29,8 +29,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
 import scala.annotation.elidable
-import scala.collection.JavaConversions.mapAsScalaMap
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 import scala.ref.WeakReference
 import scala.util.Random
 
@@ -510,7 +509,7 @@ class SSHDUsers extends ListActivity with Logging {
       AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
   }
   @Loggable
-  def onClickGenerateNewUserInfo(v: View) = future {
+  def onClickGenerateNewUser(v: View) = future {
     try {
       lastActiveUserInfo.set(None)
       // name
@@ -694,9 +693,9 @@ object SSHDUsers extends Logging with Passwords {
   @volatile private var activity: Option[SSHDUsers] = None
   private val nameMaximumLength = 16
   @volatile private var showPassword = false
-  private lazy val adapter: Option[ArrayAdapter[UserInfo]] = SSHDActivity.activity orElse activity map {
-    activity =>
-      val userPref = activity.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
+  private lazy val adapter: Option[ArrayAdapter[UserInfo]] = AppComponent.Context map {
+    context =>
+      val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
       val users = userPref.getAll.map({
         case (name, data) => try {
           Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
@@ -707,7 +706,7 @@ object SSHDUsers extends Logging with Passwords {
             None
         }
       }).flatten.toList
-      Some(new ArrayAdapter[UserInfo](activity, R.layout.users_row, android.R.id.text1,
+      Some(new ArrayAdapter[UserInfo](context, R.layout.users_row, android.R.id.text1,
         new ArrayList[UserInfo](checkAndroidUserInfo(users).sortBy(_.name))) {
         override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
           val item = getItem(position)
@@ -765,6 +764,17 @@ object SSHDUsers extends Logging with Passwords {
 
   def list(): List[UserInfo] = adapter.map(adapter =>
     (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())
+  @Loggable
+  def find(context: Context, name: String): Option[UserInfo] = {
+    context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE).getString(name, null) match {
+      case data: String =>
+        Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT), UserInfo.getClass.getClassLoader)
+      case null if name == "android" =>
+        checkAndroidUserInfo(List()).find(_.name == "android")
+      case null =>
+        None
+    }
+  }
   @Loggable
   private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
     log.debug("add default system user \"android\"")

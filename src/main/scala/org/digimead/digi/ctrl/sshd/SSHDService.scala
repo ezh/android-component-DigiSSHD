@@ -29,8 +29,7 @@ import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
 import scala.annotation.elidable
-import scala.collection.JavaConversions.mapAsScalaMap
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.ICtrlComponent
 import org.digimead.digi.ctrl.lib.DService
@@ -198,7 +197,7 @@ object SSHDService extends Logging {
                 log.fatal("invalid authenticatin type \"" + invalid + "\"")
                 None
             }
-            val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).flatten.toSeq
+            val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).getOrElse(Seq[String]())
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
             internalPath.get(DTimeout.long) match {
               case Some(path) if path != null =>
@@ -487,19 +486,13 @@ object SSHDService extends Logging {
       log.debug("process Binder::user " + name)
       AppComponent.Context.flatMap {
         context =>
-          context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE).getString(name, null) match {
-            case data: String =>
-              Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
-                UserInfo.getClass.getClassLoader).map(userInfo => {
-                  val userHome = userInfo.name match {
-                    case "android" => getAndroidPath(context)
-                    case _ => userInfo.home
-                  }
-                  userInfo.copy(password = Hash.crypt(userInfo.password), home = userHome)
-                })
-            case null =>
-              None
-          }
+          SSHDUsers.find(context, name).map(userInfo => {
+            val userHome = userInfo.name match {
+              case "android" => getAndroidPath(context)
+              case _ => userInfo.home
+            }
+            userInfo.copy(password = Hash.crypt(userInfo.password), home = userHome)
+          })
       } getOrElse null
     } catch {
       case e =>
