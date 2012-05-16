@@ -1,6 +1,6 @@
-diff -pru dropbear.orig//options.h dropbear//options.h
---- dropbear.orig//options.h	2012-05-16 21:14:59.321126707 +0400
-+++ dropbear//options.h	2012-05-09 08:39:47.815803358 +0400
+diff -pru dropbear.orig/options.h dropbear/options.h
+--- dropbear.orig/options.h	2012-05-17 01:09:20.252698438 +0400
++++ dropbear/options.h	2012-05-17 01:06:38.932920132 +0400
 @@ -170,6 +170,7 @@ much traffic. */
  
  #define ENABLE_SVR_MASTER_PASSWORD
@@ -9,9 +9,9 @@ diff -pru dropbear.orig//options.h dropbear//options.h
  #define ENABLE_SVR_PASSWORD_AUTH
  /* PAM requires ./configure --enable-pam */
  /*#define ENABLE_SVR_PAM_AUTH*/
-diff -pru dropbear.orig//runopts.h dropbear//runopts.h
---- dropbear.orig//runopts.h	2012-05-16 21:14:59.321126707 +0400
-+++ dropbear//runopts.h	2012-05-09 08:39:47.816803349 +0400
+diff -pru dropbear.orig/runopts.h dropbear/runopts.h
+--- dropbear.orig/runopts.h	2012-05-17 01:09:20.252698438 +0400
++++ dropbear/runopts.h	2012-05-17 01:06:38.932920132 +0400
 @@ -68,6 +68,9 @@ typedef struct svr_runopts {
  #ifdef ENABLE_KEEP_ENV
  	int keepenv;
@@ -22,9 +22,9 @@ diff -pru dropbear.orig//runopts.h dropbear//runopts.h
  
  	int forkbg;
  	int usingsyslog;
-diff -pru dropbear.orig//sftp-server/openbsd-compat/glob.c dropbear//sftp-server/openbsd-compat/glob.c
---- dropbear.orig//sftp-server/openbsd-compat/glob.c	2011-01-12 05:32:04.000000000 +0300
-+++ dropbear//sftp-server/openbsd-compat/glob.c	2012-05-09 08:39:47.816803349 +0400
+diff -pru dropbear.orig/sftp-server/openbsd-compat/glob.c dropbear/sftp-server/openbsd-compat/glob.c
+--- dropbear.orig/sftp-server/openbsd-compat/glob.c	2011-01-12 05:32:04.000000000 +0300
++++ dropbear/sftp-server/openbsd-compat/glob.c	2012-05-17 01:06:38.932920132 +0400
 @@ -378,7 +378,11 @@ globtilde(const Char *pattern, Char *pat
  		if (issetugid() != 0 || (h = getenv("HOME")) == NULL) {
  #endif
@@ -49,9 +49,9 @@ diff -pru dropbear.orig//sftp-server/openbsd-compat/glob.c dropbear//sftp-server
  			return pattern;
  		else
  			h = pwd->pw_dir;
-diff -pru dropbear.orig//svr-auth.c dropbear//svr-auth.c
---- dropbear.orig//svr-auth.c	2012-05-16 21:14:59.314126764 +0400
-+++ dropbear//svr-auth.c	2012-05-16 17:03:18.716907349 +0400
+diff -pru dropbear.orig/svr-auth.c dropbear/svr-auth.c
+--- dropbear.orig/svr-auth.c	2012-05-17 01:09:20.243698507 +0400
++++ dropbear/svr-auth.c	2012-05-17 01:07:25.469567908 +0400
 @@ -232,12 +232,27 @@ static int checkusername(unsigned char *
  			}
  			authclear();
@@ -80,15 +80,7 @@ diff -pru dropbear.orig//svr-auth.c dropbear//svr-auth.c
  
  			ses.authstate.username = m_strdup(username);
  	}
-@@ -366,6 +381,7 @@ void send_msg_userauth_failure(int parti
- 		} else {
- 			userstr = ses.authstate.pw_name;
- 		}
-+		digi_notify_auth(ses.authstate.username, 0);
- 		dropbear_exit("Max auth tries reached - user '%s' from %s",
- 				userstr, svr_ses.addrstring);
- 	}
-@@ -398,6 +414,8 @@ void send_msg_userauth_success() {
+@@ -398,6 +413,8 @@ void send_msg_userauth_success() {
  	 * logins - a nasty situation. */							
  	m_close(svr_ses.childpipe);
  
@@ -97,9 +89,9 @@ diff -pru dropbear.orig//svr-auth.c dropbear//svr-auth.c
  	TRACE(("leave send_msg_userauth_success"))
  
  }
-diff -pru dropbear.orig//svr-chansession.c dropbear//svr-chansession.c
---- dropbear.orig//svr-chansession.c	2012-05-16 21:14:59.322126699 +0400
-+++ dropbear//svr-chansession.c	2012-05-09 08:39:47.816803349 +0400
+diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
+--- dropbear.orig/svr-chansession.c	2012-05-17 01:09:20.253698431 +0400
++++ dropbear/svr-chansession.c	2012-05-17 01:06:38.933920124 +0400
 @@ -37,6 +37,9 @@
  #include "agentfwd.h"
  #include "runopts.h"
@@ -122,9 +114,9 @@ diff -pru dropbear.orig//svr-chansession.c dropbear//svr-chansession.c
  	if (!pw)
  		dropbear_exit("getpwnam failed after succeeding previously");
  	pty_setowner(pw, chansess->tty);
-diff -pru dropbear.orig//svr-runopts.c dropbear//svr-runopts.c
---- dropbear.orig//svr-runopts.c	2012-05-16 21:14:59.322126699 +0400
-+++ dropbear//svr-runopts.c	2012-05-09 08:39:47.816803349 +0400
+diff -pru dropbear.orig/svr-runopts.c dropbear/svr-runopts.c
+--- dropbear.orig/svr-runopts.c	2012-05-17 01:09:20.252698438 +0400
++++ dropbear/svr-runopts.c	2012-05-17 01:06:38.933920124 +0400
 @@ -73,6 +73,9 @@ static void printhelp(const char * progn
  #if defined(ENABLE_KEEP_ENV)
  					"-e		Prevent wipe of parent process environment variables\n"
@@ -157,14 +149,14 @@ diff -pru dropbear.orig//svr-runopts.c dropbear//svr-runopts.c
  				case 'h':
  					printhelp(argv[0]);
  					exit(EXIT_FAILURE);
-diff -pru dropbear.orig//svr-session.c dropbear//svr-session.c
---- dropbear.orig//svr-session.c	2012-05-16 21:14:59.323126691 +0400
-+++ dropbear//svr-session.c	2012-05-16 17:13:06.209649277 +0400
+diff -pru dropbear.orig/svr-session.c dropbear/svr-session.c
+--- dropbear.orig/svr-session.c	2012-05-17 01:09:20.253698431 +0400
++++ dropbear/svr-session.c	2012-05-17 01:06:38.933920124 +0400
 @@ -161,6 +161,9 @@ void svr_dropbear_exit(int exitcode, con
  				"Exit before auth: %s", format);
  	}
  
-+	if (ses.authstate.failcount>0)
++	if (ses.authstate.failcount>0 && !ses.authstate.authdone)
 +		digi_notify_auth(ses.authstate.username, 0);
 +
  	_dropbear_log(LOG_INFO, fmtbuf, param);

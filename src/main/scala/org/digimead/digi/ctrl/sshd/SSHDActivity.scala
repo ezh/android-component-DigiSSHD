@@ -115,7 +115,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     // if we started actors from the singleton
     SSHDActivity.start
     Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
-      getString(Preference.debugLevelsListKey, "4"), this)
+      getString(Preference.debugLevelsListKey, "5"), this)
     Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
       getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
     super.onCreate(savedInstanceState)
