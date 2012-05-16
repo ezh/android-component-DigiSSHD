@@ -22,7 +22,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <ListPreference
-        android:defaultValue="4"
+        android:defaultValue="5"
         android:dialogIcon="@android:drawable/ic_dialog_info"
         android:dialogTitle="@string/preference_debug_level"
         android:enabled="true"

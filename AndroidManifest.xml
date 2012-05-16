@@ -22,8 +22,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
     android:installLocation="preferExternal"
-    android:versionCode="1336943042"
-    android:versionName="0.1.01" >
+    android:versionCode="1337205295"
+    android:versionName="0.1.02" >
 
     <uses-sdk
         android:minSdkVersion="8"
