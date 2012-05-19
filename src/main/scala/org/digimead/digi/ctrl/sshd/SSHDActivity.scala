@@ -292,7 +292,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         }
       }
     } else {
-      AppComponent.Inner.disableSafeDialogs
+      AppComponent.Inner.suspendSafeDialogs
       buttonToggleStartStop1.get.foreach(_.setEnabled(false))
       buttonToggleStartStop2.get.foreach(_.setEnabled(false))
     }

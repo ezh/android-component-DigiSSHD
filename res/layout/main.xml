@@ -29,6 +29,12 @@
         android:orientation="vertical"
         android:padding="5dp" >
 
+        <ToggleButton
+            android:id="@+id/toggleStartStop1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onClickStartStop" />
+
         <TextView
             android:id="@+id/status"
             android:layout_width="match_parent"
@@ -84,12 +90,6 @@
                 </FrameLayout>
             </LinearLayout>
         </TabHost>
-
-        <ToggleButton
-            android:id="@+id/toggleStartStop1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onClickStartStop" />
     </LinearLayout>
 
     <ImageButton
