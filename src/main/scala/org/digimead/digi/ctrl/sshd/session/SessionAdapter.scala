@@ -106,20 +106,20 @@ class SessionAdapter(context: Activity, layout: Int)
         val processID = cursor.getInt(DControlProvider.Field.ProcessID.id)
         (for {
           component <- Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.Component.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.Component.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
           executable <- Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.Executable.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.Executable.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
           connection <- Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.Connection.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.Connection.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
         } yield {
           val user = Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.User.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.User.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.User.id)).flatMap(p => Common.unparcelFromArray[UserInfo](p))
           log.debug("add session " + key + "to session adapter")
@@ -153,7 +153,7 @@ class SessionAdapter(context: Activity, layout: Int)
             val id = cursor.getInt(DControlProvider.Field.ID.id)
             if (existsIDs.remove(id)) {
               val newUser = Option(if (v < 11)
-                cursor.getString(DControlProvider.Field.User.id).getBytes("ISO-8859-1")
+                Option(cursor.getString(DControlProvider.Field.User.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
               else
                 cursor.getBlob(DControlProvider.Field.User.id)).flatMap(p => Common.unparcelFromArray[UserInfo](p))
               if (item(id).user != newUser) {

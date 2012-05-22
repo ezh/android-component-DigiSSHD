@@ -76,7 +76,7 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
     future {
       SSHDActivity.activity.foreach {
         activity =>
-          AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+          AppComponent.Inner.showDialogSafe[AlertDialog](activity, "info_interfaces_dialog", () => {
             val inflater = activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
             val layout = inflater.inflate(R.layout.info_interfaces_dialog, null).asInstanceOf[ViewGroup]
             val dialog = new AlertDialog.Builder(new ContextThemeWrapper(activity, R.style.InterfacesLegendDialog)).

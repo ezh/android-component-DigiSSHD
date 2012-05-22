@@ -106,6 +106,22 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   private lazy val buttonGrowShrink = new WeakReference(findViewById(R.id.buttonGrowShrink).asInstanceOf[ImageButton])
   private val onAppComponentStateHelper = new AtomicBoolean(false)
   SSHDActivity.focused = false
+  private val activityStateUpdaterActor = new Actor {
+    def act = {
+      loop {
+        react {
+          case SSHDActivity.Message.UpdateAppComponentStatus(status) =>
+            log.debug("receive state notification, new state: " + status)
+            onAppComponentStateChanged(status)
+          case message: AnyRef =>
+            log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
+          case message =>
+            log.errorWhere("skip unknown message " + message)
+        }
+      }
+    }
+  }
+  activityStateUpdaterActor.start
   log.debug("alive")
 
   @Loggable
@@ -430,14 +446,14 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   private def onAppComponentStateError(reason: Seq[String]) = reason match {
     case Seq("error_digicontrol_minimum_version", _*) =>
-      AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+      AppComponent.Inner.showDialogSafe(this, InstallControl.getClass.getName, InstallControl.getId(this))
     case Seq("error_digicontrol_not_found") =>
-      AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+      AppComponent.Inner.showDialogSafe(this, InstallControl.getClass.getName, InstallControl.getId(this))
     case err =>
       log.error("component is trying to recover from error \"" + err + "\"")
       if (onAppComponentStateHelper.compareAndSet(false, true)) {
         log.debug("set recover in progress flag")
-        AppComponent.Inner.showDialogSafe[AlertDialog](this, () => {
+        AppComponent.Inner.showDialogSafe[AlertDialog](this, "dialog_recovery", () => {
           val dialog = new AlertDialog.Builder(this).
             setTitle(R.string.dialog_recovery_title).
             setMessage(R.string.dialog_recovery_message).
@@ -539,7 +555,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     } catch {
       case e =>
         IAmYell("Unable to open activity for " + DIntent.HostActivity, e)
-        AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+        AppComponent.Inner.showDialogSafe(this, InstallControl.getClass.getName, InstallControl.getId(this))
     }
   }
   @Loggable
@@ -552,7 +568,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   override def onOptionsItemSelected(item: MenuItem): Boolean =
     item.getItemId() match {
       case R.id.menu_help =>
-        AppComponent.Inner.showDialogSafe[AlertDialog](this, () => {
+        AppComponent.Inner.showDialogSafe[AlertDialog](this, "dialog_help", () => {
           val dialog = new AlertDialog.Builder(this).
             setTitle(R.string.dialog_help_title).
             setMessage(R.string.dialog_help_message).
@@ -571,7 +587,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
           intent.addCategory(Intent.CATEGORY_BROWSABLE)
           startActivity(intent)
         } catch {
-          case _ => AppComponent.Inner.showDialogSafe(this, FailedMarket.getId(this))
+          case _ => AppComponent.Inner.showDialogSafe(this, FailedMarket.getClass.getName, FailedMarket.getId(this))
         }
         true
       case R.id.menu_report =>
@@ -582,7 +598,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
           val intent = new Intent(DIntent.HostActivity)
           startActivity(intent)
         } catch {
-          case _ => AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+          case _ => AppComponent.Inner.showDialogSafe(this, InstallControl.getClass.getName, InstallControl.getId(this))
         }
         true
       case R.id.menu_options =>
@@ -631,11 +647,12 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   }
   @Loggable
   override def onPrepareDialog(id: Int, dialog: Dialog, args: Bundle) = {
-    super.onPrepareDialog(id, dialog)
+    super.onPrepareDialog(id, dialog, args)
     onPrepareDialogExt(this, id, dialog, args)
     id match {
       case id if id == SSHDActivity.Dialog.ComponentInfo =>
         log.debug("prepare dialog ComponentInfo " + id)
+        AppComponent.Inner.setDialogSafe(Some("SSHDActivity.Dialog.ComponentInfo"), Some(dialog))
         val message = dialog.findViewById(Int.MaxValue).asInstanceOf[TextView]
         val info = args.getParcelable("info").asInstanceOf[ExecutableInfo]
         val env = info.env.mkString("""<br/>""")
@@ -652,6 +669,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         message.setText(Html.fromHtml(s))
       case id if id == SSHDActivity.Dialog.NewConnection =>
         log.debug("prepare dialog NewConnection " + id)
+        AppComponent.Inner.setDialogSafe(Some("SSHDActivity.Dialog.NewConnection"), Some(dialog))
         val ok = dialog.findViewById(android.R.id.button1).asInstanceOf[Button]
         onPrepareDialogStash.remove(id).map(_.asInstanceOf[Seq[(Uri, Bundle)]]).foreach {
           case requestSeq =>
@@ -699,7 +717,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         }
       case id =>
     }
-    super.onPrepareDialog(id, dialog, args)
   }
   @Loggable
   override protected def onActivityResult(requestCode: Int, resultCode: Int, data: Intent): Unit =
@@ -823,7 +840,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       }
       IAmMumble("someone or something connect to " + component.name +
         " executable " + executable.name + " from " + ip.getOrElse(Android.getString(this, "unknown_source").getOrElse("unknown source")))
-      AppComponent.Inner.showDialogSafe(this, SSHDActivity.Dialog.NewConnection)
+      AppComponent.Inner.showDialogSafe(this, "SSHDActivity.Dialog.NewConnection", SSHDActivity.Dialog.NewConnection)
     }
   }
   @Loggable
@@ -923,7 +940,7 @@ object SSHDActivity extends Actor with Logging {
   //AppComponent state subscriber
   val stateSubscriber = new Subscriber[AppComponent.State, AppComponent.StateContainer#Pub] {
     def notify(pub: AppComponent.StateContainer#Pub, event: AppComponent.State) =
-      activity.foreach(_.onAppComponentStateChanged(event))
+      activity.foreach(_.activityStateUpdaterActor ! Message.UpdateAppComponentStatus(event))
   }
   private val interfaceFilterUpdateReceiver = new BroadcastReceiver() {
     def onReceive(context: Context, intent: Intent) = try {
@@ -1160,7 +1177,7 @@ object SSHDActivity extends Actor with Logging {
   private def onBusy(activity: SSHDActivity): Unit = {
     if (!busyDialog.isSet) {
       AppComponent.Inner.disableRotation()
-      busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, () =>
+      busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
         if (busyCounter.get > 0) {
           busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
           ProgressDialog.show(activity, "Please wait...", busyBuffer.mkString("\n"), true)
@@ -1227,5 +1244,6 @@ object SSHDActivity extends Actor with Logging {
   object Message {
     object GiveMeMoreSpaceIfYouPlease
     object TakeMySpaceIfYouPlease
+    case class UpdateAppComponentStatus(status: AppComponent.State)
   }
 }

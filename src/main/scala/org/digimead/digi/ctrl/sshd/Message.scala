@@ -77,7 +77,7 @@ object Message extends Logging {
       }
       if (SSHDActivity.isConsistent)
         if (message.isInstanceOf[IAmBusy])
-          SSHDActivity !? (DTimeout.normal, message) orElse ({ log.fatal("request hang"); None })
+          SSHDActivity !? (DTimeout.normal, message) orElse ({ log.fatal("request IAmBusy hang with timeout " + DTimeout.normal); None })
         else
           SSHDActivity ! message
     }

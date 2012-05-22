@@ -93,7 +93,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
             TabActivity.activity.foreach {
               activity =>
                 IAmMumble("disconnect all sessions")
-                AppComponent.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnectAll)
+                AppComponent.Inner.showDialogSafe(activity, "TabActivity.Dialog.SessionDisconnectAll", TabActivity.Dialog.SessionDisconnectAll)
             }
           }
         false
@@ -110,7 +110,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
       bundle.putString("componentPackage", item.component.componentPackage)
       bundle.putInt("processID", item.processID)
       bundle.putInt("connectionID", item.connection.connectionID)
-      AppComponent.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnect, bundle)
+      AppComponent.Inner.showDialogSafe(activity, "TabActivity.Dialog.SessionDisconnect", TabActivity.Dialog.SessionDisconnect, bundle)
   }
   @Loggable
   private def updateCursor(): Unit = {
@@ -283,14 +283,16 @@ object SessionBlock extends Logging {
             log.warn(e.getMessage)
             None
         }
-        val source = user match {
+        val source = ip.getOrElse(Android.getString(title.getContext, "unknown_source").getOrElse("unknown source"))
+        val text = user match {
           case Some(user) =>
-            user.name + ", " + ip.getOrElse(Android.getString(title.getContext, "unknown_source").getOrElse("unknown source"))
+            Android.getString(title.getContext, "session_title_user").getOrElse("<b>%1$s</b> from %2$s to %3$s").
+              format(user.name, source, executable.name)
           case None =>
-            ip.getOrElse(Android.getString(title.getContext, "unknown_source").getOrElse("unknown source"))
+            Android.getString(title.getContext, "session_title_nouser").getOrElse("%1$s to %2$s").
+              format(source, executable.name)
         }
-        title.setText(Android.getString(title.getContext, "session_title").getOrElse("%1$s to %2$s").
-          format(source, executable.name))
+        title.setText(Html.fromHtml(text))
     }
   }
 }

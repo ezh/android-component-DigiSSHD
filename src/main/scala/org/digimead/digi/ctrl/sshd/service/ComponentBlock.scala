@@ -82,7 +82,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
   def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = future {
     val bundle = new Bundle()
     bundle.putParcelable("info", item.executableInfo())
-    SSHDActivity.activity.foreach(AppComponent.Inner.showDialogSafe(_, Android.getId(context, "component_info"), bundle))
+    SSHDActivity.activity.foreach(AppComponent.Inner.showDialogSafe(_, "SSHDActivity.Dialog.ComponentInfo", SSHDActivity.Dialog.ComponentInfo, bundle))
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
@@ -311,7 +311,7 @@ object ComponentBlock extends Logging {
           } else
             item.init(context, icon, false)
           view
-/*        case None =>
+        /*        case None =>
           log.warn("build incomplete ComponentBlock item, ICtrlHost is absent")
           val view = inflater.inflate(textViewResourceId, null)
           val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
