@@ -506,7 +506,7 @@ class SSHDUsers extends ListActivity with Logging {
   } catch {
     case e =>
       IAmYell("Unable to open activity for " + DIntent.HostActivity, e)
-      AppComponent.Inner.showDialogSafe(this, InstallControl.getId(this))
+      AppComponent.Inner.showDialogSafe(this, InstallControl.getClass.getName, InstallControl.getId(this))
   }
   @Loggable
   def onClickGenerateNewUser(v: View) = future {

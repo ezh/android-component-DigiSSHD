@@ -339,11 +339,14 @@ object SSHDService extends Logging {
         }
         internalPath.get(DTimeout.long) match {
           case Some(path) if path != null =>
-            // create groups file
+            // create SCP groups helper
+            // coreutils groups native failed with exit code 1
+            // and message "groups: cannot find name for group ID N"
+            // under Android our app uid == gid
             val groups = new File(path, "groups")
             if (!groups.exists) {
-              log.debug("create groups stub for scp")
-              Common.writeToFile(groups, "id -g\n")
+              log.debug("create groups stub for SCP")
+              Common.writeToFile(groups, "echo %d\n".format(android.os.Process.myUid))
               Android.execChmod(755, groups)
             }
             // create security keys

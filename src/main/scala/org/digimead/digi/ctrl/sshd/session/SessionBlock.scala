@@ -32,11 +32,12 @@ import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DControlProvider
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
@@ -92,7 +93,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
             TabActivity.activity.foreach {
               activity =>
                 IAmMumble("disconnect all sessions")
-                AppComponent.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnectAll)
+                AppComponent.Inner.showDialogSafe(activity, "TabActivity.Dialog.SessionDisconnectAll", TabActivity.Dialog.SessionDisconnectAll)
             }
           }
         false
@@ -109,7 +110,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
       bundle.putString("componentPackage", item.component.componentPackage)
       bundle.putInt("processID", item.processID)
       bundle.putInt("connectionID", item.connection.connectionID)
-      AppComponent.Inner.showDialogSafe(activity, TabActivity.Dialog.SessionDisconnect, bundle)
+      AppComponent.Inner.showDialogSafe(activity, "TabActivity.Dialog.SessionDisconnect", TabActivity.Dialog.SessionDisconnect, bundle)
   }
   @Loggable
   private def updateCursor(): Unit = {
@@ -268,8 +269,30 @@ object SessionBlock extends Logging {
     val processID: Int,
     val component: ComponentInfo,
     val executable: ExecutableInfo,
-    val connection: DConnection) extends Block.Item {
-    var durationField: WeakReference[TextView] = new WeakReference(null)
-    var position: Option[Int] = None
+    val connection: DConnection,
+    @volatile var user: Option[UserInfo]) extends Block.Item {
+    @volatile var durationField: WeakReference[TextView] = new WeakReference(null)
+    @volatile var position: Option[Int] = None
+    def updateTitle() = view.get.foreach {
+      view =>
+        val title = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
+        val ip = try {
+          Some(InetAddress.getByAddress(BigInt(connection.remoteIP).toByteArray).getHostAddress)
+        } catch {
+          case e =>
+            log.warn(e.getMessage)
+            None
+        }
+        val source = ip.getOrElse(Android.getString(title.getContext, "unknown_source").getOrElse("unknown source"))
+        val text = user match {
+          case Some(user) =>
+            Android.getString(title.getContext, "session_title_user").getOrElse("<b>%1$s</b> from %2$s to %3$s").
+              format(user.name, source, executable.name)
+          case None =>
+            Android.getString(title.getContext, "session_title_nouser").getOrElse("%1$s to %2$s").
+              format(source, executable.name)
+        }
+        title.setText(Html.fromHtml(text))
+    }
   }
 }

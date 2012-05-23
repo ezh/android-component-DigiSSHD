@@ -21,16 +21,15 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
-import java.net.InetAddress
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.Option.option2Iterable
 import scala.actors.Actor
-import scala.collection.mutable.SynchronizedMap
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
+import scala.collection.mutable.SynchronizedMap
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -39,6 +38,7 @@ import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DControlProvider
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
+import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
@@ -71,21 +71,11 @@ class SessionAdapter(context: Activity, layout: Int)
         val view = inflater.inflate(layout, null)
         getItem(cursor).foreach {
           item =>
-            val title = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
             val description = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
             val subinfo = view.findViewById(android.R.id.message).asInstanceOf[TextView]
             val kind = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
             val state = view.findViewById(android.R.id.button1).asInstanceOf[ImageButton]
-            val ip = try {
-              Some(InetAddress.getByAddress(BigInt(item.connection.remoteIP).toByteArray).getHostAddress)
-            } catch {
-              case e =>
-                log.warn(e.getMessage)
-                None
-            }
             kind.setBackgroundDrawable(context.getResources.getDrawable(R.drawable.ic_launcher))
-            title.setText(Android.getString(context, "session_title").getOrElse("%1$s to %2$s").
-              format(ip.getOrElse(Android.getString(context, "unknown_source").getOrElse("unknown source")), item.executable.name))
             description.setText(Android.getString(context, "session_description").getOrElse("%1$s").
               format(item.component.name))
             state.setFocusable(false)
@@ -95,6 +85,7 @@ class SessionAdapter(context: Activity, layout: Int)
             item.durationField = new WeakReference(subinfo)
             item.view = new WeakReference(view)
             item.position = Some(position)
+            item.updateTitle
         }
         view
       case Some(view) =>
@@ -115,19 +106,24 @@ class SessionAdapter(context: Activity, layout: Int)
         val processID = cursor.getInt(DControlProvider.Field.ProcessID.id)
         (for {
           component <- Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.Component.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.Component.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.Component.id)).flatMap(p => Common.unparcelFromArray[ComponentInfo](p))
           executable <- Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.Executable.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.Executable.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.Executable.id)).flatMap(p => Common.unparcelFromArray[ExecutableInfo](p))
           connection <- Option(if (v < 11)
-            cursor.getString(DControlProvider.Field.Connection.id).getBytes("ISO-8859-1")
+            Option(cursor.getString(DControlProvider.Field.Connection.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
           else
             cursor.getBlob(DControlProvider.Field.Connection.id)).flatMap(p => Common.unparcelFromArray[DConnection](p))
         } yield {
-          item(key) = new SessionBlock.Item(key, processID, component, executable, connection)
+          val user = Option(if (v < 11)
+            Option(cursor.getString(DControlProvider.Field.User.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
+          else
+            cursor.getBlob(DControlProvider.Field.User.id)).flatMap(p => Common.unparcelFromArray[UserInfo](p))
+          log.debug("add session " + key + "to session adapter")
+          item(key) = new SessionBlock.Item(key, processID, component, executable, connection, user)
           item(key)
         })
     }
@@ -153,7 +149,21 @@ class SessionAdapter(context: Activity, layout: Int)
         val pos = cursor.getPosition
         if (cursor.moveToFirst) {
           val existsIDs = HashSet[Int](item.keys.toSeq: _*)
-          do { existsIDs.remove(cursor.getInt(DControlProvider.Field.ID.id)) } while (cursor.moveToNext)
+          do {
+            val id = cursor.getInt(DControlProvider.Field.ID.id)
+            if (existsIDs.remove(id)) {
+              val newUser = Option(if (v < 11)
+                Option(cursor.getString(DControlProvider.Field.User.id)).map(_.getBytes("ISO-8859-1")).getOrElse(null)
+              else
+                cursor.getBlob(DControlProvider.Field.User.id)).flatMap(p => Common.unparcelFromArray[UserInfo](p))
+              if (item(id).user != newUser) {
+                log.debug("update session " + id + " user to " + newUser)
+                item(id).user = newUser
+                item(id).updateTitle()
+              }
+            } else
+              log.debug("want to remove session " + id + " from session adapter")
+          } while (cursor.moveToNext)
           existsIDs.foreach(n => {
             log.debug("remove item " + n)
             item.remove(n)

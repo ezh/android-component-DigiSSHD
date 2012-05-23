@@ -97,7 +97,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     activity =>
       // leave UI thread
       future {
-        AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+        AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_port", () => {
           val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
           val currentValue = pref.getInt(item.option, 2222)
           val maxLengthFilter = new InputFilter.LengthFilter(5)
@@ -162,7 +162,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     def run {
       SSHDActivity.activity.foreach {
         activity =>
-          AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+          AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_auth", () => {
             val authTypeValue = new AtomicInteger(OptionBlock.authItem.getState[Int](context))
             //activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
             //getInt(, OptionBlock.authItemOption.)
@@ -272,7 +272,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     future {
       SSHDActivity.activity.foreach {
         activity =>
-          AppComponent.Inner.showDialogSafe[AlertDialog](activity, () => {
+          AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_root", () => {
             val dialog = new AlertDialog.Builder(activity).
               setTitle(R.string.dialog_root_title).
               setMessage(R.string.dialog_root_message).

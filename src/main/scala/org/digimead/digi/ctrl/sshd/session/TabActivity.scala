@@ -102,16 +102,15 @@ class TabActivity extends ListActivity with Logging {
         setNegativeButton(android.R.string.cancel, null).
         create()
     case id =>
-      AppComponent.Inner.setDialogSafe(null)
       log.fatal("unknown dialog id " + id)
       null
   }
   @Loggable
   override def onPrepareDialog(id: Int, dialog: Dialog, args: Bundle): Unit = {
-    AppComponent.Inner.setDialogSafe(dialog)
     id match {
       case id if id == TabActivity.Dialog.SessionDisconnect =>
         log.debug("prepare TabActivity.Dialog.SessionDisconnect dialog")
+        AppComponent.Inner.setDialogSafe(Some("TabActivity.Dialog.SessionDisconnect"), Some(dialog))
         val componentPackage = args.getString("componentPackage")
         val processID = args.getInt("processID")
         val connectionID = args.getInt("connectionID")
@@ -125,9 +124,10 @@ class TabActivity extends ListActivity with Logging {
         })
       case id if id == TabActivity.Dialog.SessionDisconnectAll =>
         log.debug("prepare TabActivity.Dialog.SessionDisconnectAll dialog")
+        AppComponent.Inner.setDialogSafe(Some("TabActivity.Dialog.SessionDisconnectAll"), Some(dialog))
       case id =>
-        AppComponent.Inner.setDialogSafe(null)
         log.fatal("unknown dialog id " + id)
+        AppComponent.Inner.setDialogSafe(None, None)
     }
   }
   @Loggable
