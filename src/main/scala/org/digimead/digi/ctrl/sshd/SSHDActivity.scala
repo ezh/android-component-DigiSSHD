@@ -647,8 +647,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   }
   @Loggable
   override def onPrepareDialog(id: Int, dialog: Dialog, args: Bundle) = {
-    super.onPrepareDialog(id, dialog, args)
-    onPrepareDialogExt(this, id, dialog, args)
     id match {
       case id if id == SSHDActivity.Dialog.ComponentInfo =>
         log.debug("prepare dialog ComponentInfo " + id)
@@ -715,7 +713,9 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
               })
             }
         }
-      case id =>
+      case _ =>
+        if (!onPrepareDialogExt(this, id, dialog, args))
+          super.onPrepareDialog(id, dialog, args)
     }
   }
   @Loggable
@@ -1131,7 +1131,6 @@ object SSHDActivity extends Actor with Logging {
             busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
             activity.foreach(onUpdate)
             AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
-            busyDialog.get(DTimeout.long)
             log.debug("return from message IAmBusy from " + origin)
           })
         case IAmMumble(origin, message, callback, ts) =>
