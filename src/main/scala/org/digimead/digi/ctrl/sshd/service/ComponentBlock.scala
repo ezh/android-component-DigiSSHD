@@ -189,11 +189,11 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
 object ComponentBlock extends Logging {
   @volatile private var block: Option[ComponentBlock] = None
   case class Item(value: String, id: Int) extends Block.Item with Logging {
-    private var activeDrawable: Option[Drawable] = None
-    private var passiveDrawable: Option[Drawable] = None
-    private var active: Option[Boolean] = None
-    private var icon: WeakReference[ImageView] = new WeakReference(null)
-    private var context: WeakReference[Activity] = new WeakReference(null)
+    @volatile private var activeDrawable: Option[Drawable] = None
+    @volatile private var passiveDrawable: Option[Drawable] = None
+    @volatile private var active: Option[Boolean] = None
+    @volatile private var icon: WeakReference[ImageView] = new WeakReference(null)
+    @volatile private var context: WeakReference[Activity] = new WeakReference(null)
     private val lock = new ReentrantLock
     def executableInfo(allowCallFromUI: Boolean = false): ExecutableInfo =
       SSHDService.getExecutableInfo(".", allowCallFromUI).filter(_.executableID == id).head
@@ -204,12 +204,12 @@ object ComponentBlock extends Logging {
         view <- view.get
       } yield {
         log.debug("initialize background for " + this)
-        if (activeDrawable != None || passiveDrawable != None)
-          log.fatal("activeDrawable != None (" + activeDrawable + ") || passiveDrawable != None (" + passiveDrawable + "), " + this)
         icon = new WeakReference(_icon)
         context = new WeakReference(_context)
-        activeDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_work", "anim")))
-        passiveDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_wait", "anim")))
+        if (activeDrawable.isEmpty)
+          activeDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_work", "anim")))
+        if (passiveDrawable.isEmpty)
+          passiveDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_wait", "anim")))
         future { state(_active) }
       }) getOrElse {
         log.fatal("unable to init() for " + this)
@@ -311,20 +311,6 @@ object ComponentBlock extends Logging {
           } else
             item.init(context, icon, false)
           view
-        /*        case None =>
-          log.warn("build incomplete ComponentBlock item, ICtrlHost is absent")
-          val view = inflater.inflate(textViewResourceId, null)
-          val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-          val description = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-          val subinfo = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
-          val icon = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
-          icon.setFocusable(false)
-          icon.setFocusableInTouchMode(false)
-          name.setText("...")
-          description.setText("...")
-          subinfo.setText("... / ...")
-          icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          view*/
         case Some(view) =>
           view
       }
