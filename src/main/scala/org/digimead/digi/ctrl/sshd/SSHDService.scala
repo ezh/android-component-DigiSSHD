@@ -78,12 +78,11 @@ class SSHDService extends Service with DService {
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
     SSHDActivity.start // Yes, SSHDActivity from SSHDService
-    Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
-      getString(Preference.debugLevelsListKey, "5"), this)
-    Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
-      getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
+    Preference.setLogLevel(this)
+    Preference.setAndroidLogger(this)
     super.onCreate()
     onCreateExt(this)
+    Preference.initPersistentOptions(this)
     if (AppControl.Inner.isAvailable != Some(true))
       future {
         log.debug("try to bind " + DConstant.controlPackage)
