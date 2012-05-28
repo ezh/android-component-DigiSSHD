@@ -1188,7 +1188,25 @@ object SSHDActivity extends Actor with Logging {
       busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
         if (busyCounter.get > 0) {
           busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
-          ProgressDialog.show(activity, "Please wait...", busyBuffer.mkString("\n"), true)
+          val dialog = new ProgressDialog(activity)
+          dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER)
+          dialog.setTitle("Please wait...")
+          dialog.setOnShowListener(new DialogInterface.OnShowListener {
+            def onShow(dialog: DialogInterface) = future {
+              // additional guard
+              Thread.sleep(DTimeout.shortest)
+              if (busyCounter.get <= 0) try {
+                dialog.dismiss
+              } catch {
+                case e =>
+                  log.warn(e.getMessage, e)
+              }
+            }
+          })
+          dialog.setMessage(busyBuffer.mkString("\n"))
+          dialog.setCancelable(false)
+          dialog.show
+          dialog
         } else
           null))
     }
