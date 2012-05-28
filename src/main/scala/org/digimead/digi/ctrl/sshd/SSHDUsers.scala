@@ -51,6 +51,7 @@ import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
 
 import android.app.AlertDialog
 import android.app.ListActivity
@@ -95,7 +96,9 @@ class SSHDUsers extends ListActivity with Logging {
   private lazy val blockAll = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_footer_toggle_all).asInstanceOf[TextView])
   private lazy val deleteAll = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_footer_delete_all).asInstanceOf[TextView])
   private lazy val userName = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_name).asInstanceOf[TextView]).getOrElse(null))
+  private lazy val userGenerateButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_add).asInstanceOf[ImageButton]).getOrElse(null))
   private lazy val userHome = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_home).asInstanceOf[TextView]).getOrElse(null))
+  private lazy val userHomeChangeButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_change_home).asInstanceOf[ImageButton]).getOrElse(null))
   private lazy val userPassword = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_password).asInstanceOf[TextView]).getOrElse(null))
   private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_show_password).asInstanceOf[ImageButton]).getOrElse(null))
   private val lastActiveUserInfo = new AtomicReference[Option[UserInfo]](None)
@@ -141,6 +144,21 @@ class SSHDUsers extends ListActivity with Logging {
   @Loggable
   override def onResume() {
     super.onResume()
+    for { userGenerateButton <- userGenerateButton.get } {
+      ServiceOptions.AuthType(ServiceOptions.authItem.getState[Int](this)) match {
+        case ServiceOptions.AuthType.SingleUser =>
+          setTitle(Android.getString(this, "app_name_singleuser").getOrElse("DigiSSHD: Single User Mode"))
+          SSHDUsers.multiUser = false
+          userGenerateButton.setEnabled(false)
+        case ServiceOptions.AuthType.MultiUser =>
+          setTitle(Android.getString(this, "app_name_multiuser").getOrElse("DigiSSHD: Multi User Mode"))
+          SSHDUsers.multiUser = true
+          userGenerateButton.setEnabled(true)
+        case invalid =>
+          log.fatal("invalid authenticatin type \"" + invalid + "\"")
+          None
+      }
+    }
     for {
       dynamicHeader <- dynamicHeader.get
       dynamicFooter <- dynamicFooter.get
@@ -177,11 +195,14 @@ class SSHDUsers extends ListActivity with Logging {
   } {
     adapter.getItem(position) match {
       case user: UserInfo =>
-        lastActiveUserInfo.set(Some(user))
-        userName.setText(user.name)
-        userHome.setText(user.home)
-        userPassword.setText(user.password)
-        updateFieldsState()
+        if (SSHDUsers.multiUser || user.name == "android") {
+          lastActiveUserInfo.set(Some(user))
+          userName.setText(user.name)
+          userHome.setText(user.home)
+          userPassword.setText(user.password)
+          updateFieldsState()
+        } else
+          Toast.makeText(this, Android.getString(this, "users_in_single_user_mode").getOrElse("only android user available in single user mode"), Toast.LENGTH_SHORT).show()
       case item =>
         log.fatal("unknown item " + item)
     }
@@ -636,7 +657,7 @@ class SSHDUsers extends ListActivity with Logging {
     }
   }
   @Loggable
-  private def updateFieldsState() = for {
+  private def updateFieldsState(): Unit = for {
     userName <- userName.get
     userHome <- userHome.get
     userPassword <- userPassword.get
@@ -644,16 +665,6 @@ class SSHDUsers extends ListActivity with Logging {
     blockAll <- blockAll.get
     deleteAll <- deleteAll.get
   } {
-    // set userName userHome userPassword
-    if (lastActiveUserInfo.get.exists(_.name == "android")) {
-      userName.setEnabled(false)
-      userHome.setEnabled(false)
-      userPassword.setEnabled(true)
-    } else {
-      userName.setEnabled(true)
-      userHome.setEnabled(true)
-      userPassword.setEnabled(true)
-    }
     // set apply
     if (lastActiveUserInfo.get.nonEmpty) {
       if (lastActiveUserInfo.get.exists(u =>
@@ -675,6 +686,23 @@ class SSHDUsers extends ListActivity with Logging {
       } else
         apply.setEnabled(false)
     }
+    // set userName userHome userPassword
+    if (lastActiveUserInfo.get.exists(_.name == "android")) {
+      userName.setEnabled(true)
+      userHome.setEnabled(false)
+      userPassword.setEnabled(true)
+    } else {
+      userName.setEnabled(true)
+      userHome.setEnabled(true)
+      userPassword.setEnabled(true)
+    }
+    // single user mode
+    if (!SSHDUsers.multiUser) {
+      userName.setEnabled(false)
+      blockAll.setEnabled(false)
+      deleteAll.setEnabled(false)
+      return
+    }
     // set block all
     if (SSHDUsers.list.exists(_.enabled))
       blockAll.setEnabled(true)
@@ -685,12 +713,12 @@ class SSHDUsers extends ListActivity with Logging {
       deleteAll.setEnabled(true)
     else
       deleteAll.setEnabled(false)
-
   }
 }
 
 object SSHDUsers extends Logging with Passwords {
   @volatile private var activity: Option[SSHDUsers] = None
+  @volatile private var multiUser: Boolean = false
   private val nameMaximumLength = 16
   @volatile private var showPassword = false
   private lazy val adapter: Option[ArrayAdapter[UserInfo]] = AppComponent.Context map {

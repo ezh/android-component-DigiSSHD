@@ -130,38 +130,15 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
     SSHDActivity.start
-    Preference.setLogLevel(PreferenceManager.getDefaultSharedPreferences(this).
-      getString(Preference.debugLevelsListKey, "5"), this)
-    Preference.setAndroidLogger(PreferenceManager.getDefaultSharedPreferences(this).
-      getBoolean(Preference.debugAndroidCheckBoxKey, false), this)
+    Preference.setLogLevel(this)
+    Preference.setAndroidLogger(this)
     super.onCreate(savedInstanceState)
     onCreateExt(this)
+    Preference.initPersistentOptions(this)
+    Preference.setPrefferedLayoutOrientation(this)
+    setRequestedOrientation(AppComponent.Inner.preferredOrientation.get)
     setContentView(R.layout.main)
-    if (AppControl.Inner.isAvailable != Some(true))
-      future {
-        log.debug("try to bind " + DConstant.controlPackage)
-        AppComponent.Inner.minVersionRequired(DConstant.controlPackage) match {
-          case Some(minVersion) => try {
-            val pm = getPackageManager()
-            val pi = pm.getPackageInfo(DConstant.controlPackage, 0)
-            val version = new Version(pi.versionName)
-            log.debug(DConstant.controlPackage + " minimum version '" + minVersion + "' and current version '" + version + "'")
-            if (version.compareTo(minVersion) == -1) {
-              val message = Android.getString(this, "error_digicontrol_minimum_version").
-                getOrElse("Required minimum version of DigiControl: %s. Current version is %s").format(minVersion, version)
-              IAmYell(message)
-              AppControl.Inner.bindStub("error_digicontrol_minimum_version", minVersion.toString, version.toString)
-            } else {
-              AppControl.Inner.bind(getApplicationContext)
-            }
-          } catch {
-            case e: NameNotFoundException =>
-              log.debug("DigiControl package " + DConstant.controlPackage + " not found")
-          }
-          case None =>
-            AppControl.Inner.bind(getApplicationContext)
-        }
-      }
+
     val res = getResources() // Resource object to get Drawables
     val tabHost = getTabHost() // The activity TabHost
     var spec: TabHost#TabSpec = null // Resusable TabSpec for each tab
@@ -222,12 +199,42 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   override def onStart() {
     super.onStart()
+    onStartExt(this, super.registerReceiver)
+    SSHDActivity.busyCounter.set(0)
+    SSHDActivity.busyDialog.unset()
+    if (AppControl.Inner.isAvailable != Some(true))
+      future {
+        log.debug("try to bind " + DConstant.controlPackage)
+        AppComponent.Inner.minVersionRequired(DConstant.controlPackage) match {
+          case Some(minVersion) => try {
+            val pm = getPackageManager()
+            val pi = pm.getPackageInfo(DConstant.controlPackage, 0)
+            val version = new Version(pi.versionName)
+            log.debug(DConstant.controlPackage + " minimum version '" + minVersion + "' and current version '" + version + "'")
+            if (version.compareTo(minVersion) == -1) {
+              val message = Android.getString(this, "error_digicontrol_minimum_version").
+                getOrElse("Required minimum version of DigiControl: %s. Current version is %s").format(minVersion, version)
+              IAmYell(message)
+              AppControl.Inner.bindStub("error_digicontrol_minimum_version", minVersion.toString, version.toString)
+            } else {
+              AppControl.Inner.bind(getApplicationContext)
+            }
+          } catch {
+            case e: NameNotFoundException =>
+              log.debug("DigiControl package " + DConstant.controlPackage + " not found")
+          }
+          case None =>
+            AppControl.Inner.bind(getApplicationContext)
+        }
+      }
+    AppComponent.Inner.state.subscribe(SSHDActivity.stateSubscriber)
   }
   @Loggable
   override def onResume() {
-    AppComponent.Inner.disableRotation()
     super.onResume()
-    onResumeExt(this, super.registerReceiver)
+    onResumeExt(this)
+    setRequestedOrientation(AppComponent.Inner.preferredOrientation.get)
+    AppComponent.Inner.disableRotation()
     for {
       buttonToggleStartStop1 <- buttonToggleStartStop1.get
       buttonToggleStartStop2 <- buttonToggleStartStop2.get
@@ -257,7 +264,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       b.setEnabled(false)
     })
     SSHDActivity.consistent = true
-    AppComponent.Inner.state.subscribe(SSHDActivity.stateSubscriber)
     if (SSHDActivity.consistent && SSHDActivity.focused) {
       AppComponent.Inner.enableSafeDialogs
       future {
@@ -272,11 +278,16 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   }
   @Loggable
   override def onPause() {
-    super.onPause()
-    onPauseExt(this, super.unregisterReceiver)
-    AppComponent.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
     SSHDActivity.consistent = false
     SSHDActivity.initializeOnResume.set(true)
+    onPauseExt(this)
+    super.onPause()
+  }
+  @Loggable
+  override def onStop() {
+    AppComponent.Inner.state.removeSubscription(SSHDActivity.stateSubscriber)
+    onStopExt(this, true, super.unregisterReceiver)
+    super.onStop()
   }
   @Loggable
   override def onDestroy() {
@@ -394,7 +405,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   private def onAppComponentStateChanged(state: AppComponent.State): Unit = for {
     statusText <- statusText.get
   } {
-    if (SSHDActivity.busyCounter.get > 0 && !SSHDActivity.busyDialog.isSet)
+    if (AppComponent.Inner.state.isBusy && !SSHDActivity.busyDialog.isSet)
       SSHDActivity.onBusy(this)
     val text = state match {
       case AppComponent.State(DState.Initializing, rawMessage, callback) =>
@@ -429,7 +440,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         log.fatal("unknown state " + state)
         None
     }
-    if (SSHDActivity.busyCounter.get == 0 && SSHDActivity.busyDialog.isSet)
+    if (!AppComponent.Inner.state.isBusy && SSHDActivity.busyDialog.isSet)
       SSHDActivity.onReady(this)
     val uiWait = new SyncVar[Any]()
     runOnUiThread(new Runnable {
@@ -1150,14 +1161,11 @@ object SSHDActivity extends Actor with Logging {
           log.debug("return from message IAmYell from " + origin)
         case IAmReady(origin, message, ts) =>
           log.info("receive message IAmReady from " + origin)
-          busyCounter.decrementAndGet
+          if (busyCounter.get > 0)
+            busyCounter.decrementAndGet
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
           AppComponent.Inner.state.freeBusy
-          if (!AppComponent.Inner.state.isBusy) {
-            busyDialog.put(null)
-            busyDialog.unset()
-          }
           log.debug("return from message IAmReady from " + origin)
         case Message.GiveMeMoreSpaceIfYouPlease =>
           onMessageCollapse
@@ -1179,9 +1187,30 @@ object SSHDActivity extends Actor with Logging {
       busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
         if (busyCounter.get > 0) {
           busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
-          ProgressDialog.show(activity, "Please wait...", busyBuffer.mkString("\n"), true)
+          val dialog = new ProgressDialog(activity)
+          dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER)
+          dialog.setTitle("Please wait...")
+          dialog.setOnShowListener(new DialogInterface.OnShowListener {
+            def onShow(dialog: DialogInterface) = future {
+              // additional guard
+              Thread.sleep(DTimeout.shortest)
+              if (busyCounter.get <= 0) try {
+                dialog.dismiss
+              } catch {
+                case e =>
+                  log.warn(e.getMessage, e)
+              }
+            }
+          })
+          dialog.setMessage(busyBuffer.mkString("\n"))
+          dialog.setCancelable(false)
+          dialog.show
+          dialog
         } else
-          null))
+          null, () => {
+        busyDialog.unset()
+        busyCounter.set(0)
+      }))
     }
   }
   @Loggable

@@ -22,11 +22,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
     android:installLocation="preferExternal"
-    android:versionCode="1337806756"
-    android:versionName="0.1.04" >
+    android:versionCode="1338150792"
+    android:versionName="0.1.05" >
 
     <uses-sdk
-        android:minSdkVersion="10"
+        android:minSdkVersion="9"
         android:targetSdkVersion="11" />
 
     <uses-permission android:name="org.digimead.digi.ctrl" />
