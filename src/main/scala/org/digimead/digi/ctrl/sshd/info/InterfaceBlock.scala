@@ -149,8 +149,10 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
             interface =>
               adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
           }
+          log.trace("active interfaces updated")
           adapter.setNotifyOnChange(true)
           adapter.notifyDataSetChanged
+          log.trace("exit from updateAdapter()")
         }
       })
     }

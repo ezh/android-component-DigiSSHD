@@ -200,6 +200,8 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   override def onStart() {
     super.onStart()
     onStartExt(this, super.registerReceiver)
+    SSHDActivity.busyCounter.set(0)
+    SSHDActivity.busyDialog.unset()
     if (AppControl.Inner.isAvailable != Some(true))
       future {
         log.debug("try to bind " + DConstant.controlPackage)
@@ -403,7 +405,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   private def onAppComponentStateChanged(state: AppComponent.State): Unit = for {
     statusText <- statusText.get
   } {
-    if (SSHDActivity.busyCounter.get > 0 && !SSHDActivity.busyDialog.isSet)
+    if (AppComponent.Inner.state.isBusy && !SSHDActivity.busyDialog.isSet)
       SSHDActivity.onBusy(this)
     val text = state match {
       case AppComponent.State(DState.Initializing, rawMessage, callback) =>
@@ -438,7 +440,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         log.fatal("unknown state " + state)
         None
     }
-    if (SSHDActivity.busyCounter.get == 0 && SSHDActivity.busyDialog.isSet)
+    if (!AppComponent.Inner.state.isBusy && SSHDActivity.busyDialog.isSet)
       SSHDActivity.onReady(this)
     val uiWait = new SyncVar[Any]()
     runOnUiThread(new Runnable {
@@ -1159,14 +1161,11 @@ object SSHDActivity extends Actor with Logging {
           log.debug("return from message IAmYell from " + origin)
         case IAmReady(origin, message, ts) =>
           log.info("receive message IAmReady from " + origin)
-          busyCounter.decrementAndGet
+          if (busyCounter.get > 0)
+            busyCounter.decrementAndGet
           busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
           activity.foreach(onUpdate)
           AppComponent.Inner.state.freeBusy
-          if (!AppComponent.Inner.state.isBusy) {
-            busyDialog.put(null)
-            busyDialog.unset()
-          }
           log.debug("return from message IAmReady from " + origin)
         case Message.GiveMeMoreSpaceIfYouPlease =>
           onMessageCollapse
@@ -1208,7 +1207,10 @@ object SSHDActivity extends Actor with Logging {
           dialog.show
           dialog
         } else
-          null))
+          null, () => {
+        busyDialog.unset()
+        busyCounter.set(0)
+      }))
     }
   }
   @Loggable
