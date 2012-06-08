@@ -38,7 +38,6 @@ import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
@@ -253,7 +252,7 @@ object SSHDService extends Logging {
         val port = executable match {
           case "dropbear" =>
             val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-            val port = pref.getInt(DOption.Port, 2222)
+            val port = pref.getInt(DOption.Port.tag, 2222)
             Some(port)
           case "openssh" => None
         }
@@ -404,7 +403,7 @@ object SSHDService extends Logging {
       log.debug("process Binder::accessRulesOrder")
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getBoolean(DOption.ACLConnection, DOption.ACLConnection.default.asInstanceOf[Boolean])).
+          getBoolean(DOption.ACLConnection.tag, DOption.ACLConnection.default.asInstanceOf[Boolean])).
         getOrElse(DOption.ACLConnection.default.asInstanceOf[Boolean])
     } catch {
       case e =>
@@ -416,7 +415,7 @@ object SSHDService extends Logging {
       log.debug("process Binder::readBooleanProperty " + DOption(property))
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getBoolean(DOption(property).asInstanceOf[DOption.OptVal].r,
+          getBoolean(DOption(property).asInstanceOf[DOption.OptVal].tag,
             DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Boolean])).
         getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Boolean])
     } catch {
@@ -429,7 +428,7 @@ object SSHDService extends Logging {
       log.debug("process Binder::readIntProperty " + DOption(property))
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getInt(DOption(property).asInstanceOf[DOption.OptVal].r,
+          getInt(DOption(property).asInstanceOf[DOption.OptVal].tag,
             DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Int])).
         getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Int])
     } catch {
@@ -442,7 +441,7 @@ object SSHDService extends Logging {
       log.debug("process Binder::readStringProperty " + DOption(property))
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getString(DOption(property).asInstanceOf[DOption.OptVal].r,
+          getString(DOption(property).asInstanceOf[DOption.OptVal].tag,
             DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[String])).
         getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[String])
     } catch {

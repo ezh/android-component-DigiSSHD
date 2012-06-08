@@ -32,7 +32,6 @@ import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
@@ -99,7 +98,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       future {
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_port", () => {
           val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-          val currentValue = pref.getInt(item.option, 2222)
+          val currentValue = pref.getInt(item.option.tag, 2222)
           val maxLengthFilter = new InputFilter.LengthFilter(5)
           val portLayout = LayoutInflater.from(context).inflate(R.layout.alertdialog_text, null)
           val portField = portLayout.findViewById(android.R.id.edit).asInstanceOf[EditText]
@@ -117,7 +116,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                 log.debug("set port to " + port)
                 val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                 val editor = pref.edit()
-                editor.putInt(item.option, port)
+                editor.putInt(item.option.tag, port)
                 editor.commit()
                 item.view.get.foreach(view => {
                   val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
@@ -176,7 +175,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                   log.debug("set new password")
                   val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                   val editor = pref.edit()
-                  editor.putInt(OptionBlock.authItemOption, authTypeValue.get)
+                  editor.putInt(OptionBlock.authItemOption.tag, authTypeValue.get)
                   editor.commit()
                   OptionBlock.authItem.view.get.foreach(view => {
                     val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
@@ -234,7 +233,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       }
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
-      editor.putBoolean(item.option, !lastState)
+      editor.putBoolean(item.option.tag, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
       SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
@@ -264,7 +263,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     }
     val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
     val editor = pref.edit()
-    editor.putBoolean(item.option, !lastState)
+    editor.putBoolean(item.option.tag, !lastState)
     editor.commit()
     SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
   } else {
@@ -285,7 +284,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
                   }
                   val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
                   val editor = pref.edit()
-                  editor.putBoolean(item.option, !lastState)
+                  editor.putBoolean(item.option.tag, !lastState)
                   editor.commit()
                   context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
                   SSHDCommon.optionChangedOnRestartNotify(context, item.option, item.getState[Boolean](context).toString)
@@ -312,8 +311,8 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
 
 object OptionBlock extends Logging {
   @volatile private var block: Option[OptionBlock] = None
-  val asRootItem = Item(DOption.AsRoot, DOption.AsRoot)
-  val portItem = Item(DOption.Port, DOption.Port)
+  val asRootItem = Item(DOption.AsRoot.tag, DOption.AsRoot)
+  val portItem = Item(DOption.Port.tag, DOption.Port)
   private val rsaItemOption = DOption.Value("rsa", classOf[Boolean], true: java.lang.Boolean)
   val rsaItem = Item("rsa", rsaItemOption)
   private val dssItemOption = DOption.Value("dss", classOf[Boolean], false: java.lang.Boolean)
@@ -330,11 +329,11 @@ object OptionBlock extends Logging {
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       option.kind.getName match {
         case "boolean" =>
-          pref.getBoolean(option, option.default.asInstanceOf[Boolean]).asInstanceOf[T]
+          pref.getBoolean(option.tag, option.default.asInstanceOf[Boolean]).asInstanceOf[T]
         case "int" =>
-          pref.getInt(option, option.default.asInstanceOf[Int]).asInstanceOf[T]
+          pref.getInt(option.tag, option.default.asInstanceOf[Int]).asInstanceOf[T]
         case "java.lang.String" =>
-          pref.getString(option, option.default.asInstanceOf[String]).asInstanceOf[T]
+          pref.getString(option.tag, option.default.asInstanceOf[String]).asInstanceOf[T]
         case k =>
           log.fatal("unknown option kind " + k)
           null.asInstanceOf[T]

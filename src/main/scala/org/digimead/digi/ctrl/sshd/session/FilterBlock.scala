@@ -26,7 +26,6 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -73,14 +72,14 @@ class FilterBlock(val context: Activity) extends Block[FilterBlock.Item] with Lo
       FilterBlock.iconDAD.foreach(v.setBackgroundDrawable)
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
-      editor.putBoolean(DOption.ACLConnection, false)
+      editor.putBoolean(DOption.ACLConnection.tag, false)
       editor.commit()
     } else {
       IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
       FilterBlock.iconADA.foreach(v.setBackgroundDrawable)
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
-      editor.putBoolean(DOption.ACLConnection, true)
+      editor.putBoolean(DOption.ACLConnection.tag, true)
       editor.commit()
     }
     item.updateUI
@@ -142,7 +141,7 @@ object FilterBlock extends Logging {
     def isFilterADA(): Boolean = view.get.map { // Allow, Deny, Allow
       view =>
         val pref = view.getContext.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-        pref.getBoolean(DOption.ACLConnection, true)
+        pref.getBoolean(DOption.ACLConnection.tag, true)
     } getOrElse (true)
     // run only from UI thread
     def updateUI() = for {

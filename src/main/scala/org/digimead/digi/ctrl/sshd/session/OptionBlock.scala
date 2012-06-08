@@ -26,7 +26,6 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
@@ -54,7 +53,7 @@ import android.widget.TextView
 class OptionBlock(context: Activity) extends Logging {
   private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
   private val items = Seq(
-    OptionBlock.Item(DOption.ConfirmConn, DOption.ConfirmConn))
+    OptionBlock.Item(DOption.ConfirmConn.tag, DOption.ConfirmConn))
   //OptionBlock.Item(DOption.WriteConnLog, DOption.WriteConnLog))
   private lazy val adapter = new OptionBlock.Adapter(context, Android.getId(context, "option_list_item_multiple_choice", "layout"), items)
   OptionBlock.block = Some(this)
@@ -76,7 +75,7 @@ class OptionBlock(context: Activity) extends Logging {
     case _ =>
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
-      editor.putBoolean(item.option, !lastState)
+      editor.putBoolean(item.option.tag, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
                         SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
@@ -89,7 +88,7 @@ object OptionBlock extends Logging {
     override def toString() = value
     def getState(context: Context): Boolean = {
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-      pref.getBoolean(option, option.default.asInstanceOf[Boolean])
+      pref.getBoolean(option.tag, option.default.asInstanceOf[Boolean])
     }
   }
   class Adapter(context: Activity, textViewResourceId: Int, data: Seq[Item])
