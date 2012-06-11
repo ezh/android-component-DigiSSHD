@@ -43,7 +43,7 @@ import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.dialog.FailedMarket
 import org.digimead.digi.ctrl.lib.dialog.InstallControl
-import org.digimead.digi.ctrl.lib.dialog.Preference
+import org.digimead.digi.ctrl.lib.dialog.Preferences
 import org.digimead.digi.ctrl.lib.dialog.Report
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ComponentState
@@ -130,12 +130,11 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
     SSHDActivity.start
-    Preference.setLogLevel(this)
-    Preference.setAndroidLogger(this)
+    Preferences.DebugLogLevel.set(this)
+    Preferences.DebugAndroidLogger.set(this)
     super.onCreate(savedInstanceState)
     onCreateExt(this)
-    Preference.initPersistentOptions(this)
-    Preference.setPrefferedLayoutOrientation(this)
+    Preferences.initPersistentOptions(this)
     setRequestedOrientation(AppComponent.Inner.preferredOrientation.get)
     setContentView(R.layout.main)
 
@@ -614,7 +613,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         true
       case R.id.menu_options =>
         try {
-          val intent = new Intent(this, classOf[SSHDPreference])
+          val intent = new Intent(this, classOf[SSHDPreferences])
           startActivity(intent)
         } catch {
           case e =>

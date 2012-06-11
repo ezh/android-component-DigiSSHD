@@ -28,7 +28,7 @@
         android:enabled="true"
         android:entries="@array/debugLevelDisplay"
         android:entryValues="@array/debugLevelValue"
-        android:key="debug_level"
+        android:key="debug_log_level"
         android:persistent="true"
         android:selectable="true"
         android:summary="@string/preference_debug_level_description"
@@ -36,7 +36,7 @@
 
     <CheckBoxPreference
         android:defaultValue="false"
-        android:key="debug_android"
+        android:key="debug_android_logger"
         android:summaryOff="@string/preference_debug_android_off"
         android:summaryOn="@string/preference_debug_android_on"
         android:title="@string/preference_debug_android" />
@@ -48,7 +48,7 @@
         android:enabled="true"
         android:entries="@array/layoutDisplay"
         android:entryValues="@array/layoutValue"
-        android:key="layout"
+        android:key="preferred_layout_orientation"
         android:persistent="true"
         android:selectable="true"
         android:summary="@string/preference_layout_description"

@@ -22,12 +22,12 @@
 package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.dialog.Preference
+import org.digimead.digi.ctrl.lib.dialog.Preferences
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
 import android.preference.{ Preference => APreference }
 
-class SSHDPreference extends Preference {
+class SSHDPreferences extends Preferences {
   implicit val logger = log
   @Loggable
   override protected def updatePrefSummary(p: APreference, key: String, notify: Boolean = false) {

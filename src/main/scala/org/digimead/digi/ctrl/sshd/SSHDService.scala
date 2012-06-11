@@ -41,7 +41,7 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.dialog.Preference
+import org.digimead.digi.ctrl.lib.dialog.Preferences
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.info.UserInfo
@@ -77,11 +77,11 @@ class SSHDService extends Service with DService {
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
     SSHDActivity.start // Yes, SSHDActivity from SSHDService
-    Preference.setLogLevel(this)
-    Preference.setAndroidLogger(this)
+    Preferences.DebugLogLevel.set(this)
+    Preferences.DebugAndroidLogger.set(this)
     super.onCreate()
     onCreateExt(this)
-    Preference.initPersistentOptions(this)
+    Preferences.initPersistentOptions(this)
     if (AppControl.Inner.isAvailable != Some(true))
       future {
         log.debug("try to bind " + DConstant.controlPackage)
