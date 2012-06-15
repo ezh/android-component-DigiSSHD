@@ -294,7 +294,7 @@ object SSHDService extends Logging {
         true
     }
     if (result)
-      try { Android.execChmod(644, keyFile, false) } catch { case e => log.warn(e.getMessage) }
+      keyFile.setReadable(true, false)
     result
   } catch {
     case e =>
@@ -345,7 +345,8 @@ object SSHDService extends Logging {
             if (!groups.exists) {
               log.debug("create groups stub for SCP")
               Common.writeToFile(groups, "echo %d\n".format(android.os.Process.myUid))
-              Android.execChmod(755, groups)
+              groups.setReadable(true, false)
+              groups.setExecutable(true, false)
             }
             // create security keys
             (if (ServiceOptions.rsaItem.getState[Boolean](context)) {

@@ -857,63 +857,67 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   private def initializeOnCreate(): Unit = {
     if (!SSHDActivity.initializeOnCreate.compareAndSet(true, false))
       return
-    log.debug("initializeOnCreate")
-    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("device environment evaluation"))
-    if (AppControl.isICtrlHostInstalled(this))
-      IAmMumble("hive connection in progress")
-    if (AppComponent.Inner.state.get.value == DState.Initializing)
-      AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
-    SSHDActivity.addLazyInit
-    info.TabActivity.addLazyInit
-    session.TabActivity.addLazyInit
-    service.TabActivity.addLazyInit
-    initializeOnResume
-    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("device environment evaluated"))
+    synchronized {
+      log.debug("initializeOnCreate")
+      IAmBusy(SSHDActivity, Android.getString(this, "state_loading_oncreate").getOrElse("device environment evaluation"))
+      if (AppControl.isICtrlHostInstalled(this))
+        IAmMumble("hive connection in progress")
+      if (AppComponent.Inner.state.get.value == DState.Initializing)
+        AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
+      SSHDActivity.addLazyInit
+      info.TabActivity.addLazyInit
+      session.TabActivity.addLazyInit
+      service.TabActivity.addLazyInit
+      initializeOnResume
+      IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("device environment evaluated"))
+    }
   }
   @Loggable
   private def initializeOnResume(): Unit = {
     if (!SSHDActivity.initializeOnResume.compareAndSet(true, false))
       return
-    log.debug("initializeOnResume")
-    IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("component environment evaluation"))
-    /*
-     *  before service available
-     */
-    AppComponent.LazyInit.init
-    /*
-     *  service available
-     */
-    if (AppControl.isICtrlHostInstalled(this)) {
-      AppControl.Inner.get(DTimeout.normal) match {
-        case Some(s) =>
-          IAmMumble("hive connection is successful")
-        case None =>
-          IAmMumble("hive connection is failed")
-      }
-    }
-    /*
-     *  after service available/unavailable
-     */
-    SSHDActivity.addLazyInitOnResume
-    session.TabActivity.addLazyInitOnResume
-    AppComponent.LazyInit.init
-    AppComponent.Inner.synchronizeStateWithICtrlHost((s) => {
-      runOnUiThread(new Runnable {
-        def run {
-          buttonToggleStartStop1.get.foreach(_.setEnabled(true))
-          buttonToggleStartStop2.get.foreach(_.setEnabled(true))
+    synchronized {
+      log.debug("initializeOnResume")
+      IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("component environment evaluation"))
+      /*
+       *  before service available
+       */
+      AppComponent.LazyInit.init
+      /*
+       *  service available
+       */
+      if (AppControl.isICtrlHostInstalled(this)) {
+        AppControl.Inner.get(DTimeout.normal) match {
+          case Some(s) =>
+            IAmMumble("hive connection is successful")
+          case None =>
+            IAmMumble("hive connection is failed")
         }
+      }
+      /*
+       *  after service available/unavailable
+       */
+      SSHDActivity.addLazyInitOnResume
+      session.TabActivity.addLazyInitOnResume
+      AppComponent.LazyInit.init
+      AppComponent.Inner.synchronizeStateWithICtrlHost((s) => {
+        runOnUiThread(new Runnable {
+          def run {
+            buttonToggleStartStop1.get.foreach(_.setEnabled(true))
+            buttonToggleStartStop2.get.foreach(_.setEnabled(true))
+          }
+        })
+        AppComponent.Inner.enableRotation()
       })
-      AppComponent.Inner.enableRotation()
-    })
-    IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("component environment evaluated"))
-    future {
-      Report.searchAndSubmit(this)
-      if (AppControl.Inner.isAvailable == Some(false) &&
-        AppComponent.Inner.state.get.value == DState.Broken &&
-        AppComponent.Inner.state.get.onClickCallback != null &&
-        this.getWindow.isActive)
-        AppComponent.Inner.state.get.onClickCallback(this)
+      IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("component environment evaluated"))
+      future {
+        Report.searchAndSubmit(this)
+        if (AppControl.Inner.isAvailable == Some(false) &&
+          AppComponent.Inner.state.get.value == DState.Broken &&
+          AppComponent.Inner.state.get.onClickCallback != null &&
+          this.getWindow.isActive)
+          AppComponent.Inner.state.get.onClickCallback(this)
+      }
     }
   }
   override def registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter): Intent = {
