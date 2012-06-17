@@ -134,7 +134,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     Preferences.DebugAndroidLogger.set(this)
     super.onCreate(savedInstanceState)
     onCreateExt(this)
-    Preferences.initPersistentOptions(this)
+    SSHDPreferences.initActivityPersistentOptions(this)
     setRequestedOrientation(AppComponent.Inner.preferredOrientation.get)
     setContentView(R.layout.main)
 
@@ -395,7 +395,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   private def onMessageBroadcast(intent: Intent, droneName: String, dronePackage: String) = future {
     val message = intent.getParcelableExtra[DMessage](DIntent.Message)
-    val logger = Logging.getLogger(message.origin.name)
+    val logger = Logging.getRichLogger(message.origin.name)
     logger.info(dronePackage + "/" + message.message + " ts#" + message.ts)
     SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ (droneName + "/" + message.message)
     SSHDActivity.onUpdate(this)

@@ -26,12 +26,11 @@ import java.io.File
 import java.io.InputStreamReader
 
 import scala.Array.canBuildFrom
-import scala.Option.option2Iterable
 import scala.actors.Futures.future
-import scala.annotation.elidable
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.ICtrlComponent
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DService
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -63,9 +62,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager.NameNotFoundException
 import android.os.IBinder
-import android.preference.PreferenceManager
-import android.util.Base64
-import annotation.elidable.ASSERTION
 
 class SSHDService extends Service with DService {
   private val ready = new SyncVar[Boolean]()
@@ -81,7 +77,7 @@ class SSHDService extends Service with DService {
     Preferences.DebugAndroidLogger.set(this)
     super.onCreate()
     onCreateExt(this)
-    Preferences.initPersistentOptions(this)
+    SSHDPreferences.initServicePersistentOptions(this)
     if (AppControl.Inner.isAvailable != Some(true))
       future {
         log.debug("try to bind " + DConstant.controlPackage)
@@ -154,13 +150,16 @@ object SSHDService extends Logging {
       context <- AppComponent.Context
       appNativePath <- AppComponent.Inner.appNativePath
       xml <- AppComponent.Inner.nativeManifest
+      info <- AnyBase.info.get
     } yield {
       var executableID = 0
       executables.map(executable => {
         // get or throw block
         val block = (xml \\ "application").find(app => (app \ "name").text == executable).get
         val id = executableID
-        var env: Seq[String] = Seq()
+        var env: Seq[String] = Seq(
+          "DIGISSHD_V=" + info.appVersion,
+          "DIGISSHD_B=" + info.appBuild)
         val commandLine = executable match {
           case "dropbear" =>
             val internalPath = new SyncVar[File]()
@@ -209,7 +208,7 @@ object SSHDService extends Logging {
                   Seq()
                 Option(System.getenv("PATH")).map(s => {
                   val oldPATH = s.substring(s.indexOf('=') + 1)
-                  env = Seq("PATH=" + path + ":" + oldPATH)
+                  env = env :+ ("PATH=" + path + ":" + oldPATH)
                 })
                 val forceHomePathOption = if (masterPassword.isEmpty) Seq() else Seq("-H", externalPath.get(0).getOrElse(path).getAbsolutePath)
                 Some(Seq(new File(path, executable).getAbsolutePath,
@@ -328,14 +327,17 @@ object SSHDService extends Logging {
       } yield {
         assert(id == 0)
         val internalPath = new SyncVar[File]()
+        val externalPath = new SyncVar[File]()
         AppControl.Inner.callListDirectories(context.getPackageName)() match {
           case Some((internal, external)) =>
             internalPath.set(new File(internal))
+            externalPath.set(new File(external))
           case _ =>
             log.warn("unable to get component directories")
             internalPath.set(null)
+            externalPath.set(null)
         }
-        internalPath.get(DTimeout.long) match {
+        val keyResult = internalPath.get(DTimeout.long) match {
           case Some(path) if path != null =>
             // create SCP groups helper
             // coreutils groups native failed with exit code 1
@@ -386,6 +388,17 @@ object SSHDService extends Logging {
           case _ =>
             false
         }
+        val homeResult = externalPath.get(DTimeout.long) match {
+          case Some(path) if path != null =>
+            val profileFile = new File(path, ".profile")
+            if (!profileFile.exists) {
+              IAmMumble("Create default user profile")
+              Common.writeToFile(profileFile, SSHDUserProfile.content)
+            }
+          case _ =>
+            false
+        }
+        keyResult
       }
     } getOrElse false
     @Loggable(result = false)

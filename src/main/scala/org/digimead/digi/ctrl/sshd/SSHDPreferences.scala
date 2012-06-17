@@ -23,8 +23,11 @@ package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.dialog.Preferences
+import org.digimead.digi.ctrl.lib.log.RichLogger
+import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
+import android.content.Context
 import android.preference.{ Preference => APreference }
 
 class SSHDPreferences extends Preferences {
@@ -32,5 +35,21 @@ class SSHDPreferences extends Preferences {
   @Loggable
   override protected def updatePrefSummary(p: APreference, key: String, notify: Boolean = false) {
     super.updatePrefSummary(p, key, notify)
+  }
+}
+
+object SSHDPreferences {
+  @Loggable
+  def initActivityPersistentOptions(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher) {
+    Preferences.DebugLogLevel.set(context)(logger, dispatcher)
+    Preferences.DebugAndroidLogger.set(context)(logger, dispatcher)
+    Preferences.PreferredLayoutOrientation.set(context)(logger, dispatcher)
+    Preferences.ShutdownTimeout.set(context)(logger, dispatcher)
+    Preferences.ShowDialogRate.set(context)(logger, dispatcher)
+    Preferences.ShowDialogWelcome.set(context)(logger, dispatcher)
+  }
+  def initServicePersistentOptions(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher) {
+    Preferences.DebugLogLevel.set(context)(logger, dispatcher)
+    Preferences.DebugAndroidLogger.set(context)(logger, dispatcher)
   }
 }
