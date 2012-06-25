@@ -26,7 +26,7 @@ import java.io.File
 import java.io.InputStreamReader
 
 import scala.Array.canBuildFrom
-import scala.actors.Futures.future
+import scala.actors.Futures
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.ICtrlComponent
@@ -55,7 +55,7 @@ import org.digimead.digi.ctrl.lib.util.Hash
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
+import org.digimead.digi.ctrl.sshd.service.{OptionBlock => ServiceOptions}
 
 import android.app.Service
 import android.content.Context
@@ -70,16 +70,17 @@ class SSHDService extends Service with DService {
 
   @Loggable
   override def onCreate() = {
-    // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
+    SSHDService.service = Some(this)
+    // sometimes there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
-    SSHDActivity.start // Yes, SSHDActivity from SSHDService
+    SSHDActivity.actor.start // Yes, SSHDActivity from SSHDService
     Preferences.DebugLogLevel.set(this)
     Preferences.DebugAndroidLogger.set(this)
     super.onCreate()
     onCreateExt(this)
     SSHDPreferences.initServicePersistentOptions(this)
     if (AppControl.Inner.isAvailable != Some(true))
-      future {
+      Futures.future {
         log.debug("try to bind " + DConstant.controlPackage)
         AppComponent.Inner.minVersionRequired(DConstant.controlPackage) match {
           case Some(minVersion) => try {
@@ -103,8 +104,9 @@ class SSHDService extends Service with DService {
             AppControl.Inner.bind(getApplicationContext)
         }
       }
-    SSHDService.addLazyInit
-    future {
+    Futures.future {
+      SSHDService.addLazyInit
+      Message.addLazyInit
       AppComponent.LazyInit.init
       ready.set(true)
     }
@@ -123,25 +125,20 @@ class SSHDService extends Service with DService {
 }
 
 object SSHDService extends Logging {
+  @volatile private var service: Option[SSHDService] = None
   Logging.addLogger(FileLogger)
   log.debug("alive")
 
-  def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50) {
-    future { AppComponent.Inner.getCachedComponentInfo(SSHDActivity.locale, SSHDActivity.localeLanguage) }
-    // TODO
-    /*    for {
-      context <- AppComponent.Context
-      info <- AnyBase.info.get
-    } {
-      AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
-      IAmBusy(SSHDService, "service environment verification")
-      AppControl.Inner ! AppControl.Message.Prepare(context.getPackageName, info.appBuild, (r) => {
-        if (!r) AppComponent.Inner.state.set(AppComponent.State(DState.Broken, "inconsistent service environment"))
-        IAmReady(SSHDService, "service environment verified")
-      })
+  def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50, DTimeout.longest) {
+    service.foreach {
+      service =>
+        Message.addLazyInit
+        SSHDPreferences.initServicePersistentOptions(service)
+        // preload
+        Futures.future { AppComponent.Inner.getCachedComponentInfo(SSHDActivity.locale, SSHDActivity.localeLanguage) }
+        // prepare
+        AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     }
-     getComponentStatus
-    */
   }
   @Loggable
   def getExecutableInfo(workdir: String, allowCallFromUI: Boolean = false): Seq[ExecutableInfo] = try {

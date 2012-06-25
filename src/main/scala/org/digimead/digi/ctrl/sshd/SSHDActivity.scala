@@ -129,7 +129,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     SSHDActivity.activity = Some(this)
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
-    SSHDActivity.start
+    SSHDActivity.actor.start
     Preferences.DebugLogLevel.set(this)
     Preferences.DebugAndroidLogger.set(this)
     super.onCreate(savedInstanceState)
@@ -393,12 +393,17 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     }
   }
   @Loggable
-  private def onMessageBroadcast(intent: Intent, droneName: String, dronePackage: String) = future {
-    val message = intent.getParcelableExtra[DMessage](DIntent.Message)
-    val logger = Logging.getRichLogger(message.origin.name)
-    logger.info(dronePackage + "/" + message.message + " ts#" + message.ts)
-    SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ (droneName + "/" + message.message)
-    SSHDActivity.onUpdate(this)
+  private def onMessageBroadcast(intent: Intent, droneName: String, dronePackage: String): Unit = {
+    Option(intent.getParcelableArrayExtra(DIntent.Message)).foreach(_.foreach {
+      case message: DMessage =>
+        val logger = Logging.getRichLogger(message.origin.name)
+        logger.info(dronePackage + "/" + message.message + " ts#" + message.ts)
+        message.stash = Some(droneName)
+        SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ (droneName + "/" + message.message)
+        SSHDActivity.onUpdate(this)
+      case broken =>
+        log.error("recieve broken message: " + broken)
+    })
   }
   @Loggable
   private def onAppComponentStateChanged(state: AppComponent.State): Unit = for {
@@ -548,13 +553,13 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         buttonGrowShrink <- buttonGrowShrink.get
         ic_grow <- SSHDActivity.ic_grow
       } buttonGrowShrink.setBackgroundDrawable(ic_grow)
-      SSHDActivity ! SSHDActivity.Message.TakeMySpaceIfYouPlease
+      SSHDActivity.actor ! SSHDActivity.Message.TakeMySpaceIfYouPlease
     } else {
       for {
         buttonGrowShrink <- buttonGrowShrink.get
         ic_shrink <- SSHDActivity.ic_shrink
       } buttonGrowShrink.setBackgroundDrawable(ic_shrink)
-      SSHDActivity ! SSHDActivity.Message.GiveMeMoreSpaceIfYouPlease
+      SSHDActivity.actor ! SSHDActivity.Message.GiveMeMoreSpaceIfYouPlease
     }
   }
   @Loggable
@@ -626,7 +631,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   override def onCreateDialog(id: Int, args: Bundle): Dialog = {
     Option(onCreateDialogExt(this, id, args)).foreach(dialog => return dialog)
-    Option(Common.onCreateDialog(id, this)).foreach(dialog => return dialog)
     id match {
       case id if id == SSHDActivity.Dialog.ComponentInfo =>
         log.debug("create dialog ComponentInfo " + id)
@@ -865,10 +869,17 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       if (AppComponent.Inner.state.get.value == DState.Initializing)
         AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
       SSHDActivity.addLazyInit
+      Message.addLazyInit
+      /*
+       *  LazyInit before service available/unavailable
+       */
+      AppComponent.LazyInit.init
+      /*
+       *  LazyInit after service available/unavailable
+       */
       info.TabActivity.addLazyInit
       session.TabActivity.addLazyInit
       service.TabActivity.addLazyInit
-      initializeOnResume
       IAmReady(SSHDActivity, Android.getString(this, "state_loaded_oncreate").getOrElse("device environment evaluated"))
     }
   }
@@ -879,13 +890,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     synchronized {
       log.debug("initializeOnResume")
       IAmBusy(SSHDActivity, Android.getString(this, "state_loading_onresume").getOrElse("component environment evaluation"))
-      /*
-       *  before service available
-       */
-      AppComponent.LazyInit.init
-      /*
-       *  service available
-       */
       if (AppControl.isICtrlHostInstalled(this)) {
         AppControl.Inner.get(DTimeout.normal) match {
           case Some(s) =>
@@ -895,7 +899,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         }
       }
       /*
-       *  after service available/unavailable
+       *  LazyInit after service available/unavailable
        */
       SSHDActivity.addLazyInitOnResume
       session.TabActivity.addLazyInitOnResume
@@ -908,16 +912,14 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
           }
         })
         AppComponent.Inner.enableRotation()
-      })
-      IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("component environment evaluated"))
-      future {
         Report.searchAndSubmit(this)
         if (AppControl.Inner.isAvailable == Some(false) &&
           AppComponent.Inner.state.get.value == DState.Broken &&
           AppComponent.Inner.state.get.onClickCallback != null &&
           this.getWindow.isActive)
           AppComponent.Inner.state.get.onClickCallback(this)
-      }
+      })
+      IAmReady(SSHDActivity, Android.getString(this, "state_loaded_onresume").getOrElse("component environment evaluated"))
     }
   }
   override def registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter): Intent = {
@@ -933,7 +935,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   }
 }
 
-object SSHDActivity extends Actor with Logging {
+object SSHDActivity extends Logging {
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
   @volatile var ic_grow: Option[Drawable] = None
   @volatile var ic_shrink: Option[Drawable] = None
@@ -1135,52 +1137,56 @@ object SSHDActivity extends Actor with Logging {
       }
     }
   }
-  def act = {
-    loop {
-      react {
-        case IAmBusy(origin, message, ts) =>
-          log.info("receive message IAmBusy from " + origin)
-          reply({
-            busyCounter.incrementAndGet
+
+  val actor = new Actor {
+    def act = {
+      loop {
+        react {
+          case IAmBusy(origin, message, ts) =>
+            log.info("receive message IAmBusy from " + origin)
+            reply({
+              busyCounter.incrementAndGet
+              busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+              activity.foreach(onUpdate)
+              AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
+              log.debug("return from message IAmBusy from " + origin)
+            })
+          case IAmMumble(origin, message, callback, ts) =>
+            log.info("receive message IAmMumble from " + origin)
             busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
             activity.foreach(onUpdate)
-            AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
-            log.debug("return from message IAmBusy from " + origin)
-          })
-        case IAmMumble(origin, message, callback, ts) =>
-          log.info("receive message IAmMumble from " + origin)
-          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-          activity.foreach(onUpdate)
-          log.debug("return from message IAmMumble from " + origin)
-        case IAmWarn(origin, message, callback, ts) =>
-          log.info("receive message IAmWarn from " + origin)
-          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-          activity.foreach(onUpdate)
-          log.debug("return from message IAmWarn from " + origin)
-        case IAmYell(origin, message, stacktrace, callback, ts) =>
-          log.info("receive message IAmYell from " + origin)
-          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-          activity.foreach(onUpdate)
-          log.debug("return from message IAmYell from " + origin)
-        case IAmReady(origin, message, ts) =>
-          log.info("receive message IAmReady from " + origin)
-          if (busyCounter.get > 0)
-            busyCounter.decrementAndGet
-          busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-          activity.foreach(onUpdate)
-          AppComponent.Inner.state.freeBusy
-          log.debug("return from message IAmReady from " + origin)
-        case Message.GiveMeMoreSpaceIfYouPlease =>
-          onMessageCollapse
-        case Message.TakeMySpaceIfYouPlease =>
-          onMessageExpand
-        case message: AnyRef =>
-          log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
-        case message =>
-          log.errorWhere("skip unknown message " + message)
+            log.debug("return from message IAmMumble from " + origin)
+          case IAmWarn(origin, message, callback, ts) =>
+            log.info("receive message IAmWarn from " + origin)
+            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+            activity.foreach(onUpdate)
+            log.debug("return from message IAmWarn from " + origin)
+          case IAmYell(origin, message, stacktrace, callback, ts) =>
+            log.info("receive message IAmYell from " + origin)
+            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+            activity.foreach(onUpdate)
+            log.debug("return from message IAmYell from " + origin)
+          case IAmReady(origin, message, ts) =>
+            log.info("receive message IAmReady from " + origin)
+            if (busyCounter.get > 0)
+              busyCounter.decrementAndGet
+            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
+            activity.foreach(onUpdate)
+            AppComponent.Inner.state.freeBusy
+            log.debug("return from message IAmReady from " + origin)
+          case Message.GiveMeMoreSpaceIfYouPlease =>
+            onMessageCollapse
+          case Message.TakeMySpaceIfYouPlease =>
+            onMessageExpand
+          case message: AnyRef =>
+            log.errorWhere("skip unknown message " + message.getClass.getName + ": " + message)
+          case message =>
+            log.errorWhere("skip unknown message " + message)
+        }
       }
     }
   }
+
   def isRunning() = running
   def isConsistent() = consistent
   @Loggable

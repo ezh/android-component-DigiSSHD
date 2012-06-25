@@ -200,6 +200,7 @@ object InterfaceBlock extends Logging {
         case InterfaceBlock.Item(_, None) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icUnused, null, null, null)
       }
+      view.setBackgroundDrawable(Block.Resources.noviceDrawable)
       view
     }
   }

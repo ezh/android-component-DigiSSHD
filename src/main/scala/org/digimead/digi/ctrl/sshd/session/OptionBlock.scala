@@ -78,7 +78,7 @@ class OptionBlock(context: Activity) extends Logging {
       editor.putBoolean(item.option.tag, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-                        SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
+      SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
   }
 }
 
@@ -130,6 +130,7 @@ object OptionBlock extends Logging {
           text2.setVisibility(View.VISIBLE)
           text1.setText(Html.fromHtml(item.option.name(context)))
           text2.setText(Html.fromHtml(item.option.description(context)))
+          view.setBackgroundDrawable(Block.Resources.professionalDrawable)
           item.view = new WeakReference(view)
           view
         case Some(view) =>

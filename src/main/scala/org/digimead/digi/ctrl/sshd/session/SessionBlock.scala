@@ -81,6 +81,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
   def appendTo(adapter: MergeAdapter) {
     val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
     headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
+    header.findViewById(android.R.id.custom).setBackgroundDrawable(Block.Resources.intermediateDrawable)
     adapter.addView(header)
     adapter.addAdapter(this.adapter)
     val footer = inflater.inflate(Android.getId(context, "session_footer", "layout"), null)
@@ -99,7 +100,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         false
       }
     }))
-    header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
+    header.findViewById(android.R.id.custom).setVisibility(View.VISIBLE)
     disconnectButton.get.foreach(_.setEnabled(false))
   }
   @Loggable
@@ -125,10 +126,10 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
       context.runOnUiThread(new Runnable() {
         def run() {
           if (cursor.getCount == 0) {
-            header.findViewById(android.R.id.content).setVisibility(View.VISIBLE)
+            header.findViewById(android.R.id.custom).setVisibility(View.VISIBLE)
             disconnectButton.get.foreach(_.setEnabled(false))
           } else {
-            header.findViewById(android.R.id.content).setVisibility(View.GONE)
+            header.findViewById(android.R.id.custom).setVisibility(View.GONE)
             disconnectButton.get.foreach(_.setEnabled(true))
           }
           adapter.changeCursor(cursor)

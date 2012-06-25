@@ -28,7 +28,8 @@
     android:paddingRight="12dip" > <!-- android:minHeight="?android:attr/listPreferredItemHeightSmall" -->
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:id="@android:id/content"
+        android:layout_width="0dip"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center_vertical"

@@ -204,6 +204,7 @@ object FilterBlock extends Logging {
               false // no, it isn't
             }
           })
+          view.setBackgroundDrawable(Block.Resources.professionalDrawable)
           item.view = new WeakReference(view)
           item.updateUI
           if (item.isFilterADA)
