@@ -26,6 +26,7 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
@@ -130,7 +131,7 @@ object OptionBlock extends Logging {
           text2.setVisibility(View.VISIBLE)
           text1.setText(Html.fromHtml(item.option.name(context)))
           text2.setText(Html.fromHtml(item.option.description(context)))
-          view.setBackgroundDrawable(Block.Resources.professionalDrawable)
+          Level.professional(view)
           item.view = new WeakReference(view)
           view
         case Some(view) =>

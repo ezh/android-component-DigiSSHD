@@ -24,12 +24,13 @@ package org.digimead.digi.ctrl.sshd.service
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.actors.Futures.future
-import scala.annotation.elidable
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
@@ -42,7 +43,6 @@ import org.digimead.digi.ctrl.sshd.SSHDCommon
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
@@ -63,11 +63,11 @@ import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import annotation.elidable.ASSERTION
 
-class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
+class OptionBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
   val items = Seq(OptionBlock.asRootItem, OptionBlock.portItem, OptionBlock.rsaItem, OptionBlock.dssItem, OptionBlock.authItem)
-  private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
+  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new OptionBlock.Adapter(context, items)
   OptionBlock.block = Some(this)
   @Loggable
@@ -157,7 +157,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         })
       }
   }
-  def onListItemClickAuth(l: ListView, v: View, item: OptionBlock.Item) = context.runOnUiThread(new Runnable {
+  def onListItemClickAuth(l: ListView, v: View, item: OptionBlock.Item) = AnyBase.handler.post(new Runnable {
     def run {
       SSHDActivity.activity.foreach {
         activity =>
@@ -229,7 +229,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       item.view.get.foreach {
         view =>
           val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
-          context.runOnUiThread(new Runnable { def run = { checkbox.setChecked(!lastState) } })
+          AnyBase.handler.post(new Runnable { def run = { checkbox.setChecked(!lastState) } })
       }
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
@@ -245,7 +245,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
         val rsaCheckbox = rsaView.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
         val dssCheckbox = dssView.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
         val message = Android.getString(context, "option_rsa_dss_at_least_one").getOrElse("at least one of the encription type must be selected from either RSA or DSA")
-        context.runOnUiThread(new Runnable {
+        AnyBase.handler.post(new Runnable {
           def run = {
             rsaCheckbox.setChecked(OptionBlock.rsaItem.getState[Boolean](context))
             dssCheckbox.setChecked(OptionBlock.dssItem.getState[Boolean](context))
@@ -259,7 +259,7 @@ class OptionBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     item.view.get.foreach {
       view =>
         val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
-        context.runOnUiThread(new Runnable { def run = { checkbox.setChecked(!lastState) } })
+        AnyBase.handler.post(new Runnable { def run = { checkbox.setChecked(!lastState) } })
     }
     val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
     val editor = pref.edit()
@@ -340,9 +340,9 @@ object OptionBlock extends Logging {
       }
     }
   }
-  class Adapter(context: Activity, data: Seq[Item])
+  class Adapter(context: Context, data: Seq[Item])
     extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_1, android.R.id.text1, data.toArray) {
-    private var inflater: LayoutInflater = context.getLayoutInflater
+    private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = data(position)
       item.view.get match {
@@ -403,6 +403,7 @@ object OptionBlock extends Logging {
           text1.setText(Html.fromHtml(item.option.name(context)))
           text2.setText(Html.fromHtml(item.option.description(context)))
           item.view = new WeakReference(view)
+          Level.intermediate(view)
           view
         case Some(view) =>
           view

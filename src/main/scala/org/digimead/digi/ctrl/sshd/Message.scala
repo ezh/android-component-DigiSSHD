@@ -48,23 +48,27 @@ object Message extends Logging {
   @volatile private var runner = new Thread
 
   def addLazyInit = AppComponent.LazyInit("MessageDispatcher initialize onCreate", 50) {
-    runner = new Thread("MessageDispatcher for " + Message.getClass.getName) {
-      log.debug("new MessageDispatcher thread %s alive".format(this.getId.toString))
-      this.setDaemon(true)
-      @tailrec
-      override def run() = {
-        if (!queue.isEmpty) {
-          flushQueue(flushLimit)
-          Thread.sleep(100)
-        } else
-          Thread.sleep(500)
-        if (runner.getId != this.getId || AppComponent.Inner == null)
-          log.debug("MessageDispatcher thread %s terminated".format(this.getId.toString))
-        else
-          run
+    Message.synchronized {
+      if (!runner.isAlive) {
+        runner = new Thread("MessageDispatcher for " + Message.getClass.getName) {
+          log.debug("new MessageDispatcher thread %s alive".format(this.getId.toString))
+          this.setDaemon(true)
+          @tailrec
+          override def run() = {
+            if (!queue.isEmpty) {
+              flushQueue(flushLimit)
+              Thread.sleep(100)
+            } else
+              Thread.sleep(500)
+            if (runner.getId != this.getId || AppComponent.Inner == null)
+              log.debug("MessageDispatcher thread %s terminated".format(this.getId.toString))
+            else
+              run
+          }
+        }
+        runner.start
       }
     }
-    runner.start
   }
 
   implicit val dispatcher: Dispatcher = new Dispatcher {

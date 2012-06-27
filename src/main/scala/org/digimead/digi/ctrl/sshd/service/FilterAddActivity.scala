@@ -23,6 +23,7 @@ package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
@@ -40,9 +41,10 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.view.ContextMenu.ContextMenuInfo
 import android.view.ContextMenu
+import android.view.ContextMenu.ContextMenuInfo
 import android.view.View
 import android.widget.AdapterView
 import android.widget.Button
@@ -73,6 +75,9 @@ class FilterAddActivity extends ListActivity with Logging {
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
+    AnyBase.init(this, false)
+    AnyBase.preventShutdown(this)
+    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_BEHIND)
     setContentView(R.layout.service_filter)
     val header = inflater.inflate(R.layout.service_filter_header, null)
     getListView().addHeaderView(header, null, false)
@@ -100,6 +105,7 @@ class FilterAddActivity extends ListActivity with Logging {
   }
   @Loggable
   override def onDestroy() {
+    AnyBase.deinit(this)
     super.onDestroy()
   }
   @Loggable

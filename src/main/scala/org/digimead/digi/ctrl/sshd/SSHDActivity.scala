@@ -518,14 +518,16 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       case DState.Active =>
         IAmBusy(SSHDActivity, Android.getString(this, "state_stopping_service").getOrElse("stopping service"))
         future {
-          stop((s) => {
+          stop((componentState, serviceState, serviceBusy) => {
+            log.debug("stoped, component state:" + componentState + ", service state:" + serviceState + ", service busy:" + serviceBusy)
             IAmReady(SSHDActivity, Android.getString(this, "state_stopped_service").getOrElse("stopped service"))
           })
         }
       case DState.Passive =>
         IAmBusy(SSHDActivity, Android.getString(this, "state_starting_service").getOrElse("starting service"))
         future {
-          start((s) => {
+          start((componentState, serviceState, serviceBusy) => {
+            log.debug("started, component state:" + componentState + ", service state:" + serviceState + ", service busy:" + serviceBusy)
             IAmReady(SSHDActivity, Android.getString(this, "state_started_service").getOrElse("started service"))
           })
         }
@@ -740,7 +742,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
    * recommended to start as future
    */
   @Loggable
-  private def start(onFinish: (DState.Value) => Unit): Boolean = synchronized {
+  private def start(onFinish: (DState.Value, DState.Value, Boolean) => Unit): Boolean = synchronized {
     log.info("starting " + getPackageName)
     val stopFlag = new SyncVar[Boolean]()
     val startFlag = new SyncVar[Boolean]()
@@ -769,14 +771,14 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       startFlag.get(DTimeout.longer).getOrElse(false)
     } else
       false
-    AppComponent.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
+    AppComponent.Inner.synchronizeStateWithICtrlHost((componentState, serviceState, serviceBusy) => onFinish(componentState, serviceState, serviceBusy))
     result
   }
   /*
    * recommended to start as future
    */
   @Loggable
-  private def stop(onFinish: (DState.Value) => Unit): Boolean = synchronized {
+  private def stop(onFinish: (DState.Value, DState.Value, Boolean) => Unit): Boolean = synchronized {
     log.info("stopping " + getPackageName)
     val stopFlag = new SyncVar[Boolean]()
 
@@ -793,7 +795,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     if (result)
       AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     stopService(new Intent(DIntent.HostService))
-    AppComponent.Inner.synchronizeStateWithICtrlHost((s) => onFinish(s))
+    AppComponent.Inner.synchronizeStateWithICtrlHost((componentState, serviceState, serviceBusy) => onFinish(componentState, serviceState, serviceBusy))
     result
   }
   @Loggable
@@ -802,7 +804,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       IAmBusy(SSHDActivity, Android.getString(this, "recovering").getOrElse("reset all components state"))
       AppComponent.Inner.state.set(AppComponent.State(DState.Initializing, Seq("try_to_recover")))
       AppControl.Inner.callReset(DConstant.controlPackage)()
-      AppComponent.Inner.synchronizeStateWithICtrlHost((v) => {
+      AppComponent.Inner.synchronizeStateWithICtrlHost((componentState, serviceState, serviceBusy) => {
         IAmReady(SSHDActivity, Android.getString(this, "recovered").getOrElse("reset completed"))
       })
     }
@@ -904,7 +906,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
       SSHDActivity.addLazyInitOnResume
       session.TabActivity.addLazyInitOnResume
       AppComponent.LazyInit.init
-      AppComponent.Inner.synchronizeStateWithICtrlHost((s) => {
+      AppComponent.Inner.synchronizeStateWithICtrlHost((componentState, serviceState, serviceBusy) => {
         runOnUiThread(new Runnable {
           def run {
             buttonToggleStartStop1.get.foreach(_.setEnabled(true))

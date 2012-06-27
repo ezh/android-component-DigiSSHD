@@ -28,11 +28,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
-import scala.annotation.elidable
 import scala.collection.JavaConversions._
 import scala.ref.WeakReference
 import scala.util.Random
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -58,6 +58,7 @@ import android.app.ListActivity
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.text.ClipboardManager
 import android.text.Editable
@@ -80,7 +81,6 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import annotation.elidable.ASSERTION
 
 class SSHDUsers extends ListActivity with Logging {
   private lazy val inflater = getLayoutInflater()
@@ -108,6 +108,9 @@ class SSHDUsers extends ListActivity with Logging {
   override def onCreate(savedInstanceState: Bundle) {
     SSHDUsers.activity = Some(this)
     super.onCreate(savedInstanceState)
+    AnyBase.init(this, false)
+    AnyBase.preventShutdown(this)
+    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_BEHIND)
     setContentView(R.layout.users)
     SSHDUsers.adapter.foreach(setListAdapter)
     for {
@@ -184,6 +187,7 @@ class SSHDUsers extends ListActivity with Logging {
   }
   @Loggable
   override def onDestroy() {
+    AnyBase.deinit(this)
     super.onDestroy()
   }
   @Loggable

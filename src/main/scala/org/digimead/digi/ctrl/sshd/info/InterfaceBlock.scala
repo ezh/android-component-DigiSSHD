@@ -23,40 +23,42 @@ package org.digimead.digi.ctrl.sshd.info
 
 import java.util.ArrayList
 
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.actors.Futures.future
+import scala.collection.JavaConversions.seqAsJavaList
 import scala.collection.mutable.HashMap
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.block.SupportBlock
-import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.FilterBlock
-import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
-import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.sshd.service.FilterBlock
 
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.text.Html
 import android.view.ContextMenu
+import android.view.ContextThemeWrapper
+import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
-import android.app.AlertDialog
-import android.view.LayoutInflater
-import android.view.ContextThemeWrapper
 
 class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
   private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
@@ -200,7 +202,7 @@ object InterfaceBlock extends Logging {
         case InterfaceBlock.Item(_, None) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icUnused, null, null, null)
       }
-      view.setBackgroundDrawable(Block.Resources.noviceDrawable)
+      Level.novice(view)
       view
     }
   }

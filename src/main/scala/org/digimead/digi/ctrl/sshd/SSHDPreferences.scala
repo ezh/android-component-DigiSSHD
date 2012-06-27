@@ -21,20 +21,37 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import scala.collection.JavaConversions._
+
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.block.Level
+import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.dialog.Preferences
 import org.digimead.digi.ctrl.lib.log.RichLogger
 import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
 import android.content.Context
+import android.preference.ListPreference
 import android.preference.{ Preference => APreference }
 
 class SSHDPreferences extends Preferences {
   implicit val logger = log
   @Loggable
   override protected def updatePrefSummary(p: APreference, key: String, notify: Boolean = false) {
-    super.updatePrefSummary(p, key, notify)
+    p match {
+      case p: ListPreference if key == SSHDPreferences.DOption.ControlsHighlight.tag =>
+        if (shared.contains(SSHDPreferences.DOption.ControlsHighlight.tag))
+          // DOption.ControlsHighlight.tag exists
+          SSHDPreferences.ControlsHighlight.set(p.getValue.toString, this, notify)(logger, dispatcher)
+        else
+          // DOption.ControlsHighlight.tag not exists
+          SSHDPreferences.ControlsHighlight.set(SSHDPreferences.ControlsHighlight.get(this).toString, this, notify)(logger, dispatcher)
+      case _ =>
+        super.updatePrefSummary(p, key, notify)
+    }
   }
 }
 
@@ -47,9 +64,99 @@ object SSHDPreferences {
     Preferences.ShutdownTimeout.set(context)(logger, dispatcher)
     Preferences.ShowDialogRate.set(context)(logger, dispatcher)
     Preferences.ShowDialogWelcome.set(context)(logger, dispatcher)
+    ControlsHighlight.set(context)(logger, dispatcher)
   }
   def initServicePersistentOptions(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher) {
     Preferences.DebugLogLevel.set(context)(logger, dispatcher)
     Preferences.DebugAndroidLogger.set(context)(logger, dispatcher)
+  }
+  object ControlsHighlight extends Preferences.Preference[String](DOption.ControlsHighlight, (s) => s,
+    "set_experience_highlights_notify", "set experience highlights to \"%s\"") {
+    override def set(value: String, context: Context, notify: Boolean = false)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit = {
+      value match {
+        case "On" =>
+          activate(context)
+        case "Interactive" =>
+        case "Off" =>
+          deactivate(context)
+      }
+      super.set(value, context, notify)(logger, dispatcher)
+    }
+    def activate(context: Context) = {
+      val publicEditor = Common.getPublicPreferences(context).edit
+      publicEditor.putBoolean(DOption.ControlsHighlightActive.tag, true)
+      publicEditor.commit
+      Level.setEnable(true)
+      Level.hlOn(context)
+    }
+    def deactivate(context: Context) {
+      val publicEditor = Common.getPublicPreferences(context).edit
+      publicEditor.putBoolean(DOption.ControlsHighlightActive.tag, false)
+      publicEditor.commit
+      Level.setEnable(false)
+      Level.hlOff(context)
+    }
+  }
+  object FilterConnection {
+    def initialize(context: Context) {
+      if (!context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).contains(DOption.FilterConnectionInitialized.tag)) {
+        val editor = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).edit
+        editor.putBoolean(DOption.FilterConnectionInitialized.tag, true)
+        Allow.enable(context, "127.*.*.*", "192.168.*.*", "172.16.*.*", "172.17.*.*", "172.18.*.*",
+          "172.18.*.*", "172.19.*.*", "172.20.*.*", "172.21.*.*", "172.22.*.*", "172.23.*.*",
+          "172.24.*.*", "172.25.*.*", "172.26.*.*", "172.27.*.*", "172.28.*.*", "172.29.*.*",
+          "172.30.*.*", "172.31.*.*", "172.32.*.*", "10.*.*.*", "169.254.*.*")
+        editor.commit
+      }
+    }
+    object Allow {
+      val FilterConnectionAllow = getClass.getPackage.getName + "@namespace.filter.connection.allow"
+      def get(context: Context): Seq[(String, Boolean)] =
+        context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]]
+      def contains(context: Context, acl: String) =
+        context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).contains(acl)
+      def enable(context: Context, acl: String*) {
+        val editor = context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).edit
+        acl.foreach(acl => editor.putBoolean(acl, true))
+        editor.commit
+      }
+      def disable(context: Context, acl: String*) {
+        val editor = context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).edit
+        acl.foreach(acl => editor.putBoolean(acl, false))
+        editor.commit
+      }
+      def remove(context: Context, acl: String*) {
+        val editor = context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).edit
+        acl.foreach(acl => editor.remove(acl))
+        editor.commit
+      }
+    }
+    object Deny {
+      val FilterConnectionDeny = getClass.getPackage.getName + "@namespace.filter.connection.deny"
+      def get(context: Context): Seq[(String, Boolean)] =
+        context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]]
+      def contains(context: Context, acl: String) =
+        context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).contains(acl)
+      def enable(context: Context, acl: String*) {
+        val editor = context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).edit
+        acl.foreach(acl => editor.putBoolean(acl, true))
+        editor.commit
+      }
+      def disable(context: Context, acl: String*) {
+        val editor = context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).edit
+        acl.foreach(acl => editor.putBoolean(acl, false))
+        editor.commit
+      }
+      def remove(context: Context, acl: String*) {
+        val editor = context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).edit
+        acl.foreach(acl => editor.remove(acl))
+        editor.commit
+      }
+    }
+  }
+  object DOption extends DOption {
+    val ControlsHighlight: OptVal = Value("experience_highlights", classOf[String], "On")
+    val ControlsHighlightActive: OptVal = Value("experience_highlights_active", classOf[Boolean], true: java.lang.Boolean)
+    val FilterConnectionInitialized: OptVal = Value("filter_connection_initialized", classOf[Boolean], false: java.lang.Boolean)
   }
 }

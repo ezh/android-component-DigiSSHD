@@ -34,7 +34,7 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DControlProvider
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
@@ -88,7 +88,7 @@ class SessionAdapter(context: Activity, layout: Int)
             item.position = Some(position)
             item.updateTitle
         }
-        view.setBackgroundDrawable(Block.Resources.noviceDrawable)
+        Level.intermediate(view)
         view
       case Some(view) =>
         view

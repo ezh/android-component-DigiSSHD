@@ -23,6 +23,7 @@ package org.digimead.digi.ctrl.sshd
 
 import scala.actors.Futures.future
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DState
@@ -33,16 +34,17 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 
 import android.app.Activity
+import android.content.Context
 import android.widget.Toast
 
 object SSHDCommon {
-  def optionChangedOnRestartNotify(context: Activity, option: DOption.OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
+  def optionChangedOnRestartNotify(context: Context, option: DOption.OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
     if (AppComponent.Inner.state.get.value == DState.Passive) {
       val message = Android.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)
       IAmMumble(message)(logger, dispatcher)
       future {
         Thread.sleep(DTimeout.shortest)
-        context.runOnUiThread(new Runnable {
+        AnyBase.handler.post(new Runnable {
           def run =
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         })
@@ -51,7 +53,7 @@ object SSHDCommon {
       val message = Android.getString(context, "option_changed_on_restart").getOrElse("%1$s set to %2$s, it will be applied on the next run").format(option.name(context), state)
       future {
         Thread.sleep(DTimeout.shortest)
-        context.runOnUiThread(new Runnable {
+        AnyBase.handler.post(new Runnable {
           def run =
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         })

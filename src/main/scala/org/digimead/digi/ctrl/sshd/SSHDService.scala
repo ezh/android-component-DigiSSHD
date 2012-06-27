@@ -55,7 +55,7 @@ import org.digimead.digi.ctrl.lib.util.Hash
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.{OptionBlock => ServiceOptions}
+import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
 
 import android.app.Service
 import android.content.Context
@@ -105,9 +105,11 @@ class SSHDService extends Service with DService {
         }
       }
     Futures.future {
-      SSHDService.addLazyInit
-      Message.addLazyInit
-      AppComponent.LazyInit.init
+      if (!SSHDActivity.isConsistent) {
+        SSHDService.addLazyInit
+        Message.addLazyInit
+        AppComponent.LazyInit.init
+      }
       ready.set(true)
     }
   }
@@ -116,7 +118,10 @@ class SSHDService extends Service with DService {
   @Loggable
   override def onRebind(intent: Intent) = super.onRebind(intent)
   @Loggable
-  override def onUnbind(intent: Intent): Boolean = super.onUnbind(intent)
+  override def onUnbind(intent: Intent): Boolean = {
+    super.onUnbind(intent)
+    true // Return true if you would like to have the service's onRebind(Intent) method later called when new clients bind to it.
+  }
   @Loggable
   override def onDestroy() {
     onDestroyExt(this)
@@ -132,7 +137,6 @@ object SSHDService extends Logging {
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50, DTimeout.longest) {
     service.foreach {
       service =>
-        Message.addLazyInit
         SSHDPreferences.initServicePersistentOptions(service)
         // preload
         Futures.future { AppComponent.Inner.getCachedComponentInfo(SSHDActivity.locale, SSHDActivity.localeLanguage) }
@@ -463,9 +467,8 @@ object SSHDService extends Logging {
     @Loggable(result = false)
     def accessAllowRules(): java.util.List[java.lang.String] = try {
       log.debug("process Binder::accessAllowRules")
-      AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE).
-          getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
+      AppComponent.Context.map(c => SSHDPreferences.FilterConnection.Allow.get(c).
+        filter(t => t._2).map(_._1)).getOrElse(Seq()).toList
     } catch {
       case e =>
         log.error(e.getMessage, e)
@@ -474,9 +477,8 @@ object SSHDService extends Logging {
     @Loggable(result = false)
     def accessDenyRules(): java.util.List[java.lang.String] = try {
       log.debug("process Binder::accessDenyRules")
-      AppComponent.Context.map(
-        _.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE).
-          getAll.filter(t => t._2.asInstanceOf[Boolean]).map(_._1).toSeq).getOrElse(Seq()).toList
+      AppComponent.Context.map(c => SSHDPreferences.FilterConnection.Deny.get(c).
+        filter(t => t._2).map(_._1)).getOrElse(Seq()).toList
     } catch {
       case e =>
         log.error(e.getMessage, e)

@@ -26,6 +26,7 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -33,6 +34,7 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -135,6 +137,9 @@ object FilterBlock extends Logging {
   @Loggable
   def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) =
     block.foreach(_.onActivityResult(requestCode, resultCode, data))
+  @Loggable
+  def initialize(context: Context) =
+    SSHDPreferences.FilterConnection.initialize(context)
   case class Item() extends Block.Item {
     var leftPart = new WeakReference[TextView](null)
     var rightPart = new WeakReference[TextView](null)
@@ -149,13 +154,11 @@ object FilterBlock extends Logging {
       leftPart <- leftPart.get
       rightPart <- rightPart.get
     } {
-      val prefAllow = view.getContext.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
-      val allowAll = prefAllow.getAll
-      val activeAllow = allowAll.values.toArray.filter(_.asInstanceOf[Boolean]).size
+      val allowAll = SSHDPreferences.FilterConnection.Allow.get(view.getContext)
+      val activeAllow = allowAll.filter(_._2).size
       val totalAllow = allowAll.size
-      val prefDeny = view.getContext.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
-      val denyAll = prefDeny.getAll
-      val activeDeny = denyAll.values.toArray.filter(_.asInstanceOf[Boolean]).size
+      val denyAll = SSHDPreferences.FilterConnection.Deny.get(view.getContext)
+      val activeDeny = denyAll.filter(_._2).size
       val totalDeny = denyAll.size
       if (isFilterADA) {
         leftPart.setText(Html.fromHtml(Android.getString(leftPart.getContext, "session_filter_allow_text").
@@ -204,7 +207,7 @@ object FilterBlock extends Logging {
               false // no, it isn't
             }
           })
-          view.setBackgroundDrawable(Block.Resources.professionalDrawable)
+          Level.professional(view)
           item.view = new WeakReference(view)
           item.updateUI
           if (item.isFilterADA)

@@ -30,10 +30,10 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DControlProvider
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
@@ -44,11 +44,11 @@ import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
-import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.text.Html
@@ -81,7 +81,7 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
   def appendTo(adapter: MergeAdapter) {
     val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
     headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
-    header.findViewById(android.R.id.custom).setBackgroundDrawable(Block.Resources.intermediateDrawable)
+    Level.intermediate(header.findViewById(android.R.id.custom))
     adapter.addView(header)
     adapter.addAdapter(this.adapter)
     val footer = inflater.inflate(Android.getId(context, "session_footer", "layout"), null)
@@ -158,23 +158,21 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         return
     }
     log.debug("create context menu for " + item.connection.connectionID + " with IP " + ip)
-    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
-    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
     menu.setHeaderTitle(ip)
     menu.setHeaderIcon(Android.getId(context, "ic_launcher", "drawable"))
-    if (!propAllow.contains(ip))
+    if (!SSHDPreferences.FilterConnection.Allow.contains(context, ip))
       menu.add(Menu.NONE, Android.getId(context, "session_always_allow"), 1,
         Android.getString(context, "session_always_allow").getOrElse("Allow %1$s").format(ip))
-    if (!propDeny.contains(ip))
+    if (!SSHDPreferences.FilterConnection.Deny.contains(context, ip))
       menu.add(Menu.NONE, Android.getId(context, "session_always_deny"), 3,
         Android.getString(context, "session_always_deny").getOrElse("Deny %1$s").format(ip))
     ip.split("""\.""") match {
       case Array(ip1, ip2, ip3, ip4) =>
         val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
-        if (!propAllow.contains(acl))
+        if (!SSHDPreferences.FilterConnection.Allow.contains(context, acl))
           menu.add(Menu.NONE, Android.getId(context, "session_always_allow_net"), 2,
             Android.getString(context, "session_always_allow_net").getOrElse("Allow %1$s").format(acl))
-        if (!propDeny.contains(acl))
+        if (!SSHDPreferences.FilterConnection.Deny.contains(context, acl))
           menu.add(Menu.NONE, Android.getId(context, "session_always_deny_net"), 4,
             Android.getString(context, "session_always_deny_net").getOrElse("Deny %1$s").format(acl))
       case _ =>
@@ -189,28 +187,22 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         log.warn(e.getMessage)
         None
     }).getOrElse(Android.getString(context, "unknown_source").getOrElse("unknown source"))
-    val propAllow = context.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
-    val propDeny = context.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
     menuItem.getItemId match {
       case id if id == Android.getId(context, "session_always_allow") =>
-        if (!propAllow.contains(ip)) {
+        if (!SSHDPreferences.FilterConnection.Allow.contains(context, ip)) {
           val msg = Android.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(ip)
           IAmMumble(msg)
-          val editor = propAllow.edit
-          editor.putBoolean(ip, true)
-          editor.commit
+          SSHDPreferences.FilterConnection.Allow.enable(context, ip)
           Toast.makeText(context, msg, DConstant.toastTimeout).show()
           FilterBlock.updateFilterItem
         } else
           log.warn("allow filter already exists " + ip)
         true
       case id if id == Android.getId(context, "session_always_deny") =>
-        if (!propDeny.contains(ip)) {
+        if (!SSHDPreferences.FilterConnection.Deny.contains(context, ip)) {
           val msg = Android.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(ip)
           IAmMumble(msg)
-          val editor = propDeny.edit
-          editor.putBoolean(ip, true)
-          editor.commit
+          SSHDPreferences.FilterConnection.Deny.enable(context, ip)
           Toast.makeText(context, msg, DConstant.toastTimeout).show()
           FilterBlock.updateFilterItem
         } else
@@ -220,12 +212,10 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         ip.split("""\.""") match {
           case Array(ip1, ip2, ip3, ip4) =>
             val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
-            if (!propAllow.contains(acl)) {
+            if (!SSHDPreferences.FilterConnection.Allow.contains(context, acl)) {
               val msg = Android.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(acl)
               IAmMumble(msg)
-              val editor = propAllow.edit
-              editor.putBoolean(acl, true)
-              editor.commit
+              SSHDPreferences.FilterConnection.Allow.enable(context, acl)
               Toast.makeText(context, msg, DConstant.toastTimeout).show()
               FilterBlock.updateFilterItem
             } else
@@ -238,12 +228,10 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         ip.split("""\.""") match {
           case Array(ip1, ip2, ip3, ip4) =>
             val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
-            if (!propDeny.contains(acl)) {
+            if (!SSHDPreferences.FilterConnection.Deny.contains(context, acl)) {
               val msg = Android.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(acl)
               IAmMumble(msg)
-              val editor = propDeny.edit
-              editor.putBoolean(acl, true)
-              editor.commit
+              SSHDPreferences.FilterConnection.Deny.enable(context, acl)
               Toast.makeText(context, msg, DConstant.toastTimeout).show()
               FilterBlock.updateFilterItem
             } else

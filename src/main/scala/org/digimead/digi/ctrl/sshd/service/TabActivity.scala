@@ -210,28 +210,29 @@ object TabActivity extends Logging {
   val DIALOG_FILTER_REMOVE_ID = 0
 
   def addLazyInit = AppComponent.LazyInit("service.TabActivity initialize onCreate", 100) {
-    activity.foreach {
+    SSHDActivity.activity.foreach {
       activity =>
+        val context = activity.getApplicationContext
         // initialize once from onCreate
         if (adapter == None) {
           adapter = Some(new MergeAdapter())
-          filterBlock = Some(new FilterBlock(activity))
-          optionBlock = Some(new OptionBlock(activity))
-          environmentBlock = Some(new EnvironmentBlock(activity))
-          componentBlock = Some(new ComponentBlock(activity))
+          componentBlock = Some(new ComponentBlock(context))
+          optionBlock = Some(new OptionBlock(context))
+          environmentBlock = Some(new EnvironmentBlock(context))
+          filterBlock = Some(new FilterBlock(context))
           for {
             adapter <- adapter
-            filterBlock <- filterBlock
+            componentBlock <- componentBlock
             optionBlock <- optionBlock
             environmentBlock <- environmentBlock
-            componentBlock <- componentBlock
-            activity <- TabActivity.activity
+            filterBlock <- filterBlock
           } {
-            filterBlock appendTo (adapter)
+            componentBlock appendTo (adapter)
             optionBlock appendTo (adapter)
             environmentBlock appendTo (adapter)
-            componentBlock appendTo (adapter)
-            activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) })
+            filterBlock appendTo (adapter)
+            TabActivity.activity.foreach(activity =>
+              activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) }))
           }
         }
     }

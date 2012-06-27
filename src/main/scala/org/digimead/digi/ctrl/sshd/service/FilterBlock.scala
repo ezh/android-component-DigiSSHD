@@ -27,8 +27,10 @@ import scala.Array.canBuildFrom
 import scala.actors.Futures.future
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DPreference
@@ -39,7 +41,6 @@ import org.digimead.digi.ctrl.sshd.R
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -48,14 +49,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.CheckedTextView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 
-class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[FilterBlock.Item] with Logging {
-  private lazy val header = context.getLayoutInflater.inflate(R.layout.service_interface_filters_header, null).asInstanceOf[LinearLayout]
+class FilterBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[FilterBlock.Item] with Logging {
+  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+    inflate(R.layout.service_interface_filters_header, null).asInstanceOf[LinearLayout]
   private lazy val adapter = new FilterBlock.Adapter(context)
   future { updateAdapter }
   def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
@@ -64,13 +67,22 @@ class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dis
     log.debug("append " + getClass.getName + " to MergeAdapter")
     val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
     headerTitle.setText(Html.fromHtml(Android.getString(context, "block_filter_title").getOrElse("interface filters")))
+    Level.professional(header.findViewById(android.R.id.custom))
+    val onClickServiceFilterAddButton = header.findViewById(R.id.service_interface_filters_add_button).asInstanceOf[Button]
+    onClickServiceFilterAddButton.setOnClickListener(new View.OnClickListener() {
+      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickServiceFilterAdd(v))
+    })
+    val onClickServiceFilterRemoveButton = header.findViewById(R.id.service_interface_filters_remove_button).asInstanceOf[Button]
+    onClickServiceFilterRemoveButton.setOnClickListener(new View.OnClickListener() {
+      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickServiceFilterRemove(v))
+    })
     mergeAdapter.addView(header)
     mergeAdapter.addAdapter(adapter)
   }
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {
     item.state = !item.state
-    context.runOnUiThread(new Runnable {
+    AnyBase.handler.post(new Runnable {
       def run = {
         if (item.value == FilterBlock.ALL) {
           if (item.state)
@@ -95,7 +107,7 @@ class FilterBlock(val context: Activity)(implicit @transient val dispatcher: Dis
       activity <- TabActivity.activity
       madapter <- TabActivity.adapter
     } {
-      context.runOnUiThread(new Runnable {
+      AnyBase.handler.post(new Runnable {
         def run = {
           adapter.setNotifyOnChange(false)
           adapter.clear
@@ -150,9 +162,9 @@ object FilterBlock extends Logging {
       }
     }
   }
-  class Adapter(context: Activity)
+  class Adapter(context: Context)
     extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_checked, android.R.id.text1, new ArrayList[Item]()) {
-    private var inflater: LayoutInflater = context.getLayoutInflater
+    private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = getItem(position)
       item.view.get match {
@@ -161,6 +173,7 @@ object FilterBlock extends Logging {
           view.setText(item.toString)
           view.setChecked(item.state)
           item.view = new WeakReference(view)
+          Level.professional(view)
           view
         case Some(view) =>
           view

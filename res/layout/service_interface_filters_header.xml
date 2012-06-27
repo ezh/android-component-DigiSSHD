@@ -29,6 +29,7 @@
         layout="@layout/header" />
 
     <TableLayout
+        android:id="@android:id/custom"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:stretchColumns="*" >
@@ -46,7 +47,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_filter_add"
-                android:onClick="onClickServiceFilterAdd"
                 android:text="@string/service_interface_filters_add" >
             </Button>
 
@@ -57,7 +57,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_filter_del"
-                android:onClick="onClickServiceFilterRemove"
                 android:text="@string/service_interface_filters_remove" >
             </Button>
         </TableRow>

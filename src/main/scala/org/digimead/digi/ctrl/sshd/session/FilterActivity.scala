@@ -22,31 +22,30 @@
 package org.digimead.digi.ctrl.sshd.session
 
 import scala.actors.Futures.future
-import scala.collection.JavaConversions._
 import scala.collection.mutable.HashSet
+import scala.collection.mutable.ObservableSet
 import scala.collection.mutable.SynchronizedSet
 import scala.collection.mutable.Undoable
-import scala.collection.mutable.ObservableSet
 import scala.collection.script.Message
 import scala.util.control.ControlThrowable
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import android.app.Activity
 import android.app.ListActivity
-import android.content.Context
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
-import android.widget.AdapterView.OnItemLongClickListener
 import android.widget.AdapterView
+import android.widget.AdapterView.OnItemLongClickListener
 import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
@@ -64,8 +63,10 @@ class FilterActivity extends ListActivity with Logging {
   private val pendingToDelete = new HashSet[String] with ObservableSet[String] with SynchronizedSet[String]
   private var isActivityAllow = true
   lazy val adapter = new FilterAdapter(this, () => try {
-    val prefFilter = if (isActivityAllow) DPreference.FilterConnectionAllow else DPreference.FilterConnectionDeny
-    getSharedPreferences(prefFilter, Context.MODE_PRIVATE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]].
+    (if (isActivityAllow)
+      SSHDPreferences.FilterConnection.Allow.get(this)
+    else
+      SSHDPreferences.FilterConnection.Deny.get(this)).
       map(t => FilterAdapter.Item(t._1, if (pendingToDelete(t._1)) Some(false) else None)(t._2, isActivityAllow)) ++ pendingToInclude
   } catch {
     case e =>
@@ -85,6 +86,9 @@ class FilterActivity extends ListActivity with Logging {
   @Loggable
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
+    AnyBase.init(this, false)
+    AnyBase.preventShutdown(this)
+    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_BEHIND)
     setContentView(R.layout.session_filter)
     getIntent.getIntExtra("requestCode", 0) match {
       case id if id == FilterBlock.FILTER_REQUEST_ALLOW =>
@@ -139,6 +143,7 @@ class FilterActivity extends ListActivity with Logging {
   }
   @Loggable
   override def onDestroy() {
+    AnyBase.deinit(this)
     super.onDestroy()
   }
   @Loggable
@@ -226,24 +231,35 @@ class FilterActivity extends ListActivity with Logging {
   }
   @Loggable
   def onClickApply(v: View) {
-    val prefFilter = if (isActivityAllow) DPreference.FilterConnectionAllow else DPreference.FilterConnectionDeny
-    val pref = getSharedPreferences(prefFilter, Context.MODE_PRIVATE)
-    val editor = pref.edit()
-    pendingToDelete.foreach(acl => {
-      if (isActivityAllow)
-        IAmMumble("delete allow filter " + acl)
-      else
-        IAmMumble("delete deny filter " + acl)
-      editor.remove(acl)
-    })
-    pendingToInclude.foreach(acl => {
-      editor.putBoolean(acl.value, acl.isActive)
-      if (isActivityAllow)
-        IAmMumble("add allow filter " + acl + " with state " + acl.isActive)
-      else
-        IAmMumble("add deny filter " + acl + " with state " + acl.isActive)
-    })
-    editor.commit()
+    if (isActivityAllow) {
+      if (pendingToDelete.nonEmpty) {
+        IAmMumble("delete allow filter(s) " + pendingToDelete.mkString(", "))
+        SSHDPreferences.FilterConnection.Allow.remove(this, pendingToDelete.toArray: _*)
+      }
+      val (includeEnabled, includeDisabled) = pendingToInclude.partition(_.isActive)
+      if (includeEnabled.nonEmpty) {
+        IAmMumble("add allow filter(s) " + includeEnabled.mkString(", ") + " with state 'enabled'")
+        SSHDPreferences.FilterConnection.Allow.enable(this, includeEnabled.toSeq.map(_.toString): _*)
+      }
+      if (includeDisabled.nonEmpty) {
+        IAmMumble("add allow filter(s) " + includeDisabled.mkString(", ") + " with state 'disabled'")
+        SSHDPreferences.FilterConnection.Allow.disable(this, includeDisabled.toSeq.map(_.toString): _*)
+      }
+    } else {
+      if (pendingToDelete.nonEmpty) {
+        IAmMumble("delete deny filter(s) " + pendingToDelete.mkString(", "))
+        SSHDPreferences.FilterConnection.Deny.remove(this, pendingToDelete.toArray: _*)
+      }
+      val (includeEnabled, includeDisabled) = pendingToInclude.partition(_.isActive)
+      if (includeEnabled.nonEmpty) {
+        IAmMumble("add deny filter(s) " + includeEnabled.mkString(", ") + " with state 'enabled'")
+        SSHDPreferences.FilterConnection.Deny.enable(this, includeEnabled.toSeq.map(_.toString): _*)
+      }
+      if (includeDisabled.nonEmpty) {
+        IAmMumble("add deny filter(s) " + includeDisabled.mkString(", ") + " with state 'disabled'")
+        SSHDPreferences.FilterConnection.Deny.disable(this, includeDisabled.toSeq.map(_.toString): _*)
+      }
+    }
     setResult(Activity.RESULT_OK)
     finish()
   }

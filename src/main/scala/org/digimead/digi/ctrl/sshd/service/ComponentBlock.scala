@@ -25,13 +25,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 import scala.actors.Futures.future
-import scala.annotation.elidable
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
@@ -44,7 +45,6 @@ import org.digimead.digi.ctrl.sshd.SSHDService
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
@@ -64,11 +64,11 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
-import annotation.elidable.ASSERTION
 
-class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
+class ComponentBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
   lazy val items = getAppSeq
-  private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
+  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new ComponentBlock.Adapter(context, Android.getId(context, "component_list_item", "layout"), items)
   ComponentBlock.block = Some(this)
   @Loggable
@@ -118,7 +118,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
             val execInfo = item.executableInfo()
             val message = Android.getString(context, "block_component_copy_command_line").
               getOrElse("Copy command line to clipboard")
-            context.runOnUiThread(new Runnable {
+            AnyBase.handler.post(new Runnable {
               def run = try {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
                 clipboard.setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
@@ -150,7 +150,7 @@ class ComponentBlock(val context: Activity)(implicit @transient val dispatcher: 
               if (env.nonEmpty) env else "-")
             val message = Android.getString(context, "block_component_copy_info").
               getOrElse("Copy information to clipboard")
-            context.runOnUiThread(new Runnable {
+            AnyBase.handler.post(new Runnable {
               def run = try {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
                 clipboard.setText(Html.fromHtml(string).toString)
@@ -193,13 +193,13 @@ object ComponentBlock extends Logging {
     @volatile private var passiveDrawable: Option[Drawable] = None
     @volatile private var active: Option[Boolean] = None
     @volatile private var icon: WeakReference[ImageView] = new WeakReference(null)
-    @volatile private var context: WeakReference[Activity] = new WeakReference(null)
+    @volatile private var context: WeakReference[Context] = new WeakReference(null)
     private val lock = new ReentrantLock
     def executableInfo(allowCallFromUI: Boolean = false): ExecutableInfo =
       SSHDService.getExecutableInfo(".", allowCallFromUI).filter(_.executableID == id).head
     override def toString() = value
     @Loggable
-    def init(_context: Activity, _icon: ImageView, _active: Boolean) = synchronized {
+    def init(_context: Context, _icon: ImageView, _active: Boolean) = synchronized {
       (for {
         view <- view.get
       } yield {
@@ -222,7 +222,7 @@ object ComponentBlock extends Logging {
           if (Some(_active) == active)
             return
           active = Some(_active)
-          context.get.foreach(_.runOnUiThread(new Runnable { def run = doUpdateOnUI(icon) }))
+          AnyBase.handler.post(new Runnable { def run = doUpdateOnUI(icon) })
         // Android is too buggy, reimplement it in proper way
         /* val anim = icon.getBackground().asInstanceOf[AnimationDrawable]
           context.get.foreach(_.runOnUiThread(new Runnable { def run = anim.start }))
@@ -278,9 +278,9 @@ object ComponentBlock extends Logging {
       lock.unlock
     }
   }
-  class Adapter(context: Activity, textViewResourceId: Int, data: Seq[Item])
+  class Adapter(context: Context, textViewResourceId: Int, data: Seq[Item])
     extends ArrayAdapter[Item](context, textViewResourceId, android.R.id.text1, data.toArray) {
-    private var inflater: LayoutInflater = context.getLayoutInflater
+    private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = data(position)
       item.view.get match {
@@ -310,6 +310,7 @@ object ComponentBlock extends Logging {
             }
           } else
             item.init(context, icon, false)
+          Level.novice(view)
           view
         case Some(view) =>
           view

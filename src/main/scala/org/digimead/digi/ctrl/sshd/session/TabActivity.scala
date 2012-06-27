@@ -228,6 +228,7 @@ object TabActivity extends Logging {
         } yield {
           SessionBlock.updateCursor()
         }).getOrElse({ log.fatal("unable to update sessionBlock") })
+        FilterBlock.initialize(activity)
       case context =>
         log.fatal("inappropriate SSHDActivity context " + context)
     }
