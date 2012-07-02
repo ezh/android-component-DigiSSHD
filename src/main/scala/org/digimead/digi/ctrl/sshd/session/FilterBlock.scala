@@ -137,9 +137,6 @@ object FilterBlock extends Logging {
   @Loggable
   def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) =
     block.foreach(_.onActivityResult(requestCode, resultCode, data))
-  @Loggable
-  def initialize(context: Context) =
-    SSHDPreferences.FilterConnection.initialize(context)
   case class Item() extends Block.Item {
     var leftPart = new WeakReference[TextView](null)
     var rightPart = new WeakReference[TextView](null)

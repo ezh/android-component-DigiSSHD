@@ -33,9 +33,9 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.SSHDUsers
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
+import org.digimead.digi.ctrl.sshd.SSHDUsers
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -79,6 +79,7 @@ class TabActivity extends ListActivity with Logging {
     serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(this, "block_servicesoftware_title").getOrElse("software")))
     // prepare active view
     val lv = getListView()
+    lv.addFooterView(getLayoutInflater.inflate(R.layout.stub_footer, null))
     registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }

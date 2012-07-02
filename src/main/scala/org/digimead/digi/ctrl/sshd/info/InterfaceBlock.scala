@@ -26,9 +26,10 @@ import java.util.ArrayList
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.actors.Futures.future
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 import scala.collection.mutable.HashMap
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -46,7 +47,6 @@ import org.digimead.digi.ctrl.sshd.service.FilterBlock
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.text.Html
@@ -60,8 +60,9 @@ import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
 
-class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
-  private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
+class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
+  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new InterfaceBlock.Adapter(context)
   @volatile private var activeInterfaces: Option[Seq[String]] = None
   future { updateActiveInteraces(false) }
@@ -111,7 +112,7 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
       activity <- TabActivity.activity
       madapter <- TabActivity.adapter
     } {
-      context.runOnUiThread(new Runnable {
+      AnyBase.handler.post(new Runnable {
         def run = {
           adapter.setNotifyOnChange(false)
           adapter.clear
@@ -180,7 +181,7 @@ object InterfaceBlock extends Logging {
   case class Item(val value: String, val status: Option[Boolean]) extends Block.Item {
     override def toString() = value
   }
-  class Adapter(context: Activity,
+  class Adapter(context: Context,
     private val resource: Int = android.R.layout.simple_list_item_1,
     private val fieldId: Int = android.R.id.text1)
     extends ArrayAdapter[InterfaceBlock.Item](context, resource, fieldId, new ArrayList[Item](List(Item(null, null)))) {

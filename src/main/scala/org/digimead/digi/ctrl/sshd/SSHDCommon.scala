@@ -21,23 +21,63 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import scala.actors.Futures
 import scala.actors.Futures.future
+import scala.collection.mutable.Subscriber
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.base.AppComponentEvent
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
+import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.log.RichLogger
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
 import android.app.Activity
 import android.content.Context
 import android.widget.Toast
 
-object SSHDCommon {
+object SSHDCommon extends Logging {
+  // AppComponent global state subscriber
+  val globalStateSubscriber = new Subscriber[AppComponentEvent, AppComponent.type#Pub] {
+    def notify(pub: AppComponent.type#Pub, event: AppComponentEvent) =
+      if (AppControl.Inner != null && AppControl.Inner.isAvailable == Some(true)) {
+        event match {
+          case AppComponent.Event.Resume =>
+            IAmWarn("DigiSSHD resume")
+            // leave UI thread
+            Futures.future { Option(AppControl.Inner).foreach(_.callUpdateShutdownTimer(getClass.getPackage.getName, -1)) }
+          case AppComponent.Event.Suspend(timeout) =>
+            IAmWarn("DigiSSHD suspend, shutdown timer is " + timeout + "s")
+            // leave UI thread
+            Futures.future {
+              var remain = timeout
+              val step = 5000
+              while ((AppComponent.isSuspend || AppControl.isSuspend) && remain > 0) {
+                Option(AppControl.Inner).foreach(_.callUpdateShutdownTimer(getClass.getPackage.getName, remain))
+                Thread.sleep(step)
+                remain -= step
+              }
+            }
+          case AppComponent.Event.Shutdown =>
+            IAmWarn("DigiSSHD shutdown")
+            // leave UI thread
+            Futures.future { Option(AppControl.Inner).foreach(_.callUpdateShutdownTimer(getClass.getPackage.getName, 0)) }
+          case _ =>
+        }
+      } else
+        log.debug("skip event " + event + ", ICtrlHost not binded")
+  }
+  AppComponent.subscribe(globalStateSubscriber)
+  log.debug("alive")
+
   def optionChangedOnRestartNotify(context: Context, option: DOption.OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
     if (AppComponent.Inner.state.get.value == DState.Passive) {
       val message = Android.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)

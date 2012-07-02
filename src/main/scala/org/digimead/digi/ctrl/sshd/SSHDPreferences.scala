@@ -62,8 +62,6 @@ object SSHDPreferences {
     Preferences.DebugAndroidLogger.set(context)(logger, dispatcher)
     Preferences.PreferredLayoutOrientation.set(context)(logger, dispatcher)
     Preferences.ShutdownTimeout.set(context)(logger, dispatcher)
-    Preferences.ShowDialogRate.set(context)(logger, dispatcher)
-    Preferences.ShowDialogWelcome.set(context)(logger, dispatcher)
     ControlsHighlight.set(context)(logger, dispatcher)
   }
   def initServicePersistentOptions(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher) {
@@ -98,7 +96,7 @@ object SSHDPreferences {
     }
   }
   object FilterConnection {
-    def initialize(context: Context) {
+    protected def initialize(context: Context) {
       if (!context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).contains(DOption.FilterConnectionInitialized.tag)) {
         val editor = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).edit
         editor.putBoolean(DOption.FilterConnectionInitialized.tag, true)
@@ -111,8 +109,10 @@ object SSHDPreferences {
     }
     object Allow {
       val FilterConnectionAllow = getClass.getPackage.getName + "@namespace.filter.connection.allow"
-      def get(context: Context): Seq[(String, Boolean)] =
+      def get(context: Context): Seq[(String, Boolean)] = {
+        initialize(context)
         context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]]
+      }
       def contains(context: Context, acl: String) =
         context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).contains(acl)
       def enable(context: Context, acl: String*) {
@@ -133,8 +133,10 @@ object SSHDPreferences {
     }
     object Deny {
       val FilterConnectionDeny = getClass.getPackage.getName + "@namespace.filter.connection.deny"
-      def get(context: Context): Seq[(String, Boolean)] =
+      def get(context: Context): Seq[(String, Boolean)] = {
+        initialize(context)
         context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).getAll().toSeq.asInstanceOf[Seq[(String, Boolean)]]
+      }
       def contains(context: Context, acl: String) =
         context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).contains(acl)
       def enable(context: Context, acl: String*) {
@@ -158,5 +160,6 @@ object SSHDPreferences {
     val ControlsHighlight: OptVal = Value("experience_highlights", classOf[String], "On")
     val ControlsHighlightActive: OptVal = Value("experience_highlights_active", classOf[Boolean], true: java.lang.Boolean)
     val FilterConnectionInitialized: OptVal = Value("filter_connection_initialized", classOf[Boolean], false: java.lang.Boolean)
+    val SelectedTab: OptVal = Value("selected_tab", classOf[Int], 0: java.lang.Integer)
   }
 }

@@ -51,7 +51,7 @@ import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
+import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
 
 import android.app.AlertDialog
 import android.app.ListActivity
@@ -148,12 +148,12 @@ class SSHDUsers extends ListActivity with Logging {
   override def onResume() {
     super.onResume()
     for { userGenerateButton <- userGenerateButton.get } {
-      ServiceOptions.AuthType(ServiceOptions.authItem.getState[Int](this)) match {
-        case ServiceOptions.AuthType.SingleUser =>
+      SSHAuthentificationMode.getStateExt(this) match {
+        case SSHAuthentificationMode.AuthType.SingleUser =>
           setTitle(Android.getString(this, "app_name_singleuser").getOrElse("DigiSSHD: Single User Mode"))
           SSHDUsers.multiUser = false
           userGenerateButton.setEnabled(false)
-        case ServiceOptions.AuthType.MultiUser =>
+        case SSHAuthentificationMode.AuthType.MultiUser =>
           setTitle(Android.getString(this, "app_name_multiuser").getOrElse("DigiSSHD: Multi User Mode"))
           SSHDUsers.multiUser = true
           userGenerateButton.setEnabled(true)
@@ -808,23 +808,23 @@ object SSHDUsers extends Logging with Passwords {
     }
   }
   @Loggable
-  private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
-    log.debug("add default system user \"android\"")
-    in :+ UserInfo("android", "123", "variable location", true)
-  } else
-    in
-  @Loggable
-  private def save(context: Context, user: UserInfo) {
+  def save(context: Context, user: UserInfo) {
     val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
     val editor = userPref.edit
     editor.putString(user.name, Base64.encodeToString(Common.parcelToArray(user), Base64.DEFAULT))
     editor.commit
   }
   @Loggable
-  private def remove(context: Context, user: UserInfo) {
+  def remove(context: Context, user: UserInfo) {
     val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
     val editor = userPref.edit
     editor.remove(user.name)
     editor.commit
   }
+  @Loggable
+  private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
+    log.debug("add default system user \"android\"")
+    in :+ UserInfo("android", "123", "variable location", true)
+  } else
+    in
 }

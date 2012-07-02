@@ -21,11 +21,8 @@
 
 package org.digimead.digi.ctrl.sshd
 
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
 
-import scala.Array.canBuildFrom
 import scala.actors.Futures
 import scala.collection.JavaConversions._
 
@@ -47,7 +44,6 @@ import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.FileLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
@@ -55,7 +51,10 @@ import org.digimead.digi.ctrl.lib.util.Hash
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.{ OptionBlock => ServiceOptions }
+import org.digimead.digi.ctrl.sshd.service.option.DSAPublicKeyEncription
+import org.digimead.digi.ctrl.sshd.service.option.NetworkPort
+import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
+import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
 
 import android.app.Service
 import android.content.Context
@@ -132,6 +131,7 @@ class SSHDService extends Service with DService {
 object SSHDService extends Logging {
   @volatile private var service: Option[SSHDService] = None
   Logging.addLogger(FileLogger)
+  SSHDCommon
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50, DTimeout.longest) {
@@ -144,6 +144,7 @@ object SSHDService extends Logging {
         AppComponent.Inner.state.set(AppComponent.State(DState.Passive))
     }
   }
+
   @Loggable
   def getExecutableInfo(workdir: String, allowCallFromUI: Boolean = false): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
@@ -180,8 +181,8 @@ object SSHDService extends Logging {
               internalPath.set(null)
               externalPath.set(null)
             }
-            val masterPassword = ServiceOptions.AuthType(ServiceOptions.authItem.getState[Int](context)) match {
-              case ServiceOptions.AuthType.SingleUser =>
+            val masterPassword = SSHAuthentificationMode.getStateExt(context) match {
+              case SSHAuthentificationMode.AuthType.SingleUser =>
                 SSHDUsers.list.find(_.name == "android") match {
                   case Some(systemUser) =>
                     Some(systemUser.password)
@@ -189,7 +190,7 @@ object SSHDService extends Logging {
                     log.fatal("system user not found")
                     None
                 }
-              case ServiceOptions.AuthType.MultiUser =>
+              case SSHAuthentificationMode.AuthType.MultiUser =>
                 None
               case invalid =>
                 log.fatal("invalid authenticatin type \"" + invalid + "\"")
@@ -199,11 +200,11 @@ object SSHDService extends Logging {
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
             internalPath.get(DTimeout.long) match {
               case Some(path) if path != null =>
-                val rsaKey = if (ServiceOptions.rsaItem.getState[Boolean](context))
+                val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
                 else
                   Seq()
-                val dsaKey = if (ServiceOptions.dssItem.getState[Boolean](context))
+                val dsaKey = if (DSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-d", new File(path, "dropbear_dss_host_key").getAbsolutePath)
                 else
                   Seq()
@@ -224,11 +225,11 @@ object SSHDService extends Logging {
                   digiIntegrationOption ++ // DigiNNN integration
                   masterPasswordOption) // enable master password to any account
               case Some(path) if path == null =>
-                val rsaKey = if (ServiceOptions.rsaItem.getState[Boolean](context))
+                val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
                 else
                   Seq()
-                val dsaKey = if (ServiceOptions.dssItem.getState[Boolean](context))
+                val dsaKey = if (DSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-d", new File(path, "dropbear_dss_host_key").getAbsolutePath)
                 else
                   Seq()
@@ -250,10 +251,7 @@ object SSHDService extends Logging {
           case "openssh" => None
         }
         val port = executable match {
-          case "dropbear" =>
-            val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-            val port = pref.getInt(DOption.Port.tag, 2222)
-            Some(port)
+          case "dropbear" => Some(NetworkPort.getState[Int](context))
           case "openssh" => None
         }
         val state = DState.Active
@@ -271,35 +269,6 @@ object SSHDService extends Logging {
     case e =>
       log.error(e.getMessage, e)
       Seq()
-  }
-  private def generateKey(kind: String, keyFile: File, path: File): Boolean = try {
-    log.debug("private key path: " + path)
-    if (keyFile.exists())
-      keyFile.delete()
-    val dropbearkey = new File(path, "dropbearkey").getAbsolutePath()
-    log.debug("generate " + kind + " key")
-    val result = {
-      val p = Runtime.getRuntime().exec(dropbearkey +: Array("-t", kind, "-f", keyFile.getAbsolutePath()))
-      val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
-      p.waitFor()
-      val retcode = p.exitValue()
-      if (retcode != 0) {
-        var error = err.readLine()
-        while (error != null) {
-          log.error(dropbearkey + " error: " + error)
-          error = err.readLine()
-        }
-        false
-      } else
-        true
-    }
-    if (result)
-      keyFile.setReadable(true, false)
-    result
-  } catch {
-    case e =>
-      log.error(e.getMessage(), e)
-      false
   }
   class Binder(ready: SyncVar[Boolean]) extends ICtrlComponent.Stub with Logging {
     log.debug("binder alive")
@@ -352,37 +321,41 @@ object SSHDService extends Logging {
               groups.setExecutable(true, false)
             }
             // create security keys
-            (if (ServiceOptions.rsaItem.getState[Boolean](context)) {
-              val rsa_key = new File(path, "dropbear_rsa_host_key")
-              if (rsa_key.exists()) {
-                IAmMumble("RSA key exists")
-                true
+            (if (RSAPublicKeyEncription.getState[Boolean](context)) {
+              val rsa_key_source = new File(appNativePath, "dropbear_rsa_host_key")
+              val rsa_key_destination = new File(path, "dropbear_rsa_host_key")
+              if (rsa_key_source.exists && rsa_key_source.length > 0) {
+                IAmMumble("syncronize RSA key with origin")
+                Common.copyFile(rsa_key_source, rsa_key_destination) &&
+                  rsa_key_destination.setReadable(true, false)
+              } else if (rsa_key_destination.exists && rsa_key_destination.length > 0) {
+                IAmMumble("restore RSA key from working copy")
+                Common.copyFile(rsa_key_destination, rsa_key_source)
               } else {
-                IAmMumble("RSA key generation")
-                if (generateKey("rsa", rsa_key, path)) {
-                  IAmMumble("RSA key generated")
-                  true
-                } else {
-                  IAmWarn("RSA key generation failed")
+                if (RSAPublicKeyEncription.generateHostKey(context))
+                  Common.copyFile(rsa_key_source, rsa_key_destination) &&
+                    rsa_key_destination.setReadable(true, false)
+                else
                   false
-                }
               }
             } else
               true) &&
-              (if (ServiceOptions.dssItem.getState[Boolean](context)) {
-                val dss_key = new File(path, "dropbear_dss_host_key")
-                if (dss_key.exists()) {
-                  IAmMumble("DSA key exists")
-                  true
+              (if (DSAPublicKeyEncription.getState[Boolean](context)) {
+                val dss_key_source = new File(appNativePath, "dropbear_dss_host_key")
+                val dss_key_destination = new File(path, "dropbear_dss_host_key")
+                if (dss_key_source.exists && dss_key_source.length > 0) {
+                  IAmMumble("syncronize DSA key with origin")
+                  Common.copyFile(dss_key_source, dss_key_destination) &&
+                    dss_key_destination.setReadable(true, false)
+                } else if (dss_key_destination.exists && dss_key_destination.length > 0) {
+                  IAmMumble("restore DSA key from working copy")
+                  Common.copyFile(dss_key_destination, dss_key_source)
                 } else {
-                  IAmMumble("DSA key generation")
-                  if (generateKey("dss", dss_key, path)) {
-                    IAmMumble("DSA key generated")
-                    true
-                  } else {
-                    IAmWarn("DSA key generation failed")
+                  if (RSAPublicKeyEncription.generateHostKey(context))
+                    Common.copyFile(dss_key_source, dss_key_destination) &&
+                      dss_key_destination.setReadable(true, false)
+                  else
                     false
-                  }
                 }
               } else
                 true)
@@ -426,39 +399,39 @@ object SSHDService extends Logging {
         DOption.ACLConnection.default.asInstanceOf[Boolean]
     }
     @Loggable(result = false)
-    def readBooleanProperty(property: Int): Boolean = try {
-      log.debug("process Binder::readBooleanProperty " + DOption(property))
+    def readBooleanProperty(property: String): Boolean = try {
+      log.debug("process Binder::readBooleanProperty " + property)
+      val dprop = DOption.withName(property).asInstanceOf[DOption.OptVal]
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getBoolean(DOption(property).asInstanceOf[DOption.OptVal].tag,
-            DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Boolean])).
-        getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Boolean])
+          getBoolean(dprop.tag, dprop.default.asInstanceOf[Boolean])).
+        getOrElse(dprop.default.asInstanceOf[Boolean])
     } catch {
       case e =>
         log.error(e.getMessage, e)
         false
     }
     @Loggable(result = false)
-    def readIntProperty(property: Int): Int = try {
-      log.debug("process Binder::readIntProperty " + DOption(property))
+    def readIntProperty(property: String): Int = try {
+      log.debug("process Binder::readIntProperty " + property)
+      val dprop = DOption.withName(property).asInstanceOf[DOption.OptVal]
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getInt(DOption(property).asInstanceOf[DOption.OptVal].tag,
-            DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Int])).
-        getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[Int])
+          getInt(dprop.tag, dprop.default.asInstanceOf[Int])).
+        getOrElse(dprop.asInstanceOf[Int])
     } catch {
       case e =>
         log.error(e.getMessage, e)
         Int.MinValue
     }
     @Loggable(result = false)
-    def readStringProperty(property: Int): String = try {
-      log.debug("process Binder::readStringProperty " + DOption(property))
+    def readStringProperty(property: String): String = try {
+      log.debug("process Binder::readStringProperty " + property)
+      val dprop = DOption.withName(property).asInstanceOf[DOption.OptVal]
       AppComponent.Context.map(
         _.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).
-          getString(DOption(property).asInstanceOf[DOption.OptVal].tag,
-            DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[String])).
-        getOrElse(DOption(property).asInstanceOf[DOption.OptVal].default.asInstanceOf[String])
+          getString(dprop.tag, dprop.default.asInstanceOf[String])).
+        getOrElse(dprop.default.asInstanceOf[String])
     } catch {
       case e =>
         log.error(e.getMessage, e)

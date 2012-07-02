@@ -77,6 +77,7 @@ class TabActivity extends ListActivity with Logging {
     legalHeader.setText(Html.fromHtml(Android.getString(this, "block_legal_title").getOrElse("legal")))
     // prepare active view
     val lv = getListView()
+    lv.addFooterView(getLayoutInflater.inflate(R.layout.stub_footer, null))
     registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
@@ -185,18 +186,19 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   }
 
   def addLazyInit = AppComponent.LazyInit("info.TabActivity initialize onCreate", 100) {
-    TabActivity.activity.foreach {
+    SSHDActivity.activity.foreach {
       activity =>
+        val context = activity.getApplicationContext
         // initialize once from onCreate
         if (adapter == None) {
           adapter = Some(new MergeAdapter())
-          interfaceBlock = Some(new InterfaceBlock(activity))
-          supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
+          interfaceBlock = Some(new InterfaceBlock(context))
+          supportBlock = Some(new SupportBlock(context, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
             SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
-          communityBlock = Some(new CommunityBlock(activity, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
+          communityBlock = Some(new CommunityBlock(context, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
             Some(Uri.parse(SSHDActivity.info.project + "/wiki"))))
-          thanksBlock = Some(new ThanksBlock(activity))
-          legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
+          thanksBlock = Some(new ThanksBlock(context))
+          legalBlock = Some(new LegalBlock(context, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
           for {
             adapter <- adapter
             interfaceBlock <- interfaceBlock
@@ -210,14 +212,15 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
             supportBlock appendTo (adapter)
             //thanksBlock appendTo (adapter)
             legalBlock appendTo (adapter)
-            activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) })
+            TabActivity.activity.foreach(activity =>
+              activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) }))
           }
         }
         // initialize every time from onCreate
         // register UpdateInterfaceFilter BroadcastReceiver
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")
-        activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
+        context.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
     }
   }
   @Loggable

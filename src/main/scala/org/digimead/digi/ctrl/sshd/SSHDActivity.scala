@@ -168,18 +168,28 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         case id if id == classOf[org.digimead.digi.ctrl.sshd.service.TabActivity].getName() =>
           log.info("activate tab " + getString(R.string.app_name_service))
           setTitle(getString(R.string.app_name_service))
+          val edit = Common.getPublicPreferences(SSHDActivity.this).edit
+          edit.putInt(SSHDPreferences.DOption.SelectedTab.tag, 0)
+          edit.apply
         case id if id == classOf[session.TabActivity].getName() =>
           log.info("activate tab " + getString(R.string.app_name_sessions))
           setTitle(getString(R.string.app_name_sessions))
+          val edit = Common.getPublicPreferences(SSHDActivity.this).edit
+          edit.putInt(SSHDPreferences.DOption.SelectedTab.tag, 1)
+          edit.apply
         case id if id == classOf[info.TabActivity].getName() =>
           log.info("activate tab " + getString(R.string.app_name_information))
           setTitle(getString(R.string.app_name_information))
+          val edit = Common.getPublicPreferences(SSHDActivity.this).edit
+          edit.putInt(SSHDPreferences.DOption.SelectedTab.tag, 2)
+          edit.apply
         case id =>
           log.error("unknown tab " + tab)
       }
     })
 
-    tabHost.setCurrentTab(2)
+    tabHost.setCurrentTab(Common.getPublicPreferences(this).
+      getInt(SSHDPreferences.DOption.SelectedTab.tag, SSHDPreferences.DOption.SelectedTab.default.asInstanceOf[Int]))
 
     buttonToggleStartStop1.get.foreach(b => {
       b.setChecked(false)
@@ -1054,6 +1064,7 @@ object SSHDActivity extends Logging {
   /*
    * initialize singletons
    */
+  SSHDCommon
   session.SessionAdapter
   session.TabActivity
   service.TabActivity
