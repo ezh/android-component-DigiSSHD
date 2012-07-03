@@ -31,6 +31,7 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDCommon
+import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 import android.content.Context
@@ -97,10 +98,18 @@ object RSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
     activity =>
       menuItem.getItemId match {
         case id if id == Android.getId(activity, "generate_host_key") =>
-          Futures.future { generateHostKey(activity) }
+          Futures.future {
+            getSourceKeyFile().foreach(file =>
+              OptionBlock.checkKeyAlreadyExists(activity, "RSA host", file,
+                (activity) => generateHostKey(activity)))
+          }
           true
         case id if id == Android.getId(activity, "import_host_key") =>
-          Futures.future { importHostKey(activity) }
+          Futures.future {
+            getSourceKeyFile().foreach(file =>
+              OptionBlock.checkKeyAlreadyExists(activity, "RSA host", file,
+                (activity) => importHostKey(activity)))
+          }
           true
         case id if id == Android.getId(activity, "export_host_key") =>
           Futures.future { exportHostKey(activity) }

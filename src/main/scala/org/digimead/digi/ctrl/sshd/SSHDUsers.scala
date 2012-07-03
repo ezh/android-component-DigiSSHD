@@ -21,12 +21,17 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import java.io.BufferedReader
 import java.io.File
 import java.io.FileFilter
+import java.io.InputStreamReader
+import java.io.OutputStream
 import java.util.ArrayList
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
+import scala.actors.Futures
 import scala.actors.Futures.future
 import scala.collection.JavaConversions._
 import scala.ref.WeakReference
@@ -43,9 +48,12 @@ import org.digimead.digi.ctrl.lib.dialog.FileChooser
 import org.digimead.digi.ctrl.lib.dialog.InstallControl
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.message.IAmYell
+import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.Passwords
@@ -187,6 +195,7 @@ class SSHDUsers extends ListActivity with Logging {
   }
   @Loggable
   override def onDestroy() {
+    SSHDUsers.activity = None
     AnyBase.deinit(this)
     super.onDestroy()
   }
@@ -250,52 +259,10 @@ class SSHDUsers extends ListActivity with Logging {
         case item: UserInfo =>
           menuItem.getItemId match {
             case id if id == Android.getId(this, "users_disable") =>
-              new AlertDialog.Builder(this).
-                setTitle(Android.getString(this, "users_disable_title").getOrElse("Disable user \"%s\"").format(item.name)).
-                setMessage(Android.getString(this, "users_disable_message").getOrElse("Do you want to disable \"%s\" account?").format(item.name)).
-                setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                  def onClick(dialog: DialogInterface, whichButton: Int) = {
-                    val message = Android.getString(SSHDUsers.this, "users_disabled_message").
-                      getOrElse("disabled user \"%s\"").format(item.name)
-                    IAmWarn(message)
-                    Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
-                    val newUser = item.copy(enabled = false)
-                    SSHDUsers.save(SSHDUsers.this, newUser)
-                    val position = adapter.getPosition(item)
-                    adapter.remove(item)
-                    adapter.insert(newUser, position)
-                    updateFieldsState()
-                    if (lastActiveUserInfo.get.exists(_ == item))
-                      lastActiveUserInfo.set(Some(newUser))
-                  }
-                }).
-                setNegativeButton(android.R.string.cancel, null).
-                setIcon(android.R.drawable.ic_dialog_alert).
-                create().show()
+              SSHDUsers.dialogDisable(this, item, (state) => {}).show
               true
             case id if id == Android.getId(this, "users_enable") =>
-              new AlertDialog.Builder(this).
-                setTitle(Android.getString(this, "users_enable_title").getOrElse("Enable user \"%s\"").format(item.name)).
-                setMessage(Android.getString(this, "users_enable_message").getOrElse("Do you want to enable \"%s\" account?").format(item.name)).
-                setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                  def onClick(dialog: DialogInterface, whichButton: Int) = {
-                    val message = Android.getString(SSHDUsers.this, "users_enabled_message").
-                      getOrElse("enabled user \"%s\"").format(item.name)
-                    IAmWarn(message)
-                    Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
-                    val newUser = item.copy(enabled = true)
-                    SSHDUsers.save(SSHDUsers.this, newUser)
-                    val position = adapter.getPosition(item)
-                    adapter.remove(item)
-                    adapter.insert(newUser, position)
-                    updateFieldsState()
-                    if (lastActiveUserInfo.get.exists(_ == item))
-                      lastActiveUserInfo.set(Some(newUser))
-                  }
-                }).
-                setNegativeButton(android.R.string.cancel, null).
-                setIcon(android.R.drawable.ic_dialog_alert).
-                create().show()
+              SSHDUsers.dialogEnable(this, item, (state) => {}).show
               true
             case id if id == Android.getId(this, "users_delete") =>
               new AlertDialog.Builder(this).
@@ -794,6 +761,131 @@ object SSHDUsers extends Logging with Passwords {
   }
   log.debug("alive")
 
+  @Loggable
+  def getSourceKeyFile(context: Context, user: UserInfo): Option[File] = AppComponent.Inner.appNativePath flatMap {
+    appNativePath =>
+      if (user.name != "android") {
+        val homeDir = new File(user.home)
+        val sshDir = new File(homeDir, ".ssh")
+        Some(new File(sshDir, "dropbear_user_key"))
+      } else {
+        val internalPath = new SyncVar[File]()
+        val externalPath = new SyncVar[File]()
+        AppControl.Inner.callListDirectories(context.getPackageName)() match {
+          case Some((internal, external)) =>
+            internalPath.set(new File(internal))
+            externalPath.set(new File(external))
+          case _ =>
+            log.warn("unable to get component directories")
+            internalPath.set(null)
+            externalPath.set(null)
+        }
+        externalPath.get(DTimeout.long).orElse(internalPath.get(0)).flatMap {
+          androidHome =>
+            val sshDir = new File(androidHome, ".ssh")
+            Some(new File(sshDir, "dropbear_user_key"))
+        }
+      }
+  }
+  @Loggable
+  def generateKeyDSA(context: Context, user: UserInfo): Boolean = try {
+    IAmBusy(this, "1024-bit DSA user key generation")
+    generateKey(context, user, "-t", "dss")
+  } catch {
+    case e =>
+      log.error(e.getMessage(), e)
+      false
+  } finally {
+    IAmReady(this, "DSA key generated")
+  }
+  @Loggable
+  def generateKeyRSA(context: Context, user: UserInfo, length: Int): Boolean = try {
+    IAmBusy(this, length + "-bit RSA user key generation")
+    generateKey(context, user, "-t", "rsa", "-s", length.toString)
+  } catch {
+    case e =>
+      log.error(e.getMessage(), e)
+      false
+  } finally {
+    IAmReady(this, "RSA key generated")
+  }
+  private def generateKey(context: Context, user: UserInfo, args: String*): Boolean = {
+    val internalPath = new SyncVar[File]()
+    val externalPath = new SyncVar[File]()
+    AppControl.Inner.callListDirectories(context.getPackageName)() match {
+      case Some((internal, external)) =>
+        internalPath.set(new File(internal))
+        externalPath.set(new File(external))
+      case _ =>
+        log.warn("unable to get component directories")
+        internalPath.set(null)
+        externalPath.set(null)
+    }
+    (for {
+      keyFile <- getSourceKeyFile(context, user)
+      path <- internalPath.get(DTimeout.long) if path != null
+    } yield {
+      if (keyFile.exists())
+        keyFile.delete()
+      if (!keyFile.getParentFile.exists)
+        keyFile.getParentFile.mkdirs
+      val dropbearkey = new File(path, "dropbearkey").getAbsolutePath()
+      var result = {
+        IAmMumble("generate key " + keyFile.getAbsolutePath())
+        val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyFile.getAbsolutePath()) ++ args)
+        val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
+        p.waitFor()
+        val retcode = p.exitValue()
+        if (retcode != 0) {
+          var error = err.readLine()
+          while (error != null) {
+            log.error(dropbearkey + " error: " + error)
+            IAmYell("dropbearkey: " + error)
+            error = err.readLine()
+          }
+          false
+        } else
+          true
+      }
+      result = if (result) {
+        keyFile.setReadable(true, false)
+        val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyFile.getAbsolutePath(), "-y"))
+        val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
+        Futures.future {
+          var bufferedOutput: OutputStream = null
+          try {
+            val authorized_keys = new File(keyFile.getParentFile, "authorized_keys")
+            IAmMumble("save public key to " + authorized_keys.getAbsolutePath())
+            if (authorized_keys.exists)
+              authorized_keys.delete
+            val lines = scala.io.Source.fromInputStream(p.getInputStream()).getLines.filter(_.startsWith("ssh-"))
+            Common.writeToFile(authorized_keys, lines.mkString("\n") + "\n")
+          } catch {
+            case e =>
+              log.error(e.getMessage, e)
+          } finally {
+            if (bufferedOutput != null)
+              bufferedOutput.close
+          }
+        }
+        p.waitFor()
+        val retcode = p.exitValue()
+        if (retcode != 0) {
+          var error = err.readLine()
+          while (error != null) {
+            log.error(dropbearkey + " error: " + error)
+            IAmYell("dropbearkey: " + error)
+            error = err.readLine()
+          }
+          false
+        } else
+          true
+      } else {
+        false
+      }
+      result
+    }) getOrElse false
+  }
   def list(): List[UserInfo] = adapter.map(adapter =>
     (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())
   @Loggable
@@ -806,6 +898,54 @@ object SSHDUsers extends Logging with Passwords {
       case null =>
         None
     }
+  }
+  @Loggable
+  def dialogEnable(context: Context, user: UserInfo, callback: (UserInfo) => Any): AlertDialog = {
+    val title = Android.getString(context, "users_enable_title").getOrElse("Enable user \"%s\"").format(user.name)
+    val message = Android.getString(context, "users_enable_message").getOrElse("Do you want to enable \"%s\" account?").format(user.name)
+    val notification = Android.getString(context, "users_enabled_message").getOrElse("enabled user \"%s\"").format(user.name)
+    dialogChangeState(context, title, message, notification, true, user, callback)
+  }
+  @Loggable
+  def dialogDisable(context: Context, user: UserInfo, callback: (UserInfo) => Any): AlertDialog = {
+    val title = Android.getString(context, "users_disable_title").getOrElse("Disable user \"%s\"").format(user.name)
+    val message = Android.getString(context, "users_disable_message").getOrElse("Do you want to disable \"%s\" account?").format(user.name)
+    val notification = Android.getString(context, "users_disabled_message").getOrElse("disabled user \"%s\"").format(user.name)
+    dialogChangeState(context, title, message, notification, false, user, callback)
+  }
+  def dialogGenerateUserKey(context: Context, user: UserInfo): AlertDialog = {
+    val defaultLengthIndex = 2
+    val keyLength = Array[CharSequence]("4096 bits (only RSA)", "2048 bits (only RSA)", "1024 bits (RSA and DSA)")
+    val title = Android.getString(context, "user_generate_key_title").getOrElse("Generate key for \"%s\"").format("android")
+    new AlertDialog.Builder(context).
+      setTitle(title).
+      setSingleChoiceItems(keyLength, defaultLengthIndex, new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, item: Int) =
+          dialog.asInstanceOf[AlertDialog].getButton(DialogInterface.BUTTON_NEUTRAL).
+            setEnabled(item == defaultLengthIndex)
+      }).
+      setNeutralButton("DSA", new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, whichButton: Int) = {
+          val lv = dialog.asInstanceOf[AlertDialog].getListView
+          // leave UI thread
+          Futures.future { generateKeyDSA(lv.getContext, user) }
+        }
+      }).
+      setPositiveButton("RSA", new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, whichButton: Int) {
+          val lv = dialog.asInstanceOf[AlertDialog].getListView
+          val length = lv.getCheckedItemPosition match {
+            case 0 => 4096
+            case 1 => 2048
+            case 2 => 1024
+          }
+          // leave UI thread
+          Futures.future { generateKeyRSA(lv.getContext, user, length) }
+        }
+      }).
+      setNegativeButton(_root_.android.R.string.cancel, null).
+      setIcon(_root_.android.R.drawable.ic_dialog_alert).
+      create()
   }
   @Loggable
   def save(context: Context, user: UserInfo) {
@@ -827,4 +967,38 @@ object SSHDUsers extends Logging with Passwords {
     in :+ UserInfo("android", "123", "variable location", true)
   } else
     in
+  @Loggable
+  private def dialogChangeState(context: Context, title: String, message: String, notification: String, newState: Boolean, user: UserInfo, callback: (UserInfo) => Any): AlertDialog =
+    new AlertDialog.Builder(context).
+      setTitle(title).
+      setMessage(message).
+      setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, whichButton: Int) = {
+          IAmWarn(notification)
+          Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
+          val newUser = user.copy(enabled = newState)
+          save(context, newUser)
+          adapter.foreach {
+            adapter =>
+              val position = adapter.getPosition(user)
+              if (position >= 0) {
+                adapter.remove(user)
+                adapter.insert(newUser, position)
+              }
+          }
+          activity.foreach {
+            activity =>
+              activity.updateFieldsState()
+              if (activity.lastActiveUserInfo.get.exists(_ == user))
+                activity.lastActiveUserInfo.set(Some(newUser))
+          }
+          callback(newUser)
+        }
+      }).
+      setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+        def onClick(dialog: DialogInterface, whichButton: Int) =
+          callback(user)
+      }).
+      setIcon(android.R.drawable.ic_dialog_alert).
+      create()
 }

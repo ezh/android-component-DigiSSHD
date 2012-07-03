@@ -117,7 +117,7 @@
     <string name="option_dsa_name">DSA public key encryption</string>
     <string name="option_dsa_description">use the DSS dropbear key</string>
     <string name="option_android_user_name">default user [android]</string>
-    <string name="option_android_user_description">set availability, password, public key</string>
+    <string name="option_android_user_description">set availability, password, private/public key</string>
     <string name="option_auth_name">ssh  authentication mode</string>
     <string name="option_auth_description">single user [android] / multi-user</string>
     <string name="option_confirm_connection_name">confirm connection</string>

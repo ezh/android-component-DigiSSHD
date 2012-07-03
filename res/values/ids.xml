@@ -42,5 +42,8 @@
     <item name="generate_host_key" type="id"/>
     <item name="import_host_key" type="id"/>
     <item name="export_host_key" type="id"/>
-
+    <item name="generate_user_key" type="id"/>
+    <item name="import_user_key" type="id"/>
+    <item name="export_user_key" type="id"/>
+    
 </resources>

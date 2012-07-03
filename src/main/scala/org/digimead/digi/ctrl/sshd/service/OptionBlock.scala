@@ -21,11 +21,17 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
+import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
+import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
@@ -38,7 +44,10 @@ import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
 
 import com.commonsware.cwac.merge.MergeAdapter
 
+import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -75,6 +84,28 @@ class OptionBlock(val context: Context)(implicit @transient val dispatcher: Disp
 
 object OptionBlock extends Logging {
   @volatile private var block: Option[OptionBlock] = None
+
+  def checkKeyAlreadyExists(activity: Activity, keyName: String, key: File, callback: (Activity) => Any) {
+    if (!key.exists || key.length == 0)
+      callback(activity)
+    else {
+      val affirmative = new AtomicBoolean(false)
+      AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
+        val dialog = new AlertDialog.Builder(activity).
+          setTitle(Android.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
+          setMessage(Android.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
+          setIcon(android.R.drawable.ic_dialog_alert).
+          setPositiveButton(_root_.android.R.string.ok, new DialogInterface.OnClickListener() {
+            def onClick(dialog: DialogInterface, whichButton: Int) = affirmative.set(true)
+          }).
+          setNegativeButton(_root_.android.R.string.cancel, null).
+          create
+        dialog.show
+        dialog
+      }, () => Futures.future { if (affirmative.get) callback(activity) })
+    }
+  }
+
   trait Item extends Block.Item {
     val option: DOption.OptVal
     override def toString() = option.tag

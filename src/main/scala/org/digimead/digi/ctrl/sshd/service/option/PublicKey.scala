@@ -61,13 +61,10 @@ trait PublicKey extends Logging {
         appNativePath =>
           val rsa_key = new File(appNativePath, "dropbear_rsa_host_key")
           log.debug("private key path: " + rsa_key.getAbsolutePath())
-          IAmBusy(this, "RSA key generation")
           if (generateKey(context, rsa_key)) {
-            IAmReady(this, "RSA key generated")
             true
           } else {
             IAmWarn("RSA key generation failed")
-            IAmReady(this, "RSA key not generated")
             false
           }
       } getOrElse false
@@ -76,13 +73,10 @@ trait PublicKey extends Logging {
         appNativePath =>
           val dss_key = new File(appNativePath, "dropbear_dss_host_key")
           log.debug("private key path: " + dss_key.getAbsolutePath())
-          IAmBusy(this, "DSA key generation")
           if (generateKey(context, dss_key)) {
-            IAmReady(this, "DSA key generated")
             true
           } else {
             IAmWarn("DSA key generation failed")
-            IAmReady(this, "DSA key not generated")
             false
           }
       } getOrElse false
@@ -153,7 +147,13 @@ trait PublicKey extends Logging {
       log.error(e.getMessage(), e)
       false
   }
+  protected def getSourceKeyFile(): Option[File] = AppComponent.Inner.appNativePath flatMap {
+    appNativePath =>
+      val kindOpt = if (option.tag == "dsa") "dss" else option.tag
+      Some(new File(appNativePath, "dropbear_" + kindOpt + "_host_key"))
+  }
   private def generateKey(context: Context, keyFile: File): Boolean = try {
+    IAmBusy(this, option.tag.toUpperCase + " key generation")
     val internalPath = new SyncVar[File]()
     val externalPath = new SyncVar[File]()
     AppControl.Inner.callListDirectories(context.getPackageName)() match {
@@ -197,5 +197,7 @@ trait PublicKey extends Logging {
     case e =>
       log.error(e.getMessage(), e)
       false
+  } finally {
+    IAmReady(this, option.tag.toUpperCase + " key generated")
   }
 }
