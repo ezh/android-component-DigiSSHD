@@ -61,12 +61,15 @@ import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
 
+import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
 import android.app.ListActivity
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.net.Uri
 import android.os.Bundle
 import android.text.ClipboardManager
 import android.text.Editable
@@ -787,6 +790,10 @@ object SSHDUsers extends Logging with Passwords {
         }
       }
   }
+  @Loggable def getAuthorizedKeysFile(context: Context, user: UserInfo): Option[File] =
+    getSourceKeyFile(context, user).map(file => new File(file.getParentFile, "authorized_keys"))
+  @Loggable def getOpenSSHKeyFile(context: Context, user: UserInfo): Option[File] =
+    getSourceKeyFile(context, user).map(file => new File(file.getParentFile, "openssh_user_key"))
   @Loggable
   def generateKeyDSA(context: Context, user: UserInfo): Boolean = try {
     IAmBusy(this, "1024-bit DSA user key generation")
@@ -809,6 +816,70 @@ object SSHDUsers extends Logging with Passwords {
   } finally {
     IAmReady(this, "RSA key generated")
   }
+  @Loggable
+  def importKey(activity: Activity, user: UserInfo) {
+    AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
+      val importTemplateName = "dropbear_user_key"
+      val filter = new FileFilter { override def accept(file: File) = file.isDirectory || file.getName == importTemplateName }
+      val userHomeFile = new File("/")
+      val dialog = FileChooser.createDialog(activity,
+        Android.getString(activity, "dialog_import_key").getOrElse("Import \"" + importTemplateName + "\""),
+        userHomeFile,
+        (path, files) => importKeyOnResult(path, files),
+        filter,
+        (f) => f.getName == importTemplateName)
+      dialog.show()
+      dialog
+    })
+  }
+  @Loggable
+  def importKeyOnResult(path: File, files: Seq[File]) {
+    
+  }
+  @Loggable
+  def exportDropbearKey(context: Context, user: UserInfo) = try {
+    getSourceKeyFile(context, user) match {
+      case Some(file) if file.exists && file.length > 0 =>
+        IAmMumble("export Dropbear private key")
+        val intent = new Intent()
+        intent.setAction(Intent.ACTION_SEND)
+        intent.setType("application/octet-stream")
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
+        context.startActivity(intent)
+      case _ =>
+        val message = "unable to export unexists/broken Dropbear private key"
+        AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+        IAmWarn(message)
+    }
+  } catch {
+    case e =>
+      val message = "unable to export unexists/broken Dropbear key"
+      AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+      IAmWarn(message)
+      log.error(e.getMessage(), e)
+  }
+  @Loggable
+  def exportOpenSSHKey(context: Context, user: UserInfo) = try {
+    getOpenSSHKeyFile(context, user) match {
+      case Some(file) if file.exists && file.length > 0 =>
+        IAmMumble("export OpenSSH private key")
+        val intent = new Intent()
+        intent.setAction(Intent.ACTION_SEND)
+        intent.setType("application/octet-stream")
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
+        context.startActivity(intent)
+      case _ =>
+        val message = "unable to export unexists/broken OpenSSH private key"
+        AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+        IAmWarn(message)
+    }
+  } catch {
+    case e =>
+      val message = "unable to export unexists/broken OpenSSH key"
+      AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+      IAmWarn(message)
+      log.error(e.getMessage(), e)
+  }
   private def generateKey(context: Context, user: UserInfo, args: String*): Boolean = {
     val internalPath = new SyncVar[File]()
     val externalPath = new SyncVar[File]()
@@ -830,6 +901,7 @@ object SSHDUsers extends Logging with Passwords {
       if (!keyFile.getParentFile.exists)
         keyFile.getParentFile.mkdirs
       val dropbearkey = new File(path, "dropbearkey").getAbsolutePath()
+      val dropbearconvert = new File(path, "dropbearconvert").getAbsolutePath()
       var result = {
         IAmMumble("generate key " + keyFile.getAbsolutePath())
         val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyFile.getAbsolutePath()) ++ args)
@@ -847,44 +919,67 @@ object SSHDUsers extends Logging with Passwords {
         } else
           true
       }
-      result = if (result) {
-        keyFile.setReadable(true, false)
-        val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyFile.getAbsolutePath(), "-y"))
-        val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
-        Futures.future {
-          var bufferedOutput: OutputStream = null
-          try {
-            val authorized_keys = new File(keyFile.getParentFile, "authorized_keys")
-            IAmMumble("save public key to " + authorized_keys.getAbsolutePath())
-            if (authorized_keys.exists)
-              authorized_keys.delete
-            val lines = scala.io.Source.fromInputStream(p.getInputStream()).getLines.filter(_.startsWith("ssh-"))
-            Common.writeToFile(authorized_keys, lines.mkString("\n") + "\n")
-          } catch {
-            case e =>
-              log.error(e.getMessage, e)
-          } finally {
-            if (bufferedOutput != null)
-              bufferedOutput.close
-          }
-        }
-        p.waitFor()
-        val retcode = p.exitValue()
-        if (retcode != 0) {
-          var error = err.readLine()
-          while (error != null) {
-            log.error(dropbearkey + " error: " + error)
-            IAmYell("dropbearkey: " + error)
-            error = err.readLine()
-          }
-          false
-        } else
-          true
-      } else {
-        false
-      }
+      if (result) keyFile.setReadable(true, false)
+      result = result && generateKeyWriteAuthorizedKeys(keyFile, dropbearkey)
+      result = result && generateKeyWriteOpenSSHKey(keyFile, dropbearconvert)
       result
     }) getOrElse false
+  }
+  @Loggable
+  private def generateKeyWriteAuthorizedKeys(keyFile: File, dropbearkey: String): Boolean = {
+    val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyFile.getAbsolutePath(), "-y"))
+    val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
+    Futures.future {
+      var bufferedOutput: OutputStream = null
+      try {
+        val authorized_keys = new File(keyFile.getParentFile, "authorized_keys")
+        IAmMumble("save public key to " + authorized_keys.getAbsolutePath())
+        if (authorized_keys.exists)
+          authorized_keys.delete
+        val lines = scala.io.Source.fromInputStream(p.getInputStream()).getLines.filter(_.startsWith("ssh-"))
+        Common.writeToFile(authorized_keys, lines.mkString("\n") + "\n")
+        authorized_keys.setReadable(true, false)
+      } catch {
+        case e =>
+          log.error(e.getMessage, e)
+      } finally {
+        if (bufferedOutput != null)
+          bufferedOutput.close
+      }
+    }
+    p.waitFor()
+    val retcode = p.exitValue()
+    if (retcode != 0) {
+      var error = err.readLine()
+      while (error != null) {
+        log.error(dropbearkey + " error: " + error)
+        IAmYell("dropbearkey: " + error)
+        error = err.readLine()
+      }
+      false
+    } else
+      true
+  }
+  @Loggable
+  private def generateKeyWriteOpenSSHKey(keyFile: File, dropbearconvert: String): Boolean = {
+    val openssh_key = new File(keyFile.getParentFile, "openssh_user_key")
+    IAmMumble("generate openssh key at " + openssh_key.getAbsolutePath())
+    val p = Runtime.getRuntime().exec(Array(dropbearconvert, "dropbear", "openssh",
+      keyFile.getAbsolutePath(), openssh_key.getAbsolutePath()))
+    val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
+    p.waitFor()
+    val retcode = p.exitValue()
+    if (retcode != 0) {
+      var error = err.readLine()
+      while (error != null) {
+        log.error(dropbearconvert + " error: " + error)
+        IAmYell("dropbearconvert: " + error)
+        error = err.readLine()
+      }
+      false
+    } else
+      true
+    openssh_key.setReadable(true, false)
   }
   def list(): List[UserInfo] = adapter.map(adapter =>
     (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())

@@ -1,6 +1,7 @@
 ifneq ($(TARGET_SIMULATOR),true)
 
 LOCAL_PATH:= $(call my-dir)
+
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=\
@@ -26,7 +27,7 @@ LOCAL_STATIC_LIBRARIES := libtommath libtomcrypt
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := ssh
+LOCAL_MODULE := ssh---x
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtommath 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtomcrypt/src/headers
 LOCAL_CFLAGS += -DDROPBEAR_CLIENT
@@ -45,10 +46,34 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 
 LOCAL_MODULE_TAGS := debug
 
-LOCAL_MODULE := scp
+LOCAL_MODULE := scp---x
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtommath 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtomcrypt/src/headers
 LOCAL_CFLAGS += -DDROPBEAR_CLIENT -DPROGRESS_METER
+
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES:=\
+	dbutil.c buffer.c \
+	dss.c bignum.c list.c \
+	signkey.c rsa.c random.c \
+	queue.c \
+	atomicio.c compat.c  fake-rfc2553.c
+LOCAL_SRC_FILES+=\
+	dropbearconvert.c keyimport.c
+
+LOCAL_STATIC_LIBRARIES := libtommath libtomcrypt
+
+LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
+
+LOCAL_MODULE_TAGS := debug
+
+LOCAL_MODULE := dropbearconvert---x
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtommath 
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtomcrypt/src/headers
+LOCAL_CFLAGS += -DDROPBEAR_CLIENT
 
 include $(BUILD_EXECUTABLE)
 
@@ -83,7 +108,7 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := dropbear
+LOCAL_MODULE := dropbear---x
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtommath 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtomcrypt/src/headers
 LOCAL_CFLAGS += -DDROPBEAR_SERVER -DANDROID_CHANGES
@@ -106,7 +131,7 @@ LOCAL_STATIC_LIBRARIES := libtommath libtomcrypt
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := dropbearkey
+LOCAL_MODULE := dropbearkey---x
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtommath 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/libtomcrypt/src/headers
 LOCAL_CFLAGS += -DDROPBEAR_SERVER

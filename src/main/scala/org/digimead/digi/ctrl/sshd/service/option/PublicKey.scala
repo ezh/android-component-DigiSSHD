@@ -82,7 +82,7 @@ trait PublicKey extends Logging {
       } getOrElse false
   }
   def importHostKey(activity: Activity) = {
-    AppComponent.Inner.showDialogSafe[Dialog](activity, "info_interfaces_dialog", () => {
+    AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_hostkey_dialog", () => {
       val kindOpt = if (option.tag == "dsa") "dss" else option.tag
       val importTemplateName = "dropbear_" + kindOpt + "_host_key"
       val filter = new FileFilter { override def accept(file: File) = file.isDirectory || file.getName == importTemplateName }
@@ -90,14 +90,14 @@ trait PublicKey extends Logging {
       val dialog = FileChooser.createDialog(activity,
         Android.getString(activity, "dialog_import_key").getOrElse("Import \"" + importTemplateName + "\""),
         userHomeFile,
-        (path, files) => onResultChangeHomeDirectory(path, files),
+        (path, files) => importHostKeyOnResult(path, files),
         filter,
         (f) => f.getName == importTemplateName)
       dialog.show()
       dialog
     })
   }
-  private def onResultChangeHomeDirectory(path: File, files: Seq[File]) {
+  private def importHostKeyOnResult(path: File, files: Seq[File]) {
     val kindOpt = if (option.tag == "dsa") "dss" else option.tag
     (for {
       importFileFrom <- files.headOption

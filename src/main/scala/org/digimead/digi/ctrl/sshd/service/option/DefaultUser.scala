@@ -82,9 +82,19 @@ object DefaultUser extends CheckBoxItem with Logging {
     menu.add(Menu.NONE, Android.getId(context, "generate_user_key"), 1,
       Android.getString(context, "generate_user_key").getOrElse("Generate user key"))
     menu.add(Menu.NONE, Android.getId(context, "import_user_key"), 2,
-      Android.getString(context, "import_user_key").getOrElse("Import user public key"))
-    menu.add(Menu.NONE, Android.getId(context, "export_user_key"), 2,
-      Android.getString(context, "export_user_key").getOrElse("Export user private key"))
+      Android.getString(context, "import_user_key").getOrElse("Import public key"))
+    Futures.future { SSHDUsers.getSourceKeyFile(context, android) }() match {
+      case Some(file) if file.exists =>
+        menu.add(Menu.NONE, Android.getId(context, "export_user_key_dropbear"), 2,
+          Android.getString(context, "export_user_key_dropbear").getOrElse("Export private key (Dropbear)"))
+      case _ =>
+    }
+    Futures.future { SSHDUsers.getOpenSSHKeyFile(context, android) }() match {
+      case Some(file) if file.exists =>
+        menu.add(Menu.NONE, Android.getId(context, "export_user_key_openssh"), 2,
+          Android.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))
+      case _ =>
+    }
   }
   override def onContextItemSelected(menuItem: MenuItem): Boolean = TabActivity.activity.map {
     activity =>
@@ -97,10 +107,13 @@ object DefaultUser extends CheckBoxItem with Logging {
           }
           true
         case id if id == Android.getId(activity, "import_user_key") =>
-          Futures.future { importUserKey(activity) }
+          Futures.future { SSHDUsers.importKey(activity, android) }
           true
-        case id if id == Android.getId(activity, "export_user_key") =>
-          Futures.future { exportUserKey(activity) }
+        case id if id == Android.getId(activity, "export_user_key_dropbear") =>
+          Futures.future { SSHDUsers.exportDropbearKey(activity, android) }
+          true
+        case id if id == Android.getId(activity, "export_user_key_openssh") =>
+          Futures.future { SSHDUsers.exportOpenSSHKey(activity, android) }
           true
         case item =>
           log.fatal("skip unknown menu! item " + item)
@@ -118,11 +131,5 @@ object DefaultUser extends CheckBoxItem with Logging {
       dialog.show
       dialog
     })
-  }
-  private def importUserKey(activity: Activity) {
-
-  }
-  private def exportUserKey(activity: Activity) {
-
   }
 }
