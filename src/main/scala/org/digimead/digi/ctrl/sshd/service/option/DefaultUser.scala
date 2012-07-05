@@ -51,12 +51,12 @@ object DefaultUser extends CheckBoxItem with Logging {
     activity =>
       AppComponent.Inner.showDialogSafe(activity, "android_user_state", () => {
         val dialog = if (lastState)
-          SSHDUsers.dialogDisable(activity, android, (user) => {
+          SSHDUsers.Dialog.createDialogUserDisable(activity, android, (user) => {
             android = user
             AnyBase.handler.post(new Runnable { def run = view.setChecked(user.enabled) })
           })
         else
-          SSHDUsers.dialogEnable(activity, android, (user) => {
+          SSHDUsers.Dialog.createDialogUserEnable(activity, android, (user) => {
             android = user
             AnyBase.handler.post(new Runnable { def run = view.setChecked(user.enabled) })
           })
@@ -83,13 +83,13 @@ object DefaultUser extends CheckBoxItem with Logging {
       Android.getString(context, "generate_user_key").getOrElse("Generate user key"))
     menu.add(Menu.NONE, Android.getId(context, "import_user_key"), 2,
       Android.getString(context, "import_user_key").getOrElse("Import public key"))
-    Futures.future { SSHDUsers.getSourceKeyFile(context, android) }() match {
+    Futures.future { SSHDUsers.Key.getDropbearKeyFile(context, android) }() match {
       case Some(file) if file.exists =>
         menu.add(Menu.NONE, Android.getId(context, "export_user_key_dropbear"), 2,
           Android.getString(context, "export_user_key_dropbear").getOrElse("Export private key (Dropbear)"))
       case _ =>
     }
-    Futures.future { SSHDUsers.getOpenSSHKeyFile(context, android) }() match {
+    Futures.future { SSHDUsers.Key.getOpenSSHKeyFile(context, android) }() match {
       case Some(file) if file.exists =>
         menu.add(Menu.NONE, Android.getId(context, "export_user_key_openssh"), 2,
           Android.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))
@@ -101,19 +101,19 @@ object DefaultUser extends CheckBoxItem with Logging {
       menuItem.getItemId match {
         case id if id == Android.getId(activity, "generate_user_key") =>
           Futures.future {
-            SSHDUsers.getSourceKeyFile(activity, android).foreach(file =>
+            SSHDUsers.Key.getDropbearKeyFile(activity, android).foreach(file =>
               OptionBlock.checkKeyAlreadyExists(activity, "User", file,
                 (activity) => generateUserKey(activity)))
           }
           true
         case id if id == Android.getId(activity, "import_user_key") =>
-          Futures.future { SSHDUsers.importKey(activity, android) }
+          Futures.future { SSHDUsers.Key.importKey(activity, android) }
           true
         case id if id == Android.getId(activity, "export_user_key_dropbear") =>
-          Futures.future { SSHDUsers.exportDropbearKey(activity, android) }
+          Futures.future { SSHDUsers.Key.exportDropbearKey(activity, android) }
           true
         case id if id == Android.getId(activity, "export_user_key_openssh") =>
-          Futures.future { SSHDUsers.exportOpenSSHKey(activity, android) }
+          Futures.future { SSHDUsers.Key.exportOpenSSHKey(activity, android) }
           true
         case item =>
           log.fatal("skip unknown menu! item " + item)
@@ -126,8 +126,7 @@ object DefaultUser extends CheckBoxItem with Logging {
   }
   private def generateUserKey(activity: Activity) {
     AppComponent.Inner.showDialogSafe(activity, "android_user_gen_key", () => {
-      val dialog =
-        SSHDUsers.dialogGenerateUserKey(activity, android)
+      val dialog = SSHDUsers.Dialog.createDialogGenerateUserKey(activity, android)
       dialog.show
       dialog
     })

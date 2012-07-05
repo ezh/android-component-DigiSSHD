@@ -90,19 +90,18 @@ trait PublicKey extends Logging {
       val dialog = FileChooser.createDialog(activity,
         Android.getString(activity, "dialog_import_key").getOrElse("Import \"" + importTemplateName + "\""),
         userHomeFile,
-        (path, files) => importHostKeyOnResult(path, files),
+        importHostKeyOnResult,
         filter,
-        (f) => f.getName == importTemplateName)
+        (context, f) => f.getName == importTemplateName)
       dialog.show()
       dialog
     })
   }
-  private def importHostKeyOnResult(path: File, files: Seq[File]) {
+  private def importHostKeyOnResult(context: Context, path: File, files: Seq[File], stash: AnyRef) {
     val kindOpt = if (option.tag == "dsa") "dss" else option.tag
     (for {
       importFileFrom <- files.headOption
       appNativePath <- AppComponent.Inner.appNativePath
-      context <- AppComponent.Context
     } yield {
       IAmWarn("import " + kindOpt.toUpperCase + " from " + importFileFrom)
       val importTemplateName = "dropbear_" + kindOpt + "_host_key"
@@ -156,17 +155,8 @@ trait PublicKey extends Logging {
     IAmBusy(this, option.tag.toUpperCase + " key generation")
     val internalPath = new SyncVar[File]()
     val externalPath = new SyncVar[File]()
-    AppControl.Inner.callListDirectories(context.getPackageName)() match {
-      case Some((internal, external)) =>
-        internalPath.set(new File(internal))
-        externalPath.set(new File(external))
-      case _ =>
-        log.warn("unable to get component directories")
-        internalPath.set(null)
-        externalPath.set(null)
-    }
-    internalPath.get(DTimeout.long) match {
-      case Some(path) if path != null =>
+    AppControl.Inner.getInternalDirectory(DTimeout.long) match {
+      case Some(path) =>
         if (keyFile.exists())
           keyFile.delete()
         val dropbearkey = new File(path, "dropbearkey").getAbsolutePath()

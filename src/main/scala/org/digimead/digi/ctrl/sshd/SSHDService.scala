@@ -164,23 +164,6 @@ object SSHDService extends Logging {
           "DIGISSHD_B=" + info.appBuild)
         val commandLine = executable match {
           case "dropbear" =>
-            val internalPath = new SyncVar[File]()
-            val externalPath = new SyncVar[File]()
-            if (AppControl.Inner.isAvailable.getOrElse(false)) {
-              AppControl.Inner.callListDirectories(context.getPackageName, allowCallFromUI)() match {
-                case Some((internal, external)) =>
-                  internalPath.set(new File(internal))
-                  externalPath.set(new File(external))
-                case r =>
-                  log.warn("unable to get component directories, result " + r)
-                  internalPath.set(null)
-                  externalPath.set(null)
-              }
-            } else {
-              log.warn("unable to get component directories, service unavailable")
-              internalPath.set(null)
-              externalPath.set(null)
-            }
             val masterPassword = SSHAuthentificationMode.getStateExt(context) match {
               case SSHAuthentificationMode.AuthType.SingleUser =>
                 SSHDUsers.list.find(_.name == "android") match {
@@ -198,8 +181,8 @@ object SSHDService extends Logging {
             }
             val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).getOrElse(Seq[String]())
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
-            internalPath.get(DTimeout.long) match {
-              case Some(path) if path != null =>
+            AppControl.Inner.getInternalDirectory(DTimeout.long) match {
+              case Some(path) =>
                 val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
                 else
@@ -212,7 +195,12 @@ object SSHDService extends Logging {
                   val oldPATH = s.substring(s.indexOf('=') + 1)
                   env = env :+ ("PATH=" + path + ":" + oldPATH)
                 })
-                val forceHomePathOption = if (masterPassword.isEmpty) Seq() else Seq("-H", externalPath.get(0).getOrElse(path).getAbsolutePath)
+                val forceHomePathOption = AppControl.Inner.getExternalDirectory() match {
+                  case Some(externalPath) if !masterPassword.isEmpty =>
+                    Seq("-H", externalPath.getAbsolutePath)
+                  case _ =>
+                    Seq()
+                }
                 Some(Seq(new File(path, executable).getAbsolutePath,
                   "-i", // start for inetd
                   "-E", // log to stderr rather than syslog
@@ -224,7 +212,8 @@ object SSHDService extends Logging {
                   dsaKey ++ // use dsskeyfile for the dss host key
                   digiIntegrationOption ++ // DigiNNN integration
                   masterPasswordOption) // enable master password to any account
-              case Some(path) if path == null =>
+              case None =>
+                val path = new File(".")
                 val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
                 else
@@ -245,8 +234,6 @@ object SSHDService extends Logging {
                   dsaKey ++ // use dsskeyfile for the dss host key
                   digiIntegrationOption ++ // DigiNNN integration
                   masterPasswordOption) // enable master password to any account
-              case _ =>
-                None
             }
           case "openssh" => None
         }
@@ -296,19 +283,8 @@ object SSHDService extends Logging {
         appNativePath <- AppComponent.Inner.appNativePath
       } yield {
         assert(id == 0)
-        val internalPath = new SyncVar[File]()
-        val externalPath = new SyncVar[File]()
-        AppControl.Inner.callListDirectories(context.getPackageName)() match {
-          case Some((internal, external)) =>
-            internalPath.set(new File(internal))
-            externalPath.set(new File(external))
-          case _ =>
-            log.warn("unable to get component directories")
-            internalPath.set(null)
-            externalPath.set(null)
-        }
-        val keyResult = internalPath.get(DTimeout.long) match {
-          case Some(path) if path != null =>
+        val keyResult = AppControl.Inner.getInternalDirectory(DTimeout.long) match {
+          case Some(path) =>
             // create SCP groups helper
             // coreutils groups native failed with exit code 1
             // and message "groups: cannot find name for group ID N"
@@ -362,7 +338,7 @@ object SSHDService extends Logging {
           case _ =>
             false
         }
-        val homeResult = externalPath.get(DTimeout.long) match {
+        val homeResult = AppControl.Inner.getExternalDirectory(DTimeout.long) match {
           case Some(path) if path != null =>
             val profileFile = new File(path, ".profile")
             if (!profileFile.exists) {
@@ -473,44 +449,15 @@ object SSHDService extends Logging {
       log.debug("process Binder::user " + name)
       AppComponent.Context.flatMap {
         context =>
-          SSHDUsers.find(context, name).map(userInfo => {
-            val userHome = userInfo.name match {
-              case "android" => getAndroidPath(context)
-              case _ => userInfo.home
-            }
-            userInfo.copy(password = Hash.crypt(userInfo.password), home = userHome)
+          SSHDUsers.find(context, name).map(user => {
+            val userHome = SSHDUsers.homeDirectory(context, user)
+            user.copy(password = Hash.crypt(user.password), home = userHome.getAbsolutePath)
           })
       } getOrElse null
     } catch {
       case e =>
         log.error(e.getMessage, e)
         null
-    }
-    @Loggable
-    private def getAndroidPath(context: Context): String = {
-      val internalPath = new SyncVar[File]()
-      val externalPath = new SyncVar[File]()
-      if (AppControl.Inner.isAvailable.getOrElse(false)) {
-        AppControl.Inner.callListDirectories(context.getPackageName)() match {
-          case Some((internal, external)) =>
-            internalPath.set(new File(internal))
-            externalPath.set(new File(external))
-          case r =>
-            log.warn("unable to get component directories, result " + r)
-            internalPath.set(null)
-            externalPath.set(null)
-        }
-      } else {
-        log.warn("unable to get component directories, service unavailable")
-        internalPath.set(null)
-        externalPath.set(null)
-      }
-      internalPath.get(DTimeout.long) match {
-        case Some(path) if path != null =>
-          externalPath.get(0).getOrElse(path).getAbsolutePath
-        case _ =>
-          "/"
-      }
     }
   }
 }
