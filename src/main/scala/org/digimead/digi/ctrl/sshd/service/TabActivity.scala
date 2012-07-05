@@ -76,7 +76,7 @@ class TabActivity extends ListActivity with Logging {
     serviceEnvironmentHeader.setText(Html.fromHtml(Android.getString(this, "block_serviceenvironment_title").getOrElse("environment")))
     // serviceSoftware
     val serviceSoftwareHeader = findViewById(Android.getId(this, "nodata_header_servicesoftware")).asInstanceOf[TextView]
-    serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(this, "block_servicesoftware_title").getOrElse("software")))
+    serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(this, "block_components_title").getOrElse("components")))
     // prepare active view
     val lv = getListView()
     lv.addFooterView(getLayoutInflater.inflate(R.layout.stub_footer, null))

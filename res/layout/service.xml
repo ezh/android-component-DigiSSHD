@@ -37,11 +37,11 @@
         android:orientation="vertical" >
 
         <include
-            android:id="@+id/nodata_header_interfacefilter"
+            android:id="@+id/nodata_header_servicesoftware"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_interfacefilter"
+            android:id="@+id/nodata_text_servicesoftware"
             layout="@layout/block_list_item" />
 
         <include
@@ -61,11 +61,11 @@
             layout="@layout/block_list_item" />
 
         <include
-            android:id="@+id/nodata_header_servicesoftware"
+            android:id="@+id/nodata_header_interfacefilter"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_servicesoftware"
+            android:id="@+id/nodata_text_interfacefilter"
             layout="@layout/block_list_item" />
     </LinearLayout>
 

@@ -194,7 +194,7 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
           adapter = Some(new MergeAdapter())
           interfaceBlock = Some(new InterfaceBlock(context))
           supportBlock = Some(new SupportBlock(context, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
-            SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
+            SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur", "413030952"))
           communityBlock = Some(new CommunityBlock(context, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
             Some(Uri.parse(SSHDActivity.info.project + "/wiki"))))
           thanksBlock = Some(new ThanksBlock(context))

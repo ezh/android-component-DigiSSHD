@@ -943,24 +943,29 @@ object SSHDUsers extends Logging with Passwords {
         fileAuthorizedKeys <- getAuthorizedKeysFile(context, user)
       } yield {
         IAmMumble("update authorized_keys file at " + fileAuthorizedKeys.getAbsolutePath())
-        val fw = new FileWriter(fileAuthorizedKeys)
+        var fw: FileWriter = null
         try {
           if (fileAuthorizedKeys.exists())
             fileAuthorizedKeys.delete()
           if (!fileAuthorizedKeys.getParentFile.exists)
             fileAuthorizedKeys.getParentFile.mkdirs
+          fw = new FileWriter(fileAuthorizedKeys, false)
           val pathAuthorizedKeys = fileAuthorizedKeys.getParentFile
-          pathAuthorizedKeys.listFiles(new FilenameFilter {
+          val publicKeys = pathAuthorizedKeys.listFiles(new FilenameFilter {
             def accept(dir: File, name: String) = name.startsWith("public_user_key.")
-          }).foreach(f => fw.write(scala.io.Source.fromFile(f).getLines.
+          })
+          log.debug("accumulate public keys from: " + publicKeys.map(_.getName.substring(16)).mkString(", "))
+          publicKeys.foreach(f => fw.write(scala.io.Source.fromFile(f).getLines.
             filter(_.startsWith("ssh-")).mkString("\n") + "\n"))
+          fw.flush
           true
         } catch {
           case e =>
             IAmYell(e.getMessage)
             false
         } finally {
-          fw.close
+          if (fw != null)
+            fw.close
         }
       }
     } getOrElse false
