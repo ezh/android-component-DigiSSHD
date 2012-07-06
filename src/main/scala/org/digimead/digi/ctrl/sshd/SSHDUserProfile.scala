@@ -25,24 +25,24 @@ object SSHDUserProfile {
   val content = """
 #!/bin/sh
 
-[[ -r $HOME/.sh_aliases   ]] && . $HOME/.sh_aliases
-[[ -r $HOME/.sh_functions ]] && . $HOME/.sh_functions
+test -r $HOME/.sh_aliases   && . $HOME/.sh_aliases
+test -r $HOME/.sh_functions && . $HOME/.sh_functions
 
-[[ -r $HOME/.gpg-agent-info ]] && . $HOME/.gpg-agent-info
-[[ -r $HOME/.ssh-agent-info ]] && . $HOME/.ssh-agent-info
+test -r $HOME/.gpg-agent-info && . $HOME/.gpg-agent-info
+test -r $HOME/.ssh-agent-info && . $HOME/.ssh-agent-info
 
 set -o | grep "stdin " > /dev/null && SHELL=MKSH
 
-which aee > /dev/null && EDITORS=${EDITORS}" aee"
-which vi > /dev/null && EDITORS=${EDITORS}" vi"
+type aee >/dev/null && EDITORS=${EDITORS}" aee"
+type vi >/dev/null && EDITORS=${EDITORS}" vi"
 
-if [ "${SHELL}" == "MKSH" ]
+if test "${SHELL}" = "MKSH"
 then
   SHELL_WELCOME="Android MirBSD Korn"
   SHELL_DESCRIPTION="You may find more detailed information about shell at https://www.mirbsd.org/mksh.htm"
 fi
 
-if [ -z ${TERM} ]
+if test -z ${TERM}
 then
  export TERM=xterm-utf8
 fi
@@ -58,19 +58,14 @@ echo Profile: ${HOME}/.profile
 echo Available console editors: ${EDITORS}
 echo Your current terminal: ${TERM}
 echo Terminal descriptors located at ${TERMINFO}
-echo Ncurses `/data/data/org.digimead.digi.ctrl/files/armeabi/bin/ncursesw6-config --version`"; possible terminals are vt100, linux, xterm (search for more at TERMINFO, for example xterm-utf8 ;-) )" 
+echo "Possible terminals are vt100, linux, xterm (search for more at TERMINFO, for example xterm-utf8 ;-) )" 
 echo
 echo Your current state is `id`
 echo
 
-if [ "${SHELL}" == "MKSH" ]
+if test "${SHELL}" = "MKSH"
 then
-  alias l='ls'
-  alias la='l -a'
-  alias ll='l -l'
-  alias lo='l -a -l'
-  	
-  echo Aliases
+  echo Aliases:
   alias
 fi
 

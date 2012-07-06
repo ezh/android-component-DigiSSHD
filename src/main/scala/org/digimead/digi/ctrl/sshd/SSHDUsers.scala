@@ -870,11 +870,10 @@ object SSHDUsers extends Logging with Passwords {
       getDropbearKeyFile(context, user) match {
         case Some(file) if file.exists && file.length > 0 =>
           IAmMumble("export Dropbear private key")
-          val intent = new Intent()
-          intent.setAction(Intent.ACTION_SEND)
+          val intent = new Intent(Intent.ACTION_SEND)
           intent.setType("application/octet-stream")
           intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-          context.startActivity(intent)
+          context.startActivity(Intent.createChooser(intent, Android.getString(context, "share").getOrElse("share")))
         case _ =>
           val message = "unable to export unexists/broken Dropbear private key"
           AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
@@ -892,11 +891,10 @@ object SSHDUsers extends Logging with Passwords {
       getOpenSSHKeyFile(context, user) match {
         case Some(file) if file.exists && file.length > 0 =>
           IAmMumble("export OpenSSH private key")
-          val intent = new Intent()
-          intent.setAction(Intent.ACTION_SEND)
+          val intent = new Intent(Intent.ACTION_SEND)
           intent.setType("application/octet-stream")
           intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-          context.startActivity(intent)
+          context.startActivity(Intent.createChooser(intent, Android.getString(context, "share").getOrElse("share")))
         case _ =>
           val message = "unable to export unexists/broken OpenSSH private key"
           AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
@@ -961,7 +959,7 @@ object SSHDUsers extends Logging with Passwords {
           true
         } catch {
           case e =>
-            IAmYell(e.getMessage)
+            IAmYell(e.getMessage, e)
             false
         } finally {
           if (fw != null)

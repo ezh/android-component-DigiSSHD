@@ -46,5 +46,7 @@
     <item name="import_user_key" type="id"/>
     <item name="export_user_key_dropbear" type="id"/>
     <item name="export_user_key_openssh" type="id"/>
-    
+    <item name="block_legal_coreutils" type="id"/>
+    <item name="block_legal_grep" type="id"/>
+
 </resources>

@@ -275,10 +275,10 @@ object SSHDService extends Logging {
       2
     }
     @Loggable(result = false)
-    def pre(id: Int, workdir: String) = {
+    def pre(id: Int, workdir: String): Boolean = try {
       log.debug("process Binder::pre for id " + id + " at " + workdir)
       ready.get(DTimeout.long).getOrElse({ log.fatal("unable to start DigiSSHD service") })
-      for {
+      (for {
         context <- AppComponent.Context
         appNativePath <- AppComponent.Inner.appNativePath
       } yield {
@@ -298,6 +298,7 @@ object SSHDService extends Logging {
             }
             // create security keys
             (if (RSAPublicKeyEncription.getState[Boolean](context)) {
+              log.debug("prepare RSA key")
               val rsa_key_source = new File(appNativePath, "dropbear_rsa_host_key")
               val rsa_key_destination = new File(path, "dropbear_rsa_host_key")
               if (rsa_key_source.exists && rsa_key_source.length > 0) {
@@ -317,6 +318,7 @@ object SSHDService extends Logging {
             } else
               true) &&
               (if (DSAPublicKeyEncription.getState[Boolean](context)) {
+                log.debug("prepare DSA key")
                 val dss_key_source = new File(appNativePath, "dropbear_dss_host_key")
                 val dss_key_destination = new File(path, "dropbear_dss_host_key")
                 if (dss_key_source.exists && dss_key_source.length > 0) {
@@ -327,7 +329,7 @@ object SSHDService extends Logging {
                   IAmMumble("restore DSA key from working copy")
                   Common.copyFile(dss_key_destination, dss_key_source)
                 } else {
-                  if (RSAPublicKeyEncription.generateHostKey(context))
+                  if (DSAPublicKeyEncription.generateHostKey(context))
                     Common.copyFile(dss_key_source, dss_key_destination) &&
                       dss_key_destination.setReadable(true, false)
                   else
@@ -349,18 +351,26 @@ object SSHDService extends Logging {
             false
         }
         keyResult
-      }
-    } getOrElse false
+      }) getOrElse false
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        false
+    }
     @Loggable(result = false)
     def executable(id: Int, workdir: String): ExecutableInfo = {
       log.debug("process Binder::executable for id " + id + " at " + workdir)
       SSHDService.getExecutableInfo(workdir).find(_.executableID == id).getOrElse(null)
     }
     @Loggable(result = false)
-    def post(id: Int, workdir: String): Boolean = {
+    def post(id: Int, workdir: String): Boolean = try {
       log.debug("process Binder::post for id " + id + " at " + workdir)
       assert(id == 0)
       true
+    } catch {
+      case e =>
+        log.error(e.getMessage, e)
+        false
     }
     @Loggable(result = false)
     def accessRulesOrder(): Boolean = try {
