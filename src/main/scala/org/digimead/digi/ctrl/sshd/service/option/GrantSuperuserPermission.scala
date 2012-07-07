@@ -23,39 +23,30 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDCommon
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 import android.app.AlertDialog
-import android.content.Context
 import android.content.DialogInterface
-import android.content.Intent
-import android.net.Uri
 import android.view.View
 import android.widget.CheckBox
 import android.widget.ListView
 
 object GrantSuperuserPermission extends CheckBoxItem with Logging {
-  val option: DOption.OptVal = DOption.AsRoot
+  val option: DOption.OptVal = SSHDPreferences.AsRoot.option
 
   @Loggable
   def onCheckboxClick(view: CheckBox, lastState: Boolean) =
     if (lastState) {
-      val context = view.getContext
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-      val editor = pref.edit()
-      editor.putBoolean(option.tag, !lastState)
-      editor.apply
+      SSHDPreferences.AsRoot.set(!lastState, view.getContext)
       view.setChecked(!lastState)
-      SSHDCommon.optionChangedOnRestartNotify(context, option, getState[Boolean](context).toString)
     } else
       Futures.future { // leave UI thread
         TabActivity.activity.foreach {
@@ -66,26 +57,19 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
                 setMessage(R.string.dialog_root_message).
                 setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                   def onClick(dialog: DialogInterface, whichButton: Int) {
-                    GrantSuperuserPermission.view.get.foreach {
-                      view =>
-                        val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
-                        checkbox.setChecked(!lastState)
-                    }
-                    val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                    val editor = pref.edit()
-                    editor.putBoolean(option.tag, !lastState)
-                    editor.commit()
-                    activity.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + activity.getPackageName + "/" + option)))
-                    SSHDCommon.optionChangedOnRestartNotify(activity, option, getState[Boolean](activity).toString)
+                    AnyBase.handler.post(new Runnable {
+                      def run = GrantSuperuserPermission.view.get.
+                        foreach(_.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox].setChecked(!lastState))
+                    })
+                    SSHDPreferences.AsRoot.set(!lastState, view.getContext)
                   }
                 }).
                 setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
                   def onClick(dialog: DialogInterface, whichButton: Int) {
-                    GrantSuperuserPermission.view.get.foreach {
-                      view =>
-                        val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
-                        checkbox.setChecked(lastState)
-                    }
+                    AnyBase.handler.post(new Runnable {
+                      def run = GrantSuperuserPermission.view.get.
+                        foreach(_.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox].setChecked(lastState))
+                    })
                   }
                 }).
                 setIcon(R.drawable.ic_danger).

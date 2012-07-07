@@ -29,6 +29,7 @@ import java.io.FilenameFilter
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.util.ArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.Array.canBuildFrom
@@ -74,6 +75,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.ClipboardManager
 import android.text.Editable
+import android.text.Html
 import android.text.InputFilter
 import android.text.InputType
 import android.text.Spanned
@@ -81,13 +83,16 @@ import android.text.TextWatcher
 import android.text.method.PasswordTransformationMethod
 import android.util.Base64
 import android.view.ContextMenu
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams
 import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.ArrayAdapter
 import android.widget.CheckedTextView
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -713,7 +718,7 @@ object SSHDUsers extends Logging with Passwords {
         }
       })
   } getOrElse { log.fatal("unable to create SSHDUsers adapter"); None }
-  private val userNameFilter = new InputFilter {
+  val userNameFilter = new InputFilter {
     /*
      * man 5 passwd:
      * The login name may be up to 31 characters long. For compatibility with
@@ -734,7 +739,7 @@ object SSHDUsers extends Logging with Passwords {
       return null
     }
   }
-  private val userHomeFilter = new InputFilter {
+  val userHomeFilter = new InputFilter {
     def filter(source: CharSequence, start: Int, end: Int,
       dest: Spanned, dstart: Int, dend: Int): CharSequence = {
       for (i <- start until end)
@@ -743,9 +748,11 @@ object SSHDUsers extends Logging with Passwords {
       return null
     }
   }
-  private val userPasswordFilter = new InputFilter {
+  val userPasswordFilter = new InputFilter {
     def filter(source: CharSequence, start: Int, end: Int,
       dest: Spanned, dstart: Int, dend: Int): CharSequence = {
+      if (dest.length > 15)
+        return ""
       for (i <- start until end)
         if (!defaultPasswordCharacters.exists(_ == source.charAt(i)))
           return ""
@@ -873,7 +880,7 @@ object SSHDUsers extends Logging with Passwords {
           val intent = new Intent(Intent.ACTION_SEND)
           intent.setType("application/octet-stream")
           intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-          context.startActivity(Intent.createChooser(intent, Android.getString(context, "share").getOrElse("share")))
+          context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
         case _ =>
           val message = "unable to export unexists/broken Dropbear private key"
           AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
@@ -894,7 +901,7 @@ object SSHDUsers extends Logging with Passwords {
           val intent = new Intent(Intent.ACTION_SEND)
           intent.setType("application/octet-stream")
           intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-          context.startActivity(Intent.createChooser(intent, Android.getString(context, "share").getOrElse("share")))
+          context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
         case _ =>
           val message = "unable to export unexists/broken OpenSSH private key"
           AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
@@ -1148,6 +1155,88 @@ object SSHDUsers extends Logging with Passwords {
         setNegativeButton(_root_.android.R.string.cancel, null).
         setIcon(_root_.android.R.drawable.ic_dialog_alert).
         create()
+    }
+    @Loggable
+    def createDialogUserChangePassword(context: Context, user: UserInfo, callback: (UserInfo) => Any): AlertDialog = {
+      val maxLengthFilter = new InputFilter.LengthFilter(5)
+      val passwordLayout = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(R.layout.alertdialog_text, null).asInstanceOf[LinearLayout]
+      val togglePasswordButton = new ImageButton(context)
+      togglePasswordButton.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+      togglePasswordButton.setImageResource(R.drawable.btn_eye)
+      togglePasswordButton.setBackgroundResource(_root_.android.R.color.transparent)
+      passwordLayout.addView(togglePasswordButton)
+      val passwordField = passwordLayout.findViewById(_root_.android.R.id.edit).asInstanceOf[EditText]
+      passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+      passwordField.setText(user.password)
+      passwordField.setFilters(Array(SSHDUsers.userPasswordFilter))
+      val dialog = new AlertDialog.Builder(context).
+        setTitle(Android.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name)).
+        setMessage(Html.fromHtml(Android.getString(context, "dialog_password_message").
+          getOrElse("Please select a password. User password must be at least 1 characters long. Password cannot be more than 16 characters. Only standard unix password characters are allowed."))).
+        setView(passwordLayout).
+        setPositiveButton(_root_.android.R.string.ok, new DialogInterface.OnClickListener() {
+          def onClick(dialog: DialogInterface, whichButton: Int) = try {
+            val notification = Android.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(user.name)
+            IAmWarn(notification.format(user.name))
+            Toast.makeText(context, notification.format(user.name), Toast.LENGTH_SHORT).show()
+            val newUser = user.copy(password = passwordField.getText.toString)
+            save(context, newUser)
+            adapter.foreach {
+              adapter =>
+                val position = adapter.getPosition(user)
+                if (position >= 0) {
+                  adapter.remove(user)
+                  adapter.insert(newUser, position)
+                }
+            }
+            activity.foreach {
+              activity =>
+                activity.updateFieldsState()
+                if (activity.lastActiveUserInfo.get.exists(_ == user))
+                  activity.lastActiveUserInfo.set(Some(newUser))
+            }
+            callback(newUser)
+          } catch {
+            case e =>
+              log.error(e.getMessage, e)
+          }
+        }).
+        setNegativeButton(_root_.android.R.string.cancel, null).
+        setIcon(_root_.android.R.drawable.ic_dialog_info).
+        create()
+      dialog.show()
+      val ok = dialog.findViewById(_root_.android.R.id.button1)
+      ok.setEnabled(false)
+      togglePasswordButton.setOnClickListener(new View.OnClickListener {
+        val showPassword = new AtomicBoolean(false)
+        def onClick(v: View) {
+          if (showPassword.compareAndSet(true, false)) {
+            togglePasswordButton.setSelected(false)
+            passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            passwordField.setTransformationMethod(PasswordTransformationMethod.getInstance())
+          } else {
+            showPassword.set(true)
+            togglePasswordButton.setSelected(true)
+            passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
+          }
+        }
+      })
+      passwordField.addTextChangedListener(new TextWatcher {
+        override def afterTextChanged(s: Editable) = try {
+          val newPassword = s.toString
+          if (newPassword.nonEmpty) {
+            ok.setEnabled(newPassword != user.password)
+          } else
+            ok.setEnabled(false)
+        } catch {
+          case e =>
+            log.warn(e.getMessage, e)
+        }
+        override def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+        override def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+      })
+      dialog
     }
     @Loggable
     private def createDialogUserChangeState(context: Context, title: String, message: String, notification: String, newState: Boolean, user: UserInfo, callback: (UserInfo) => Any): AlertDialog =

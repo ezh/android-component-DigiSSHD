@@ -80,7 +80,6 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
-import android.preference.PreferenceManager
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
@@ -534,12 +533,22 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
           })
         }
       case DState.Passive =>
-        IAmBusy(SSHDActivity, Android.getString(this, "state_starting_service").getOrElse("starting service"))
-        future {
-          start((componentState, serviceState, serviceBusy) => {
-            log.debug("started, component state:" + componentState + ", service state:" + serviceState + ", service busy:" + serviceBusy)
-            IAmReady(SSHDActivity, Android.getString(this, "state_started_service").getOrElse("started service"))
-          })
+        val networkPort = SSHDPreferences.NetworkPort.get(this)
+        if (networkPort < 1024 && !SSHDPreferences.AsRoot.get(this)) {
+          AppComponent.Inner.state.set(AppComponent.State(DState.Broken,
+            Seq("error_privileged_port_unavailable", networkPort.toString),
+            (a) => {
+              org.digimead.digi.ctrl.sshd.service.option.NetworkPort.showDialog
+              recover(true)
+            }))
+        } else {
+          IAmBusy(SSHDActivity, Android.getString(this, "state_starting_service").getOrElse("starting service"))
+          future {
+            start((componentState, serviceState, serviceBusy) => {
+              log.debug("started, component state:" + componentState + ", service state:" + serviceState + ", service busy:" + serviceBusy)
+              IAmReady(SSHDActivity, Android.getString(this, "state_started_service").getOrElse("started service"))
+            })
+          }
         }
       case state =>
         val message = "Unable to move component to next finite state while is on an indeterminate position '" + state + "'"

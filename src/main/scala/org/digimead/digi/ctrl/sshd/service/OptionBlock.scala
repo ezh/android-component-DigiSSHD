@@ -107,7 +107,7 @@ object OptionBlock extends Logging {
   }
 
   trait Item extends Block.Item {
-    val option: DOption.OptVal
+    val option: DOption#OptVal
     override def toString() = option.tag
     def getState[T](context: Context)(implicit m: Manifest[T]): T
     def onListItemClick(l: ListView, v: View)

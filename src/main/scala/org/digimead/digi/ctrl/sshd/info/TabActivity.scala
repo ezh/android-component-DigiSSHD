@@ -168,7 +168,6 @@ class TabActivity extends ListActivity with Logging {
             case id =>
               legalBlock.onContextItemSelected(menuItem, item)
           }
-
         case item =>
           log.fatal("unknown item " + item)
           false

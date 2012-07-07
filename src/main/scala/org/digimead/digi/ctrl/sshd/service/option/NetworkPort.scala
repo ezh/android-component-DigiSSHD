@@ -25,21 +25,17 @@ import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDCommon
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
-import android.content.Intent
-import android.net.Uri
 import android.text.Editable
 import android.text.Html
 import android.text.InputFilter
@@ -52,15 +48,17 @@ import android.widget.ListView
 import android.widget.TextView
 
 object NetworkPort extends TextViewItem with Logging {
-  val option: DOption.OptVal = DOption.Value("port", classOf[Int], 2222: java.lang.Integer)
+  val option = SSHDPreferences.NetworkPort.option
 
   @Loggable
-  override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
+  override def onListItemClick(l: ListView, v: View) =
+    showDialog
+  @Loggable
+  def showDialog() = Futures.future { // leave UI thread
     TabActivity.activity.foreach {
       activity =>
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_port", () => {
-          val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-          val currentValue = pref.getInt(NetworkPort.option.tag, 2222)
+          val currentValue = SSHDPreferences.NetworkPort.get(activity)
           val maxLengthFilter = new InputFilter.LengthFilter(5)
           val portLayout = LayoutInflater.from(activity).inflate(R.layout.alertdialog_text, null)
           val portField = portLayout.findViewById(android.R.id.edit).asInstanceOf[EditText]
@@ -70,22 +68,16 @@ object NetworkPort extends TextViewItem with Logging {
           val dialog = new AlertDialog.Builder(activity).
             setTitle(R.string.dialog_port_title).
             setMessage(Html.fromHtml(Android.getString(activity, "dialog_port_message").
-              getOrElse("Select new TCP port in range from 1024 to 65535"))).
+              getOrElse("Select new TCP port in range from 1 to 65535"))).
             setView(portLayout).
             setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
               def onClick(dialog: DialogInterface, whichButton: Int) = try {
                 val port = portField.getText.toString.toInt
-                log.debug("set port to " + port)
-                val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                val editor = pref.edit()
-                editor.putInt(NetworkPort.option.tag, port)
-                editor.commit()
+                SSHDPreferences.NetworkPort.set(port, dialog.asInstanceOf[AlertDialog].getContext)
                 NetworkPort.view.get.foreach(view => {
                   val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
                   text.setText(port.toString)
                 })
-                activity.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + activity.getPackageName + "/" + NetworkPort.option)))
-                SSHDCommon.optionChangedOnRestartNotify(activity, NetworkPort.option, NetworkPort.getState[Int](activity).toString)
               } catch {
                 case e =>
                   log.error(e.getMessage, e)
@@ -102,7 +94,7 @@ object NetworkPort extends TextViewItem with Logging {
               val rawPort = s.toString
               if (rawPort.nonEmpty) {
                 val port = rawPort.toInt
-                if (port > 1023 && port < 65536 && port != currentValue)
+                if (port > 1 && port < 65536 && port != currentValue)
                   ok.setEnabled(true)
                 else
                   ok.setEnabled(false)

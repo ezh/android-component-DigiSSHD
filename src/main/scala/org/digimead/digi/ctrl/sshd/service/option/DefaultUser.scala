@@ -34,6 +34,7 @@ import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.view.ContextMenu
 import android.view.Menu
@@ -65,8 +66,13 @@ object DefaultUser extends CheckBoxItem with Logging {
       })
   }
   @Loggable
-  override def onListItemClick(l: ListView, v: View) {
-    log.g_a_s_e("!!!")
+  override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
+    TabActivity.activity.foreach {
+      activity =>
+        AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_password", () => {
+          SSHDUsers.Dialog.createDialogUserChangePassword(activity, android, (user) => android = user)
+        })
+    }
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {

@@ -131,7 +131,8 @@ trait PublicKey extends Logging {
         intent.setAction(Intent.ACTION_SEND)
         intent.setType("application/octet-stream")
         intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-        context.startActivity(intent)
+        context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_host_key").
+          getOrElse("Export %s key").format(option.tag.toUpperCase)))
       case _ =>
         val message = "unable to export unexists " + option.tag.toUpperCase + " key"
         AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })

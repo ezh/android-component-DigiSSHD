@@ -78,7 +78,7 @@ object SSHDCommon extends Logging {
   AppComponent.subscribe(globalStateSubscriber)
   log.debug("alive")
 
-  def optionChangedOnRestartNotify(context: Context, option: DOption.OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
+  def optionChangedOnRestartNotify(context: Context, option: DOption#OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
     if (AppComponent.Inner.state.get.value == DState.Passive) {
       val message = Android.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)
       IAmMumble(message)(logger, dispatcher)
