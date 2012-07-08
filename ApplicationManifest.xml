@@ -2,8 +2,8 @@
 <manifest>
 	<id>DigiSSHD</id>
 	<name>DigiSSHD</name>
-	<version>0.1</version>
-	<required version="0.1.02">org.digimead.digi.ctrl</required>
+	<version>0.2</version>
+	<required version="0.2">org.digimead.digi.ctrl</required>
 	<description>Secure Shell Server</description>
 	<description lang="ru">Secure Shell сервер</description>
 	<project>http://github.com/ezh/android-component-DigiSSHD</project>
@@ -16,6 +16,6 @@
 	<icon-mdpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-mdpi/ic_launcher.png</icon-mdpi>
 	<icon-xhdpi>https://github.com/ezh/android-component-DigiSSHD/raw/master/res/drawable-xhdpi/ic_launcher.png</icon-xhdpi>
 	<market>market://details?id=org.digimead.digi.ctrl.sshd</market>
-	<github>https://github.com/downloads/ezh/android-component-DigiSSHD/DigiSSHD-0.1.05.apk</github>
+	<github>https://github.com/downloads/ezh/android-component-DigiSSHD/DigiSSHD-0.2.apk</github>
 	<package-name>org.digimead.digi.ctrl.sshd</package-name>
 </manifest>
