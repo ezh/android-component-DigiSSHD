@@ -27,28 +27,24 @@ import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDCommon
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
-import android.content.Intent
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.TextView
 
-object SSHAuthentificationMode extends TextViewItem with Logging {
-  val option: DOption.OptVal = DOption.Value("auth", classOf[Int], 1: java.lang.Integer)
+object AuthentificationMode extends TextViewItem with Logging {
+  val option = SSHDPreferences.DOption.AuthentificationMode
 
   @Loggable
   override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
@@ -58,29 +54,26 @@ object SSHAuthentificationMode extends TextViewItem with Logging {
           val authTypeValue = new AtomicInteger(getState[Int](activity))
           val dialog = new AlertDialog.Builder(activity).
             setTitle(R.string.dialog_auth_title).
-            setSingleChoiceItems(R.array.auth_type, authTypeValue.get - 1, new DialogInterface.OnClickListener() {
+            setSingleChoiceItems(R.array.auth_type, SSHDPreferences.AuthentificationMode.get(activity).id - 1, new DialogInterface.OnClickListener() {
               def onClick(dialog: DialogInterface, which: Int) { authTypeValue.set(which + 1) }
             }).
             setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
               def onClick(dialog: DialogInterface, whichButton: Int) {
-                log.debug("set new password")
-                val pref = activity.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                val editor = pref.edit()
-                //                  editor.putInt(OptionBlock.authItemOption.tag, authTypeValue.get)
-                editor.commit()
-                SSHAuthentificationMode.view.get.foreach(view => {
+                log.debug("change authentification mode")
+                val context = dialog.asInstanceOf[AlertDialog].getContext
+                val authType = AuthType(authTypeValue.get)
+                SSHDPreferences.AuthentificationMode.set(authType, context, true)
+                AuthentificationMode.view.get.foreach(view => {
                   val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                  val authType = AuthType(authTypeValue.get).toString
-                  Android.getString(activity, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
+                  Android.getString(activity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
                     case Some(string) =>
                       text.setText(string)
                     case None =>
-                      text.setText(authType.toLowerCase.replaceAll(""" """, "\n"))
+                      text.setText(authType.toString.toLowerCase.replaceAll(""" """, "\n"))
                   }
                 })
-                activity.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + activity.getPackageName + "/" + option)))
-                SSHDCommon.optionChangedOnRestartNotify(activity, option,
-                  "\"" + AuthType(authTypeValue.get).toString.toLowerCase + "\"")
+                // update DefaultUser enable/disable flag
+                DefaultUser.view.get.foreach(v => DefaultUser.updateCheckbox(v.findViewById(_root_.android.R.id.checkbox).asInstanceOf[CheckBox]))
               }
             }).
             setNegativeButton(android.R.string.cancel, null).
@@ -93,8 +86,7 @@ object SSHAuthentificationMode extends TextViewItem with Logging {
   }
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
-    val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-    pref.getInt(option.tag, option.default.asInstanceOf[Int]).asInstanceOf[T]
+    SSHDPreferences.AuthentificationMode.get(context).id.asInstanceOf[T]
   }
   def getStateExt(context: Context) =
     AuthType(getState[Int](context))
@@ -102,12 +94,11 @@ object SSHAuthentificationMode extends TextViewItem with Logging {
     val None = Value("none")
     val SingleUser = Value("single user")
     val MultiUser = Value("multi user")
-    val Public = Value("public key")
   }
   override def getView(context: Context, inflater: LayoutInflater): View = {
     val view = super.getView(context, inflater)
     val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-    val authType = AuthType(getState[Int](context)).toString
+    val authType = SSHDPreferences.AuthentificationMode.get(context).toString
     Android.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
       case Some(string) =>
         value.setText(string)

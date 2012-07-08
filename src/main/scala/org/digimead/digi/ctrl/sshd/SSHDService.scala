@@ -54,7 +54,7 @@ import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.service.option.DSAPublicKeyEncription
 import org.digimead.digi.ctrl.sshd.service.option.NetworkPort
 import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
-import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
+import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 
 import android.app.Service
 import android.content.Context
@@ -164,8 +164,8 @@ object SSHDService extends Logging {
           "DIGISSHD_B=" + info.appBuild)
         val commandLine = executable match {
           case "dropbear" =>
-            val masterPassword = SSHAuthentificationMode.getStateExt(context) match {
-              case SSHAuthentificationMode.AuthType.SingleUser =>
+            val masterPassword = AuthentificationMode.getStateExt(context) match {
+              case AuthentificationMode.AuthType.SingleUser =>
                 SSHDUsers.list.find(_.name == "android") match {
                   case Some(systemUser) =>
                     Some(systemUser.password)
@@ -173,7 +173,7 @@ object SSHDService extends Logging {
                     log.fatal("system user not found")
                     None
                 }
-              case SSHAuthentificationMode.AuthType.MultiUser =>
+              case AuthentificationMode.AuthType.MultiUser =>
                 None
               case invalid =>
                 log.fatal("invalid authenticatin type \"" + invalid + "\"")

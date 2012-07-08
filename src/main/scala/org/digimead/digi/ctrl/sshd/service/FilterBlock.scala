@@ -82,50 +82,44 @@ class FilterBlock(val context: Context)(implicit @transient val dispatcher: Disp
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {
     item.state = !item.state
-    AnyBase.handler.post(new Runnable {
-      def run = {
-        if (item.value == FilterBlock.ALL) {
-          if (item.state)
-            Toast.makeText(context, context.getString(R.string.service_filter_enabled_all).format(item), DConstant.toastTimeout).show()
-          else
-            Toast.makeText(context, context.getString(R.string.service_filter_disabled_all).format(item), DConstant.toastTimeout).show()
-        } else {
-          if (item.state)
-            Toast.makeText(context, context.getString(R.string.service_filter_enabled).format(item), DConstant.toastTimeout).show()
-          else
-            Toast.makeText(context, context.getString(R.string.service_filter_disabled).format(item), DConstant.toastTimeout).show()
-        }
-        item.view.get.foreach(_.asInstanceOf[CheckedTextView].setChecked(item.state))
-        // TODO change pref
-        context.sendBroadcast(new Intent(DIntent.UpdateInterfaceFilter, Uri.parse("code://" + context.getPackageName + "/")))
+    AnyBase.runOnUiThread {
+      if (item.value == FilterBlock.ALL) {
+        if (item.state)
+          Toast.makeText(context, context.getString(R.string.service_filter_enabled_all).format(item), DConstant.toastTimeout).show()
+        else
+          Toast.makeText(context, context.getString(R.string.service_filter_disabled_all).format(item), DConstant.toastTimeout).show()
+      } else {
+        if (item.state)
+          Toast.makeText(context, context.getString(R.string.service_filter_enabled).format(item), DConstant.toastTimeout).show()
+        else
+          Toast.makeText(context, context.getString(R.string.service_filter_disabled).format(item), DConstant.toastTimeout).show()
       }
-    })
+      item.view.get.foreach(_.asInstanceOf[CheckedTextView].setChecked(item.state))
+      // TODO change pref
+      context.sendBroadcast(new Intent(DIntent.UpdateInterfaceFilter, Uri.parse("code://" + context.getPackageName + "/")))
+    }
   }
   @Loggable
   def updateAdapter() = synchronized {
     for {
       activity <- TabActivity.activity
       madapter <- TabActivity.adapter
-    } {
-      AnyBase.handler.post(new Runnable {
-        def run = {
-          adapter.setNotifyOnChange(false)
-          adapter.clear
-          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
-          val acl = pref.getAll
-          if (acl.isEmpty)
-            adapter.add(FilterBlock.Item(FilterBlock.ALL, None, new WeakReference(context)))
-          else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL))
-            adapter.add(FilterBlock.Item(FilterBlock.ALL, Some(pref.getBoolean(FilterBlock.ALL, false)), new WeakReference(context)))
-          else
-            acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
-              aclMask =>
-                adapter.add(FilterBlock.Item(aclMask, Some(pref.getBoolean(aclMask, false)), new WeakReference(context)))
-            }
-          adapter.setNotifyOnChange(true)
-          adapter.notifyDataSetChanged
+    } AnyBase.runOnUiThread {
+      adapter.setNotifyOnChange(false)
+      adapter.clear
+      val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
+      val acl = pref.getAll
+      if (acl.isEmpty)
+        adapter.add(FilterBlock.Item(FilterBlock.ALL, None, new WeakReference(context)))
+      else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL))
+        adapter.add(FilterBlock.Item(FilterBlock.ALL, Some(pref.getBoolean(FilterBlock.ALL, false)), new WeakReference(context)))
+      else
+        acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
+          aclMask =>
+            adapter.add(FilterBlock.Item(aclMask, Some(pref.getBoolean(aclMask, false)), new WeakReference(context)))
         }
-      })
+      adapter.setNotifyOnChange(true)
+      adapter.notifyDataSetChanged
     }
   }
   def isEmpty() = synchronized { adapter.getCount == 1 && adapter.getItem(0).value == FilterBlock.ALL }

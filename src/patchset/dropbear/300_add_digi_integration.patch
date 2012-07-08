@@ -62,7 +62,7 @@ diff -pru dropbear.orig/svr-auth.c dropbear/svr-auth.c
 +			else {
 +				// Non-root daemons can't switch users anyway
 +				// So just use our local user regardless of the username
-+				if (geteuid() != 0) {
++				if (geteuid() != 0 || strcmp("android", username) == 0) {
 +					if (strcmp("android", username) == 0)
 +						fill_passwd_from_id(geteuid());
 +				} else {

@@ -61,7 +61,7 @@ import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
+import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 
 import android.app.Activity
 import android.app.AlertDialog
@@ -165,12 +165,12 @@ class SSHDUsers extends ListActivity with Logging {
   override def onResume() {
     super.onResume()
     for { userGenerateButton <- userGenerateButton.get } {
-      SSHAuthentificationMode.getStateExt(this) match {
-        case SSHAuthentificationMode.AuthType.SingleUser =>
+      AuthentificationMode.getStateExt(this) match {
+        case AuthentificationMode.AuthType.SingleUser =>
           setTitle(Android.getString(this, "app_name_singleuser").getOrElse("DigiSSHD: Single User Mode"))
           SSHDUsers.multiUser = false
           userGenerateButton.setEnabled(false)
-        case SSHAuthentificationMode.AuthType.MultiUser =>
+        case AuthentificationMode.AuthType.MultiUser =>
           setTitle(Android.getString(this, "app_name_multiuser").getOrElse("DigiSSHD: Multi User Mode"))
           SSHDUsers.multiUser = true
           userGenerateButton.setEnabled(true)
@@ -883,13 +883,13 @@ object SSHDUsers extends Logging with Passwords {
           context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
         case _ =>
           val message = "unable to export unexists/broken Dropbear private key"
-          AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+          AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
           IAmWarn(message)
       }
     } catch {
       case e =>
         val message = "unable to export Dropbear key: " + e.getMessage
-        AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+        AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         IAmWarn(message)
         log.error(e.getMessage(), e)
     }
@@ -904,13 +904,13 @@ object SSHDUsers extends Logging with Passwords {
           context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
         case _ =>
           val message = "unable to export unexists/broken OpenSSH private key"
-          AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+          AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
           IAmWarn(message)
       }
     } catch {
       case e =>
         val message = "unable to export OpenSSH key: " + e.getMessage
-        AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+        AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         IAmWarn(message)
         log.error(e.getMessage(), e)
     }

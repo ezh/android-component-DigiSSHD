@@ -135,14 +135,14 @@ trait PublicKey extends Logging {
           getOrElse("Export %s key").format(option.tag.toUpperCase)))
       case _ =>
         val message = "unable to export unexists " + option.tag.toUpperCase + " key"
-        AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+        AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
         IAmWarn(message)
     }
     false
   } catch {
     case e =>
       val message = "unable to export " + option.tag.toUpperCase + " key"
-      AnyBase.handler.post(new Runnable { def run = Toast.makeText(context, message, Toast.LENGTH_LONG).show() })
+      AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
       IAmWarn(message)
       log.error(e.getMessage(), e)
       false

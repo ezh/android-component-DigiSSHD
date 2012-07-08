@@ -118,8 +118,8 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
             val execInfo = item.executableInfo()
             val message = Android.getString(context, "block_component_copy_command_line").
               getOrElse("Copy command line to clipboard")
-            AnyBase.handler.post(new Runnable {
-              def run = try {
+            AnyBase.runOnUiThread {
+              try {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
                 clipboard.setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
                 Toast.makeText(context, message, DConstant.toastTimeout).show()
@@ -127,7 +127,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
                 case e =>
                   IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
               }
-            })
+            }
           } catch {
             case e =>
               IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
@@ -150,8 +150,8 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
               if (env.nonEmpty) env else "-")
             val message = Android.getString(context, "block_component_copy_info").
               getOrElse("Copy information to clipboard")
-            AnyBase.handler.post(new Runnable {
-              def run = try {
+            AnyBase.runOnUiThread {
+              try {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
                 clipboard.setText(Html.fromHtml(string).toString)
                 Toast.makeText(context, message, DConstant.toastTimeout).show()
@@ -159,7 +159,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
                 case e =>
                   IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
               }
-            })
+            }
           } catch {
             case e =>
               IAmYell("Unable to copy to clipboard command line for: " + item.value, e)
@@ -222,7 +222,7 @@ object ComponentBlock extends Logging {
           if (Some(_active) == active)
             return
           active = Some(_active)
-          AnyBase.handler.post(new Runnable { def run = doUpdateOnUI(icon) })
+          AnyBase.runOnUiThread { doUpdateOnUI(icon) }
         // Android is too buggy, reimplement it in proper way
         /* val anim = icon.getBackground().asInstanceOf[AnimationDrawable]
           context.get.foreach(_.runOnUiThread(new Runnable { def run = anim.start }))

@@ -19,31 +19,23 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
 -->
-<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <item
-        android:id="@+id/menu_event_logs"
-        android:icon="@drawable/ic_menu_event_logs"
-        android:title="@string/menu_event_logs"/>
+        android:id="@+id/body"
+        android:left="0dip"
+        android:top="0dip">
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/ic_assistant_body" />
+    </item>
     <item
-        android:id="@+id/menu_gplay"
-        android:icon="@drawable/ic_menu_gplay"
-        android:title="@string/menu_gplay"/>
-    <item
-        android:id="@+id/menu_control"
-        android:icon="@drawable/ic_menu_control"
-        android:title="@string/menu_control"/>
-    <item
-        android:id="@+id/menu_help"
-        android:icon="@drawable/ic_menu_help"
-        android:title="@string/menu_help"/>
-    <item
-        android:id="@+id/menu_report"
-        android:icon="@drawable/ic_menu_report"
-        android:title="@string/menu_report"/>
-    <item
-        android:id="@+id/menu_options"
-        android:icon="@android:drawable/ic_menu_preferences"
-        android:title="@string/menu_options"/>
-    
-</menu>
+        android:id="@+id/eye"
+        android:left="0dip"
+        android:top="0dip">
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/ic_assistant_eyes_center" />
+    </item>
+
+</layer-list>

@@ -35,6 +35,7 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.service.option.{ AuthentificationMode => OAuthentificationMode }
 
 import android.content.Context
 import android.content.Intent
@@ -161,7 +162,7 @@ object SSHDPreferences {
       }
     }
   }
-  object NetworkPort extends Preferences.Preference[Int, Int] {
+  object NetworkPort extends Preferences.Preference[Int, Int, Int] {
     val option = DOption.NetworkPort
     def get(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): Int =
       context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).getInt(option.tag, default)
@@ -179,7 +180,7 @@ object SSHDPreferences {
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
     }
   }
-  object AsRoot extends Preferences.Preference[Boolean, Boolean] {
+  object AsRoot extends Preferences.Preference[Boolean, Boolean, Boolean] {
     val option = org.digimead.digi.ctrl.lib.declaration.DOption.AsRoot
     def get(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): Boolean =
       context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).getBoolean(option.tag, default)
@@ -199,11 +200,29 @@ object SSHDPreferences {
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
     }
   }
+  object AuthentificationMode extends Preferences.Preference[Int, OAuthentificationMode.AuthType.Value, OAuthentificationMode.AuthType.Value] {
+    val option = DOption.AuthentificationMode
+    def get(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): OAuthentificationMode.AuthType.Value =
+      OAuthentificationMode.AuthType(context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).getInt(option.tag, default))
+    def set(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit =
+      set(get(context)(logger, dispatcher), context)(logger, dispatcher)
+    def set(value: OAuthentificationMode.AuthType.Value, context: Context, notify: Boolean = false)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit = {
+      val editor = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).edit
+      editor.putInt(option.tag, value.id)
+      editor.commit
+      val message = Android.getString(context, "set_authentification_mode_notify").getOrElse("set authentification mode to %s").format(value)
+      if (notify)
+        SSHDCommon.optionChangedOnRestartNotify(context, option, value.toString)
+      IAmMumble(message)(logger, dispatcher)
+      context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
+    }
+  }
   object DOption extends DOption {
     val ControlsHighlight: OptVal = Value("experience_highlights", classOf[String], "On")
     val ControlsHighlightActive: OptVal = Value("experience_highlights_active", classOf[Boolean], true: java.lang.Boolean)
     val FilterConnectionInitialized: OptVal = Value("filter_connection_initialized", classOf[Boolean], false: java.lang.Boolean)
     val SelectedTab: OptVal = Value("selected_tab", classOf[Int], 0: java.lang.Integer)
     val NetworkPort: OptVal = Value("network_port", classOf[Int], 2222: java.lang.Integer)
+    val AuthentificationMode: OptVal = DOption.Value("auth", classOf[Int], OAuthentificationMode.AuthType.SingleUser.id: java.lang.Integer)
   }
 }

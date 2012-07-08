@@ -46,13 +46,12 @@ import android.widget.ListView
 import android.widget.Toast
 
 object RSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
-  val option: DOption.OptVal = DOption.Value("rsa", classOf[Boolean], true: java.lang.Boolean)
-  val optionOriginalKeyPath: DOption.OptVal = DOption.Value("rsa_origin", classOf[String], "": String)
+  val option = DOption.Value("rsa", classOf[Boolean], true: java.lang.Boolean)
 
   @Loggable
   def onCheckboxClick(view: CheckBox, lastState: Boolean) = {
     val context = view.getContext
-    val allow = if (!DSAPublicKeyEncription.getState[Boolean](view.getContext) && getState[Boolean](view.getContext))
+    val allow = if (!DSAPublicKeyEncription.getState[Boolean](context) && getState[Boolean](context))
       false // prevent RSA and DSS simultaneous shutdown
     else
       true

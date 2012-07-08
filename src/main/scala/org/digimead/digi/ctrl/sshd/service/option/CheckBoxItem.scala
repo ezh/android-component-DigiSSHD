@@ -36,27 +36,7 @@ trait CheckBoxItem extends Item {
   def getView(context: Context, inflater: LayoutInflater): View = {
     val view = inflater.inflate(Android.getId(context, "option_list_item_multiple_choice", "layout"), null)
     val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[widget.CheckBox]
-    checkbox.setOnTouchListener(new View.OnTouchListener {
-      def onTouch(v: View, event: MotionEvent): Boolean = {
-        // don't want check for tap or TOOL_TYPE_
-        val box = v.asInstanceOf[widget.CheckBox]
-        val lastState = box.isChecked()
-        if (event.getAction() == MotionEvent.ACTION_DOWN) {
-          box.setPressed(true)
-          box.invalidate()
-          box.refreshDrawableState()
-          v.getRootView().postInvalidate()
-          // apply immediately
-          onCheckboxClick(box, lastState)
-        } else {
-          box.setPressed(false)
-          box.invalidate()
-          box.refreshDrawableState()
-          v.getRootView().postInvalidate()
-        }
-        true // yes, it is
-      }
-    })
+    checkbox.setClickable(false)
     checkbox.setFocusable(false)
     checkbox.setFocusableInTouchMode(false)
     checkbox.setChecked(getState[Boolean](context))

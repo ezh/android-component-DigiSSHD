@@ -45,8 +45,9 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
   @Loggable
   def onCheckboxClick(view: CheckBox, lastState: Boolean) =
     if (lastState) {
-      SSHDPreferences.AsRoot.set(!lastState, view.getContext)
-      view.setChecked(!lastState)
+      SSHDPreferences.AsRoot.set(false, view.getContext, true)
+      if (view.isChecked)
+        view.setChecked(false)
     } else
       Futures.future { // leave UI thread
         TabActivity.activity.foreach {
@@ -56,19 +57,21 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
                 setTitle(R.string.dialog_root_title).
                 setMessage(R.string.dialog_root_message).
                 setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                  def onClick(dialog: DialogInterface, whichButton: Int) {
-                    AnyBase.handler.post(new Runnable {
-                      def run = GrantSuperuserPermission.view.get.
-                        foreach(_.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox].setChecked(!lastState))
+                  def onClick(dialog: DialogInterface, whichButton: Int) = {
+                    GrantSuperuserPermission.view.get.foreach(view => {
+                      SSHDPreferences.AsRoot.set(true, view.getContext, true)
+                      val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+                      if (!checkbox.isChecked)
+                        checkbox.setChecked(true)
                     })
-                    SSHDPreferences.AsRoot.set(!lastState, view.getContext)
                   }
                 }).
                 setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                  def onClick(dialog: DialogInterface, whichButton: Int) {
-                    AnyBase.handler.post(new Runnable {
-                      def run = GrantSuperuserPermission.view.get.
-                        foreach(_.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox].setChecked(lastState))
+                  def onClick(dialog: DialogInterface, whichButton: Int) = {
+                    GrantSuperuserPermission.view.get.foreach(view => {
+                      val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
+                      if (checkbox.isChecked)
+                        checkbox.setChecked(lastState)
                     })
                   }
                 }).

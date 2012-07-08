@@ -40,7 +40,7 @@ import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
 import org.digimead.digi.ctrl.sshd.service.option.GrantSuperuserPermission
 import org.digimead.digi.ctrl.sshd.service.option.NetworkPort
 import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
-import org.digimead.digi.ctrl.sshd.service.option.SSHAuthentificationMode
+import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -60,7 +60,7 @@ import android.widget.TextView
 
 class OptionBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
   val items: Seq[OptionBlock.Item] = Seq(DefaultUser, GrantSuperuserPermission, NetworkPort,
-    RSAPublicKeyEncription, DSAPublicKeyEncription, SSHAuthentificationMode)
+    RSAPublicKeyEncription, DSAPublicKeyEncription, AuthentificationMode)
   private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
     inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new OptionBlock.Adapter(context, items.toArray)
@@ -143,7 +143,7 @@ object OptionBlock extends Logging {
                 val view = item.getView(context, inflater)
                 Level.intermediate(view)
                 view
-              case item @ SSHAuthentificationMode =>
+              case item @ AuthentificationMode =>
                 val view = item.getView(context, inflater)
                 Level.intermediate(view)
                 view

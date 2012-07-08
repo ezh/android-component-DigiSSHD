@@ -14,7 +14,6 @@ diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
  	return ret;
  }
  
-Только в dropbear: svr-chansession.c.orig
 diff -pru dropbear.orig/svr-session.c dropbear/svr-session.c
 --- dropbear.orig/svr-session.c	2012-05-02 11:52:38.204334940 +0400
 +++ dropbear/svr-session.c	2012-05-02 11:52:38.220334768 +0400

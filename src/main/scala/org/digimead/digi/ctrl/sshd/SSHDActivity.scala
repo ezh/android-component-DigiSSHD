@@ -335,8 +335,8 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = {
     log.debug("create context menu")
-    menu.setHeaderTitle(Android.getString(this, "history_menu_title").getOrElse("History"))
-    Android.getId(this, "ic_launcher", "drawable") match {
+    menu.setHeaderTitle(Android.getString(this, "history_menu_title").getOrElse("Event logs"))
+    Android.getId(this, "ic_menu_event_logs", "drawable") match {
       case i if i != 0 =>
         menu.setHeaderIcon(i)
       case _ =>
@@ -344,10 +344,10 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     // TODO
     //    menu.add(Menu.NONE, Android.getId(this, "history_menu_complex"), 1,
     //      Android.getString(this, "history_menu_complex").getOrElse("Complex"))
-    menu.add(Menu.NONE, Android.getId(this, "history_menu_activity"), 1,
-      Android.getString(this, "history_menu_activity").getOrElse("Activity"))
     menu.add(Menu.NONE, Android.getId(this, "history_menu_sessions"), 1,
       Android.getString(this, "history_menu_sessions").getOrElse("Sessions"))
+    menu.add(Menu.NONE, Android.getId(this, "history_menu_activity"), 1,
+      Android.getString(this, "history_menu_activity").getOrElse("Activity"))
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem): Boolean = {
@@ -603,19 +603,11 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   @Loggable
   override def onOptionsItemSelected(item: MenuItem): Boolean =
     item.getItemId() match {
+      case R.id.menu_event_logs =>
+        statusText.get.foreach(openContextMenu)
+        true
       case R.id.menu_help =>
-        AppComponent.Inner.showDialogSafe[AlertDialog](this, "dialog_help", () => {
-          val dialog = new AlertDialog.Builder(this).
-            setTitle(R.string.dialog_help_title).
-            setMessage(R.string.dialog_help_message).
-            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-              def onClick(dialog: DialogInterface, whichButton: Int) {}
-            }).
-            setIcon(R.drawable.ic_menu_help).
-            create()
-          dialog.show()
-          dialog
-        })
+        SSHDCommon.showHelpDialog(this)
         true
       case R.id.menu_gplay =>
         try {

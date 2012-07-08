@@ -116,7 +116,6 @@ diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
  
  #ifdef DO_MOTD
  		if (svr_opts.domotd) {
-Только в dropbear: svr-chansession.c.orig
 diff -pru dropbear.orig/svr-runopts.c dropbear/svr-runopts.c
 --- dropbear.orig/svr-runopts.c	2012-05-02 11:47:09.508844308 +0400
 +++ dropbear/svr-runopts.c	2012-05-02 11:47:09.525844127 +0400

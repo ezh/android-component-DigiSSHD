@@ -112,52 +112,50 @@ class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: D
       activity <- TabActivity.activity
       madapter <- TabActivity.adapter
     } {
-      AnyBase.handler.post(new Runnable {
-        def run = {
-          adapter.setNotifyOnChange(false)
-          adapter.clear
-          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
-          val acl = pref.getAll
-          val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
-          log.debug("available interfaces: " + interfaces.keys.mkString(", "))
-          // stage 1: set unused interfaces to passive
-          if (acl.isEmpty) {
-            // all adapters enabled
+      AnyBase.runOnUiThread {
+        adapter.setNotifyOnChange(false)
+        adapter.clear
+        val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
+        val acl = pref.getAll
+        val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
+        log.debug("available interfaces: " + interfaces.keys.mkString(", "))
+        // stage 1: set unused interfaces to passive
+        if (acl.isEmpty) {
+          // all adapters enabled
+          interfaces.keys.foreach(k => interfaces(k) = Some(false))
+        } else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL)) {
+          // all adapters enabled/disabled
+          if (pref.getBoolean(FilterBlock.ALL, false))
             interfaces.keys.foreach(k => interfaces(k) = Some(false))
-          } else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL)) {
-            // all adapters enabled/disabled
-            if (pref.getBoolean(FilterBlock.ALL, false))
-              interfaces.keys.foreach(k => interfaces(k) = Some(false))
-          } else {
-            // custom adapters state
-            acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
-              aclMask =>
-                // if aclMask enabled (true)
-                if (pref.getBoolean(aclMask, false)) {
-                  interfaces.filter(t => t._2 == None).keys.foreach(interface =>
-                    if (Common.checkInterfaceInUse(interface, aclMask))
-                      interfaces(interface) = Some(false))
-                }
-            }
+        } else {
+          // custom adapters state
+          acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
+            aclMask =>
+              // if aclMask enabled (true)
+              if (pref.getBoolean(aclMask, false)) {
+                interfaces.filter(t => t._2 == None).keys.foreach(interface =>
+                  if (Common.checkInterfaceInUse(interface, aclMask))
+                    interfaces(interface) = Some(false))
+              }
           }
-          log.debug("active interfaces: " + activeInterfaces.mkString(", "))
-          // stage 2: set particular interfaces to active
-          activeInterfaces.foreach(_ match {
-            case n if n.isEmpty =>
-              interfaces.foreach(i => if (i._2 == Some(false)) interfaces(i._1) = Some(true))
-            case active =>
-              interfaces.foreach(i => if (active.exists(_ == i._1)) interfaces(i._1) = Some(true))
-          })
-          interfaces.keys.toSeq.sorted.foreach {
-            interface =>
-              adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
-          }
-          log.trace("active interfaces updated")
-          adapter.setNotifyOnChange(true)
-          adapter.notifyDataSetChanged
-          log.trace("exit from updateAdapter()")
         }
-      })
+        log.debug("active interfaces: " + activeInterfaces.mkString(", "))
+        // stage 2: set particular interfaces to active
+        activeInterfaces.foreach(_ match {
+          case n if n.isEmpty =>
+            interfaces.foreach(i => if (i._2 == Some(false)) interfaces(i._1) = Some(true))
+          case active =>
+            interfaces.foreach(i => if (active.exists(_ == i._1)) interfaces(i._1) = Some(true))
+        })
+        interfaces.keys.toSeq.sorted.foreach {
+          interface =>
+            adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
+        }
+        log.trace("active interfaces updated")
+        adapter.setNotifyOnChange(true)
+        adapter.notifyDataSetChanged
+        log.trace("exit from updateAdapter()")
+      }
     }
   }
   def updateActiveInteraces(allInterfacesArePassive: Boolean) = synchronized {

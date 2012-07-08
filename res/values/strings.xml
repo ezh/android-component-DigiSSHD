@@ -59,7 +59,7 @@
     <string name="dialog_component_info_title">Component information</string>
     <string name="dialog_exit_message">Do you want to exit?</string>
     <string name="dialog_exit_title">Exit</string>
-    <string name="dialog_help_message">long tap for context menu</string>
+    <string name="dialog_help_message">Most elements has additional actions that are available by long tap. Some elements labeled with experience level mark. You may toggle highlight of controls in options menu.&lt;br/&gt;&lt;br/&gt;There are three levels:</string>
     <string name="dialog_help_title">Help</string>
     <string name="dialog_interfaces_legend_title">Interface legend</string>
     <string name="dialog_password_title">\'%1$s\' user password</string>
@@ -84,6 +84,7 @@
     <string name="legend_interface_active"> - active interface</string>
     <string name="legend_interface_passive"> - passive interface</string>
     <string name="legend_interface_unused"> - unused interface</string>
+    <string name="menu_event_logs">Event logs</string>
     <string name="no_session_filters">no filters defined</string>
     <string name="no_sessions">There are no active sessions</string>
     <string name="option_android_user_description">set availability, password, private/public key</string>
@@ -91,7 +92,7 @@
     <string name="option_as_root_description">run components under root account</string>
     <string name="option_as_root_name">grant superuser permission</string>
     <string name="option_auth_description">single user [android] / multi-user</string>
-    <string name="option_auth_name">ssh  authentication mode</string>
+    <string name="option_auth_name">authentication mode</string>
     <string name="option_confirm_connection_description">ask for a permission at every unknown session</string>
     <string name="option_confirm_connection_name">confirm connection</string>
     <string name="option_dsa_description">use the DSS dropbear key</string>

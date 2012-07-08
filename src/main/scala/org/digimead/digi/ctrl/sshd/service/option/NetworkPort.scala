@@ -113,8 +113,7 @@ object NetworkPort extends TextViewItem with Logging {
   }
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
-    val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-    pref.getInt(option.tag, option.default.asInstanceOf[Int]).asInstanceOf[T]
+    SSHDPreferences.NetworkPort.get(context).asInstanceOf[T]
   }
   override def getView(context: Context, inflater: LayoutInflater): View = {
     val view = super.getView(context, inflater)
