@@ -1,4 +1,4 @@
-/**
+/*
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -19,18 +19,16 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd
+package org.digimead.digi.ctrl.sshd.service.option
 
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.dialog.Preference
-import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
 
-import android.preference.{ Preference => APreference }
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
 
-class SSHDPreference extends Preference {
-  implicit val logger = log
-  @Loggable
-  override protected def updatePrefSummary(p: APreference, key: String, notify: Boolean = false) {
-    super.updatePrefSummary(p, key, notify)
-  }
+trait TextViewItem extends Item {
+  def getView(context: Context, inflater: LayoutInflater): View =
+    inflater.inflate(Android.getId(context, "option_list_item_value", "layout"), null)
 }

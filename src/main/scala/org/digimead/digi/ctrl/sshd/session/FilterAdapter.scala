@@ -26,10 +26,9 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import android.content.Context
 import android.view.LayoutInflater
@@ -157,7 +156,6 @@ object FilterAdapter extends Logging {
   val separatorToInclude = Item(null, Some(true))(false, false)
   val separatorToDelete = Item(null, Some(false))(false, false)
   case class Item(val value: String, var pending: Option[Boolean] = None)(private var _isActive: Boolean, isActivityAllow: Boolean) {
-    private val prefFilter = if (isActivityAllow) DPreference.FilterConnectionAllow else DPreference.FilterConnectionDeny
     override def toString() =
       value
     var context = new WeakReference[FilterActivity](null)
@@ -167,10 +165,16 @@ object FilterAdapter extends Logging {
           pending match {
             case None =>
               log.debug("update state of normal item " + value + " " + x)
-              val pref = context.getSharedPreferences(prefFilter, Context.MODE_PRIVATE)
-              val editor = pref.edit()
-              editor.putBoolean(value, x)
-              editor.commit()
+              (isActivityAllow, x) match {
+                case (true, true) =>
+                  SSHDPreferences.FilterConnection.Allow.enable(context, value)
+                case (true, false) =>
+                  SSHDPreferences.FilterConnection.Allow.disable(context, value)
+                case (false, true) =>
+                  SSHDPreferences.FilterConnection.Deny.enable(context, value)
+                case (false, false) =>
+                  SSHDPreferences.FilterConnection.Deny.disable(context, value)
+              }
               context.runOnUiThread(new Runnable {
                 def run =
                   Toast.makeText(context, context.getString(if (x)
@@ -189,10 +193,16 @@ object FilterAdapter extends Logging {
               })
             case Some(false) =>
               log.debug("update state of toDelete item " + value + " " + x)
-              val pref = context.getSharedPreferences(prefFilter, Context.MODE_PRIVATE)
-              val editor = pref.edit()
-              editor.putBoolean(value, x)
-              editor.commit()
+              (isActivityAllow, x) match {
+                case (true, true) =>
+                  SSHDPreferences.FilterConnection.Allow.enable(context, value)
+                case (true, false) =>
+                  SSHDPreferences.FilterConnection.Allow.disable(context, value)
+                case (false, true) =>
+                  SSHDPreferences.FilterConnection.Deny.enable(context, value)
+                case (false, false) =>
+                  SSHDPreferences.FilterConnection.Deny.disable(context, value)
+              }
               context.runOnUiThread(new Runnable {
                 def run =
                   Toast.makeText(context, context.getString(if (x)

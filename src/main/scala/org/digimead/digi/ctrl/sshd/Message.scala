@@ -21,6 +21,11 @@
 
 package org.digimead.digi.ctrl.sshd
 
+import java.util.concurrent.ConcurrentLinkedQueue
+
+import scala.Array.canBuildFrom
+import scala.annotation.tailrec
+
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider
 import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider.value2uri
@@ -35,29 +40,65 @@ import org.digimead.digi.ctrl.lib.util.Android
 import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
+import android.os.Parcelable
 
 object Message extends Logging {
-  implicit val dispatcher: Dispatcher = new Dispatcher {
-    // skip if process called before initialization, look for setLogLevel routine and onCreate sequence
-    def process(message: DMessage): Unit = for {
-      inner <- Option(AppComponent.Inner)
-      context <- AppComponent.Context
-    } {
-      if (message.logger != null) {
-        try {
-          val intent = new Intent(DIntent.Message, Uri.parse("code://" + context.getPackageName))
-          intent.putExtra(DIntent.Message, message)
-          intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
-          intent.putExtra(DIntent.DronePackage, context.getPackageName)
-          AppComponent.Inner.sendPrivateBroadcast(intent)
-        } catch {
-          case e =>
-            log.warn("Message::Dispatcher sendPrivateBroadcast " + e.getMessage)
+  private val flushLimit = 1000
+  private val queue = new ConcurrentLinkedQueue[DMessage]
+  @volatile private var runner = new Thread
+
+  def addLazyInit = AppComponent.LazyInit("MessageDispatcher initialize onCreate", 50) {
+    Message.synchronized {
+      if (!runner.isAlive) {
+        runner = new Thread("MessageDispatcher for " + Message.getClass.getName) {
+          log.debug("new MessageDispatcher thread %s alive".format(this.getId.toString))
+          this.setDaemon(true)
+          @tailrec
+          override def run() = {
+            if (!queue.isEmpty) {
+              flushQueue(flushLimit)
+              Thread.sleep(100)
+            } else
+              Thread.sleep(500)
+            if (runner.getId != this.getId || AppComponent.Inner == null)
+              log.debug("MessageDispatcher thread %s terminated".format(this.getId.toString))
+            else
+              run
+          }
         }
+        runner.start
+      }
+    }
+  }
+
+  implicit val dispatcher: Dispatcher = new Dispatcher {
+    def process(message: DMessage): Unit = {
+      queue.offer(message)
+      if (SSHDActivity.isConsistent)
+        if (message.isInstanceOf[IAmBusy]) {
+          log.debug("send request IAmBusy")
+          SSHDActivity.actor !? (DTimeout.normal, message) orElse ({ log.fatal("request IAmBusy hang with timeout " + DTimeout.normal); None })
+        } else
+          SSHDActivity.actor ! message
+    }
+  }
+
+  private def flushQueue(): Int = flushQueue(java.lang.Integer.MAX_VALUE)
+  private def flushQueue(n: Int): Int = synchronized {
+    var count = 0
+    var messages: Array[DMessage] = Array()
+    // acquire
+    while (count < n && !queue.isEmpty()) {
+      val message = queue.poll().asInstanceOf[DMessage]
+      messages = messages :+ message
+      count += 1;
+    }
+    AppComponent.Context foreach {
+      context =>
         // push in history
         try {
           val values = new ContentValues()
-          values.put(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiControl"))
+          values.put(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
           values.put(DIntent.DronePackage, context.getPackageName)
           /*
            * [error] both method put in class ContentValues of type (x$1: java.lang.String,x$2: java.lang.Double)Unit
@@ -66,22 +107,29 @@ object Message extends Logging {
            * [error]     values.put(DHistoryProvider.Field.ActivityTS.toString, message.
            * TODO submit Scala ticket
            */
-          values.put(DHistoryProvider.Field.ActivityTS.toString, Long.box(message.ts))
-          values.put(DHistoryProvider.Field.ActivitySeverity.toString, message.getClass.getName)
-          values.put(DHistoryProvider.Field.ActivityMessage.toString, message.message)
-          context.getContentResolver.insert(DHistoryProvider.Uri.Activity, values)
+          messages.foreach {
+            message =>
+              values.put(DHistoryProvider.Field.ActivityTS.toString, Long.box(message.ts))
+              values.put(DHistoryProvider.Field.ActivitySeverity.toString, message.getClass.getName)
+              values.put(DHistoryProvider.Field.ActivityMessage.toString, message.message)
+              context.getContentResolver.insert(DHistoryProvider.Uri.Activity, values)
+          }
         } catch {
           case e =>
             log.warn("Message::Dispatcher getContentResolver.insert " + e.getMessage)
         }
-      }
-      if (SSHDActivity.isConsistent)
-        if (message.isInstanceOf[IAmBusy]) {
-          log.debug("send request IAmBusy")
-          SSHDActivity !? (DTimeout.normal, message) orElse ({ log.fatal("request IAmBusy hang with timeout " + DTimeout.normal); None })
-        } else
-          SSHDActivity ! message
+        // send broadcast
+        val intent = new Intent(DIntent.Message, Uri.parse("code://" + context.getPackageName))
+        intent.putExtra(DIntent.Message, messages.asInstanceOf[Array[Parcelable]])
+        intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
+        intent.putExtra(DIntent.DronePackage, context.getPackageName)
+        try {
+          AppComponent.Inner.sendPrivateBroadcast(intent)
+        } catch {
+          case e =>
+            log.warn("Message::Dispatcher sendPrivateBroadcast " + e.getMessage)
+        }
     }
+    count
   }
 }
-

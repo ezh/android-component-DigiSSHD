@@ -30,6 +30,7 @@ import org.digimead.digi.ctrl.lib.block.ThanksBlock
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
@@ -37,7 +38,6 @@ import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.app.ListActivity
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -47,6 +47,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.Html
 import android.view.ContextMenu
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView.AdapterContextMenuInfo
@@ -77,6 +78,7 @@ class TabActivity extends ListActivity with Logging {
     legalHeader.setText(Html.fromHtml(Android.getString(this, "block_legal_title").getOrElse("legal")))
     // prepare active view
     val lv = getListView()
+    lv.addFooterView(getLayoutInflater.inflate(R.layout.stub_footer, null))
     registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }
@@ -106,6 +108,10 @@ class TabActivity extends ListActivity with Logging {
             thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item: LegalBlock.Item =>
             legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
+            menu.add(Menu.NONE, Android.getId(this, "block_legal_coreutils"), 1,
+              Android.getString(this, "block_legal_coreutils").getOrElse("GNU Coreutils"))
+            menu.add(Menu.NONE, Android.getId(this, "block_legal_grep"), 1,
+              Android.getString(this, "block_legal_grep").getOrElse("GNU Grep"))
           case item: InterfaceBlock.Item =>
             interfaceBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item =>
@@ -134,7 +140,34 @@ class TabActivity extends ListActivity with Logging {
         case item: ThanksBlock.Item =>
           thanksBlock.onContextItemSelected(menuItem, item)
         case item: LegalBlock.Item =>
-          legalBlock.onContextItemSelected(menuItem, item)
+          menuItem.getItemId match {
+            case id if id == Android.getId(this, "block_legal_coreutils") =>
+              log.debug("open link from " + TabActivity.CoreutilsURL)
+              try {
+                val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabActivity.CoreutilsURL))
+                intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                startActivity(intent)
+                true
+              } catch {
+                case e =>
+                  IAmYell("Unable to open license link " + TabActivity.CoreutilsURL, e)
+                  false
+              }
+            case id if id == Android.getId(this, "block_legal_grep") =>
+              log.debug("open link from " + TabActivity.GrepURL)
+              try {
+                val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabActivity.GrepURL))
+                intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                startActivity(intent)
+                true
+              } catch {
+                case e =>
+                  IAmYell("Unable to open license link " + TabActivity.GrepURL, e)
+                  false
+              }
+            case id =>
+              legalBlock.onContextItemSelected(menuItem, item)
+          }
         case item =>
           log.fatal("unknown item " + item)
           false
@@ -172,6 +205,8 @@ object TabActivity extends Logging {
 GNU General Public License (GPL) version 3 or later, a copy of which has been included in the LICENSE file.
 Please check the individual source files for details. <br/>
 Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
+  val CoreutilsURL = "http://www.gnu.org/software/coreutils/"
+  val GrepURL = "http://www.gnu.org/software/grep/"
   @volatile private[info] var activity: Option[TabActivity] = None
   @volatile private[info] var adapter: Option[MergeAdapter] = None
   @volatile private var interfaceBlock: Option[InterfaceBlock] = None
@@ -185,18 +220,19 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
   }
 
   def addLazyInit = AppComponent.LazyInit("info.TabActivity initialize onCreate", 100) {
-    TabActivity.activity.foreach {
+    SSHDActivity.activity.foreach {
       activity =>
+        val context = activity.getApplicationContext
         // initialize once from onCreate
         if (adapter == None) {
           adapter = Some(new MergeAdapter())
-          interfaceBlock = Some(new InterfaceBlock(activity))
-          supportBlock = Some(new SupportBlock(activity, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
-            SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur"))
-          communityBlock = Some(new CommunityBlock(activity, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
+          interfaceBlock = Some(new InterfaceBlock(context))
+          supportBlock = Some(new SupportBlock(context, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
+            SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur", "413030952"))
+          communityBlock = Some(new CommunityBlock(context, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
             Some(Uri.parse(SSHDActivity.info.project + "/wiki"))))
-          thanksBlock = Some(new ThanksBlock(activity))
-          legalBlock = Some(new LegalBlock(activity, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
+          thanksBlock = Some(new ThanksBlock(context))
+          legalBlock = Some(new LegalBlock(context, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
           for {
             adapter <- adapter
             interfaceBlock <- interfaceBlock
@@ -210,14 +246,15 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
             supportBlock appendTo (adapter)
             //thanksBlock appendTo (adapter)
             legalBlock appendTo (adapter)
-            activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) })
+            TabActivity.activity.foreach(activity =>
+              activity.runOnUiThread(new Runnable { def run = activity.setListAdapter(adapter) }))
           }
         }
         // initialize every time from onCreate
         // register UpdateInterfaceFilter BroadcastReceiver
         val interfaceFilterUpdateFilter = new IntentFilter(DIntent.UpdateInterfaceFilter)
         interfaceFilterUpdateFilter.addDataScheme("code")
-        activity.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
+        context.registerReceiver(interfaceFilterUpdateReceiver, interfaceFilterUpdateFilter)
     }
   }
   @Loggable

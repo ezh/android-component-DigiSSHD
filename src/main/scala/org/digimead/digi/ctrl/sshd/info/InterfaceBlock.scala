@@ -23,43 +23,46 @@ package org.digimead.digi.ctrl.sshd.info
 
 import java.util.ArrayList
 
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.actors.Futures.future
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
+import scala.collection.mutable.HashMap
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.block.Block
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.block.SupportBlock
-import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.FilterBlock
-import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
-import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.sshd.service.FilterBlock
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.text.Html
 import android.view.ContextMenu
+import android.view.ContextThemeWrapper
+import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
-import android.app.AlertDialog
-import android.view.LayoutInflater
-import android.view.ContextThemeWrapper
 
-class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
-  private lazy val header = context.getLayoutInflater.inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
+class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
+  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
   private lazy val adapter = new InterfaceBlock.Adapter(context)
   @volatile private var activeInterfaces: Option[Seq[String]] = None
   future { updateActiveInteraces(false) }
@@ -109,52 +112,50 @@ class InterfaceBlock(val context: Activity)(implicit @transient val dispatcher: 
       activity <- TabActivity.activity
       madapter <- TabActivity.adapter
     } {
-      context.runOnUiThread(new Runnable {
-        def run = {
-          adapter.setNotifyOnChange(false)
-          adapter.clear
-          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
-          val acl = pref.getAll
-          val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
-          log.debug("available interfaces: " + interfaces.keys.mkString(", "))
-          // stage 1: set unused interfaces to passive
-          if (acl.isEmpty) {
-            // all adapters enabled
+      AnyBase.runOnUiThread {
+        adapter.setNotifyOnChange(false)
+        adapter.clear
+        val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
+        val acl = pref.getAll
+        val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
+        log.debug("available interfaces: " + interfaces.keys.mkString(", "))
+        // stage 1: set unused interfaces to passive
+        if (acl.isEmpty) {
+          // all adapters enabled
+          interfaces.keys.foreach(k => interfaces(k) = Some(false))
+        } else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL)) {
+          // all adapters enabled/disabled
+          if (pref.getBoolean(FilterBlock.ALL, false))
             interfaces.keys.foreach(k => interfaces(k) = Some(false))
-          } else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL)) {
-            // all adapters enabled/disabled
-            if (pref.getBoolean(FilterBlock.ALL, false))
-              interfaces.keys.foreach(k => interfaces(k) = Some(false))
-          } else {
-            // custom adapters state
-            acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
-              aclMask =>
-                // if aclMask enabled (true)
-                if (pref.getBoolean(aclMask, false)) {
-                  interfaces.filter(t => t._2 == None).keys.foreach(interface =>
-                    if (Common.checkInterfaceInUse(interface, aclMask))
-                      interfaces(interface) = Some(false))
-                }
-            }
+        } else {
+          // custom adapters state
+          acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
+            aclMask =>
+              // if aclMask enabled (true)
+              if (pref.getBoolean(aclMask, false)) {
+                interfaces.filter(t => t._2 == None).keys.foreach(interface =>
+                  if (Common.checkInterfaceInUse(interface, aclMask))
+                    interfaces(interface) = Some(false))
+              }
           }
-          log.debug("active interfaces: " + activeInterfaces.mkString(", "))
-          // stage 2: set particular interfaces to active
-          activeInterfaces.foreach(_ match {
-            case n if n.isEmpty =>
-              interfaces.foreach(i => if (i._2 == Some(false)) interfaces(i._1) = Some(true))
-            case active =>
-              interfaces.foreach(i => if (active.exists(_ == i._1)) interfaces(i._1) = Some(true))
-          })
-          interfaces.keys.toSeq.sorted.foreach {
-            interface =>
-              adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
-          }
-          log.trace("active interfaces updated")
-          adapter.setNotifyOnChange(true)
-          adapter.notifyDataSetChanged
-          log.trace("exit from updateAdapter()")
         }
-      })
+        log.debug("active interfaces: " + activeInterfaces.mkString(", "))
+        // stage 2: set particular interfaces to active
+        activeInterfaces.foreach(_ match {
+          case n if n.isEmpty =>
+            interfaces.foreach(i => if (i._2 == Some(false)) interfaces(i._1) = Some(true))
+          case active =>
+            interfaces.foreach(i => if (active.exists(_ == i._1)) interfaces(i._1) = Some(true))
+        })
+        interfaces.keys.toSeq.sorted.foreach {
+          interface =>
+            adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
+        }
+        log.trace("active interfaces updated")
+        adapter.setNotifyOnChange(true)
+        adapter.notifyDataSetChanged
+        log.trace("exit from updateAdapter()")
+      }
     }
   }
   def updateActiveInteraces(allInterfacesArePassive: Boolean) = synchronized {
@@ -178,7 +179,7 @@ object InterfaceBlock extends Logging {
   case class Item(val value: String, val status: Option[Boolean]) extends Block.Item {
     override def toString() = value
   }
-  class Adapter(context: Activity,
+  class Adapter(context: Context,
     private val resource: Int = android.R.layout.simple_list_item_1,
     private val fieldId: Int = android.R.id.text1)
     extends ArrayAdapter[InterfaceBlock.Item](context, resource, fieldId, new ArrayList[Item](List(Item(null, null)))) {
@@ -200,6 +201,7 @@ object InterfaceBlock extends Logging {
         case InterfaceBlock.Item(_, None) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icUnused, null, null, null)
       }
+      Level.novice(view)
       view
     }
   }

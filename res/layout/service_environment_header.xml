@@ -47,7 +47,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_users"
-                android:onClick="onClickUsers"
                 android:text="@string/service_environment_users" >
             </Button>
             
@@ -58,7 +57,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_reinstall"
-                android:onClick="onClickServiceReinstall"
                 android:text="@string/service_environment_reinstall" >
             </Button>
 
@@ -69,7 +67,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_reset"
-                android:onClick="onClickServiceReset"
                 android:text="@string/service_environment_reset" >
             </Button>
         </TableRow>

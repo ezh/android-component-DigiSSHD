@@ -34,6 +34,7 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConnection
 import org.digimead.digi.ctrl.lib.declaration.DControlProvider
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
@@ -87,6 +88,7 @@ class SessionAdapter(context: Activity, layout: Int)
             item.position = Some(position)
             item.updateTitle
         }
+        Level.intermediate(view)
         view
       case Some(view) =>
         view
@@ -179,38 +181,42 @@ class SessionAdapter(context: Activity, layout: Int)
   }
 }
 
-object SessionAdapter extends Actor with Logging {
+object SessionAdapter extends Logging {
   private val adapter = new AtomicReference(new WeakReference[SessionAdapter](null))
   private val jscheduler = Executors.newSingleThreadScheduledExecutor()
 
   AppComponent.LazyInit("start session.SessionAdapter actor and heartbeat") {
-    start
+    actor.start
     schedule(1000)
   }
   log.debug("alive")
-  private def schedule(duration: Int) =
-    jscheduler.scheduleAtFixedRate(new Runnable { def run { SessionAdapter.this ! () } }, 0, duration, TimeUnit.MILLISECONDS)
-  def act = {
-    loop {
-      react {
-        case _ =>
-          adapter.get.get match {
-            case Some(adapter) =>
-              val waiting = adapter.item.values.flatMap(updateDurationText)
-              if (waiting.nonEmpty) {
-                waiting.head._1.getRootView.post(new Runnable() {
-                  def run() = waiting.foreach(t => {
-                    t._1.setText(t._2)
-                    t._1.requestLayout
+
+  val actor = new Actor {
+    def act = {
+      loop {
+        react {
+          case _ =>
+            adapter.get.get match {
+              case Some(adapter) =>
+                val waiting = adapter.item.values.flatMap(updateDurationText)
+                if (waiting.nonEmpty) {
+                  waiting.head._1.getRootView.post(new Runnable() {
+                    def run() = waiting.foreach(t => {
+                      t._1.setText(t._2)
+                      t._1.requestLayout
+                    })
                   })
-                })
-                waiting.head._1.postInvalidate
-              }
-            case None =>
-          }
+                  waiting.head._1.postInvalidate
+                }
+              case None =>
+            }
+        }
       }
     }
   }
+
+  private def schedule(duration: Int) =
+    jscheduler.scheduleAtFixedRate(new Runnable { def run { SessionAdapter.actor ! () } }, 0, duration, TimeUnit.MILLISECONDS)
   private def updateDurationText(item: SessionBlock.Item): Option[(TextView, String)] = item.durationField.get.flatMap {
     durationField =>
       if (durationField.getVisibility == View.VISIBLE) {

@@ -76,4 +76,3 @@ diff -pru dropbear.orig/svr-chansession.c dropbear/svr-chansession.c
  
  	if (chansess->tty) {
  		addnewvar("SSH_TTY", chansess->tty);
-Только в dropbear: svr-chansession.c.orig

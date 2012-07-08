@@ -22,24 +22,28 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <item
-        android:id="@+id/menu_control"
-        android:icon="@drawable/ic_menu_control"
-        android:title="@string/menu_control"/>
+        android:id="@+id/menu_event_logs"
+        android:icon="@drawable/ic_menu_event_logs"
+        android:title="@string/menu_event_logs"/>
     <item
         android:id="@+id/menu_gplay"
         android:icon="@drawable/ic_menu_gplay"
         android:title="@string/menu_gplay"/>
     <item
-        android:id="@+id/menu_report"
-        android:icon="@drawable/ic_menu_report"
-        android:title="@string/menu_report"/>
+        android:id="@+id/menu_control"
+        android:icon="@drawable/ic_menu_control"
+        android:title="@string/menu_control"/>
     <item
         android:id="@+id/menu_help"
         android:icon="@drawable/ic_menu_help"
         android:title="@string/menu_help"/>
     <item
+        android:id="@+id/menu_report"
+        android:icon="@drawable/ic_menu_report"
+        android:title="@string/menu_report"/>
+    <item
         android:id="@+id/menu_options"
         android:icon="@android:drawable/ic_menu_preferences"
         android:title="@string/menu_options"/>
-
+    
 </menu>

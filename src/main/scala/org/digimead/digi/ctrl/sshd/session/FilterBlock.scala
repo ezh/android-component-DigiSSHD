@@ -26,7 +26,7 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.declaration.DOption.OptVal.value2string_id
+import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -34,6 +34,7 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -73,14 +74,14 @@ class FilterBlock(val context: Activity) extends Block[FilterBlock.Item] with Lo
       FilterBlock.iconDAD.foreach(v.setBackgroundDrawable)
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
-      editor.putBoolean(DOption.ACLConnection, false)
+      editor.putBoolean(DOption.ACLConnection.tag, false)
       editor.commit()
     } else {
       IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
       FilterBlock.iconADA.foreach(v.setBackgroundDrawable)
       val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
       val editor = pref.edit()
-      editor.putBoolean(DOption.ACLConnection, true)
+      editor.putBoolean(DOption.ACLConnection.tag, true)
       editor.commit()
     }
     item.updateUI
@@ -142,7 +143,7 @@ object FilterBlock extends Logging {
     def isFilterADA(): Boolean = view.get.map { // Allow, Deny, Allow
       view =>
         val pref = view.getContext.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-        pref.getBoolean(DOption.ACLConnection, true)
+        pref.getBoolean(DOption.ACLConnection.tag, true)
     } getOrElse (true)
     // run only from UI thread
     def updateUI() = for {
@@ -150,13 +151,11 @@ object FilterBlock extends Logging {
       leftPart <- leftPart.get
       rightPart <- rightPart.get
     } {
-      val prefAllow = view.getContext.getSharedPreferences(DPreference.FilterConnectionAllow, Context.MODE_PRIVATE)
-      val allowAll = prefAllow.getAll
-      val activeAllow = allowAll.values.toArray.filter(_.asInstanceOf[Boolean]).size
+      val allowAll = SSHDPreferences.FilterConnection.Allow.get(view.getContext)
+      val activeAllow = allowAll.filter(_._2).size
       val totalAllow = allowAll.size
-      val prefDeny = view.getContext.getSharedPreferences(DPreference.FilterConnectionDeny, Context.MODE_PRIVATE)
-      val denyAll = prefDeny.getAll
-      val activeDeny = denyAll.values.toArray.filter(_.asInstanceOf[Boolean]).size
+      val denyAll = SSHDPreferences.FilterConnection.Deny.get(view.getContext)
+      val activeDeny = denyAll.filter(_._2).size
       val totalDeny = denyAll.size
       if (isFilterADA) {
         leftPart.setText(Html.fromHtml(Android.getString(leftPart.getContext, "session_filter_allow_text").
@@ -205,6 +204,7 @@ object FilterBlock extends Logging {
               false // no, it isn't
             }
           })
+          Level.professional(view)
           item.view = new WeakReference(view)
           item.updateUI
           if (item.isFilterADA)

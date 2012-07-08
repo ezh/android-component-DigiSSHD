@@ -23,6 +23,7 @@ package org.digimead.digi.ctrl.sshd.service
 
 import scala.collection.JavaConversions._
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -35,6 +36,7 @@ import android.app.ListActivity
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -54,10 +56,18 @@ class FilterRemoveActivity extends ListActivity with Logging {
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
+    AnyBase.init(this, false)
+    AnyBase.preventShutdown(this)
+    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_BEHIND)
     setContentView(R.layout.service_filter)
     val footer = inflater.inflate(R.layout.service_filter_footer, null)
     getListView().addFooterView(footer, null, false)
     setListAdapter(adapter)
+  }
+  @Loggable
+  override def onDestroy() {
+    AnyBase.deinit(this)
+    super.onDestroy()
   }
   @Loggable
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
