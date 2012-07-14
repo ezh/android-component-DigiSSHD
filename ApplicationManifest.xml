@@ -2,7 +2,7 @@
 <manifest>
 	<id>DigiSSHD</id>
 	<name>DigiSSHD</name>
-	<version>0.2</version>
+	<version>0.2.1</version>
 	<required version="0.2">org.digimead.digi.ctrl</required>
 	<description>Secure Shell Server</description>
 	<description lang="ru">Secure Shell сервер</description>
