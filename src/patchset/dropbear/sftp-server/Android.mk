@@ -15,7 +15,7 @@ xmalloc.c
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
 LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := sftp-server
+LOCAL_MODULE := sftp-server---x
 
 include $(BUILD_EXECUTABLE)
 

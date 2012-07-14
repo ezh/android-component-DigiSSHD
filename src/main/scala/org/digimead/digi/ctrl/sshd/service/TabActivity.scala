@@ -98,6 +98,8 @@ class TabActivity extends ListActivity with Logging {
         TabActivity.optionBlock.foreach(_.onListItemClick(l, v, optionItem))
       case componentItem: ComponentBlock.Item =>
         TabActivity.componentBlock.foreach(_.onListItemClick(l, v, componentItem))
+      case item if Seq(3, 10, 13).contains(position) =>
+      // spliters, footer
       case item =>
         log.fatal("unknown item " + item + " at " + position)
     }
