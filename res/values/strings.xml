@@ -43,8 +43,9 @@
     <string name="comm_option_block">options</string>
     <string name="comm_session_block">session list</string>
     <string name="copy_to_clipboard">copy_to_clipboard</string>
-    <string name="dialog_about_message">dialog_about_message</string>
-    <string name="dialog_about_title">dialog_about_title</string>
+    <string name="dialog_acl_order_title">Change ACL rules order</string>
+    <string name="dialog_acl_order_ada_message">Do you want to set ACL rules order to &lt;font color=\'red\'>Deny&lt;/font>, &lt;font color=\'green\'>Allow&lt;/font>, &lt;font color=\'red\'>Implicit Deny&lt;/font>?</string>
+    <string name="dialog_acl_order_dad_message">Do you want to set ACL rules order to &lt;font color=\'green\'>Allow&lt;/font>, &lt;font color=\'red\'>Deny&lt;/font>, &lt;font color=\'green\'>Implicit Allow&lt;/font>?</string>
     <string name="dialog_auth_message">Component password</string>
     <string name="dialog_auth_title">Set authentification</string>
     <string name="dialog_component_info_message">component: &lt;font color=\'white\'>%1$s&lt;/font> &lt;br/>
@@ -65,7 +66,7 @@
     <string name="dialog_password_title">\'%1$s\' user password</string>
     <string name="dialog_port_message">Select new TCP port at range from 1 to 65535. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/>&lt;br/>Please select &lt;b>unprivileged&lt;/b> port values (above 1023)  for restricted environments</string>
     <string name="dialog_port_title">Select network port</string>
-    <string name="dialog_recovery_message">Do you want to start automatic recovery sequence? It will try to shutdown all started components, reinitialize internals and reset error state. If automatic recovery wouldn\'t help, please, let us know with error report from the context menu.</string>
+    <string name="dialog_recovery_message">Do you want to start automatic recovery sequence? It will try to shutdown all started components, reinitialize internals and reset error state. If automatic recovery wouldn\'t help, please, let us know with error report that available in the options menu.</string>
     <string name="dialog_recovery_title">Automatic recovery</string>
     <string name="dialog_root_message">Are you sure you want to grant superuser permission to native components?\n\nPlease note that your software must support this function. This option is ignored if you have a firmware with limited functionality.</string>
     <string name="dialog_root_title">Access Permission</string>
