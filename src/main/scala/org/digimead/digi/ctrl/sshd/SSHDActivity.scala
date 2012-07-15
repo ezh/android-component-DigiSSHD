@@ -1206,7 +1206,6 @@ object SSHDActivity extends Logging {
   @Loggable
   private def onBusy(activity: SSHDActivity): Unit = {
     if (!busyDialog.isSet) {
-      AppComponent.Inner.disableRotation()
       busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
         if (busyCounter.get > 0) {
           busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
@@ -1227,25 +1226,25 @@ object SSHDActivity extends Logging {
           })
           dialog.setMessage(busyBuffer.mkString("\n"))
           dialog.setCancelable(false)
+          AppComponent.Inner.disableRotation()
           dialog.show
           dialog
         } else
           null, () => {
         busyDialog.unset()
         busyCounter.set(0)
+        AppComponent.Inner.enableRotation()
       }))
     }
   }
   @Loggable
-  private def onReady(activity: SSHDActivity): Unit = {
+  private def onReady(activity: SSHDActivity): Unit =
     if (busyDialog.isSet)
       busyDialog.get.foreach {
         dialog =>
           dialog.dismiss
           busyDialog.unset()
-          AppComponent.Inner.enableRotation()
       }
-  }
   private def onUpdate(activity: SSHDActivity): Unit = busyDialog.get(0).foreach(_.foreach {
     dialog =>
       activity.runOnUiThread(new Runnable {
