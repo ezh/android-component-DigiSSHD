@@ -21,6 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
+import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -39,7 +40,9 @@ import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.text.Html
 import android.view.LayoutInflater
@@ -67,27 +70,47 @@ class FilterBlock(val context: Activity) extends Block[FilterBlock.Item] with Lo
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {}
   @Loggable
-  def onClickButton(v: View) = {
-    val item = items.head
-    if (item.isFilterADA) {
-      IAmMumble("change ACL order to Deny, Allow, Implicit Deny")
-      FilterBlock.iconDAD.foreach(v.setBackgroundDrawable)
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-      val editor = pref.edit()
-      editor.putBoolean(DOption.ACLConnection.tag, false)
-      editor.commit()
-    } else {
-      IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
-      FilterBlock.iconADA.foreach(v.setBackgroundDrawable)
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-      val editor = pref.edit()
-      editor.putBoolean(DOption.ACLConnection.tag, true)
-      editor.commit()
+  def onClickButton(v: View) = Futures.future { // leave UI thread
+    TabActivity.activity.foreach {
+      activity =>
+        AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_change_acl_order", () => {
+          val item = items.head
+          val dialog = new AlertDialog.Builder(activity).
+            setTitle(R.string.dialog_acl_order_title).
+            setMessage(Html.fromHtml(Android.getString(activity, if (item.isFilterADA)
+              "dialog_acl_order_ada_message"
+            else
+              "dialog_acl_order_dad_message").getOrElse("Do you want change ACL rules order?"))).
+            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+              def onClick(dialog: DialogInterface, whichButton: Int) = {
+                if (item.isFilterADA) {
+                  IAmMumble("change ACL order to Deny, Allow, Implicit Deny")
+                  FilterBlock.iconDAD.foreach(v.setBackgroundDrawable)
+                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                  val editor = pref.edit()
+                  editor.putBoolean(DOption.ACLConnection.tag, false)
+                  editor.commit()
+                } else {
+                  IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
+                  FilterBlock.iconADA.foreach(v.setBackgroundDrawable)
+                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                  val editor = pref.edit()
+                  editor.putBoolean(DOption.ACLConnection.tag, true)
+                  editor.commit()
+                }
+                item.updateUI
+                v.invalidate()
+                v.refreshDrawableState()
+                v.getRootView().postInvalidate()
+              }
+            }).
+            setNegativeButton(android.R.string.cancel, null).
+            setIcon(android.R.drawable.ic_dialog_alert).
+            create()
+          dialog.show()
+          dialog
+        })
     }
-    item.updateUI
-    v.invalidate()
-    v.refreshDrawableState()
-    v.getRootView().postInvalidate()
   }
   @Loggable
   def onClickLeftPart(v: View) {

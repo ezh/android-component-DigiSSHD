@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.actors.Actor
+import scala.actors.Futures
 import scala.actors.Futures.future
 import scala.collection.mutable.Subscriber
 import scala.ref.WeakReference
@@ -129,6 +130,7 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
     // some times there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
     // if we started actors from the singleton
     SSHDActivity.actor.start
+    SSHDActivity.Dialog.queue.start
     Preferences.DebugLogLevel.set(this)
     Preferences.DebugAndroidLogger.set(this)
     super.onCreate(savedInstanceState)
@@ -208,8 +210,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   override def onStart() {
     super.onStart()
     onStartExt(this, super.registerReceiver)
-    SSHDActivity.busyCounter.set(0)
-    SSHDActivity.busyDialog.unset()
     if (AppControl.Inner.isAvailable != Some(true))
       future {
         log.debug("try to bind " + DConstant.controlPackage)
@@ -241,6 +241,8 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   override def onResume() {
     super.onResume()
     onResumeExt(this)
+    SSHDActivity.Dialog.busyCounter.set(0)
+    SSHDActivity.Dialog.busyDialog.unset()
     setRequestedOrientation(AppComponent.Inner.preferredOrientation.get)
     AppComponent.Inner.disableRotation()
     for {
@@ -408,8 +410,9 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         val logger = Logging.getRichLogger(message.origin.name)
         logger.info(dronePackage + "/" + message.message + " ts#" + message.ts)
         message.stash = Some(droneName)
-        SSHDActivity.busyBuffer = SSHDActivity.busyBuffer.takeRight(SSHDActivity.busySize - 1) :+ (droneName + "/" + message.message)
-        SSHDActivity.onUpdate(this)
+        SSHDActivity.Dialog.busyBuffer = SSHDActivity.Dialog.busyBuffer.takeRight(SSHDActivity.Dialog.busySize - 1) :+
+          (droneName + "/" + message.message)
+        SSHDActivity.Dialog.onUpdate(this)
       case broken =>
         log.error("recieve broken message: " + broken)
     })
@@ -418,8 +421,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
   private def onAppComponentStateChanged(state: AppComponent.State): Unit = for {
     statusText <- statusText.get
   } {
-    if (AppComponent.Inner.state.isBusy && !SSHDActivity.busyDialog.isSet)
-      SSHDActivity.onBusy(this)
     val text = state match {
       case AppComponent.State(DState.Initializing, rawMessage, callback) =>
         log.debug("set status text to " + DState.Initializing)
@@ -453,8 +454,6 @@ class SSHDActivity extends android.app.TabActivity with DActivity {
         log.fatal("unknown state " + state)
         None
     }
-    if (!AppComponent.Inner.state.isBusy && SSHDActivity.busyDialog.isSet)
-      SSHDActivity.onReady(this)
     val uiWait = new SyncVar[Any]()
     runOnUiThread(new Runnable {
       def run = {
@@ -961,11 +960,6 @@ object SSHDActivity extends Logging {
   @volatile private var running = false
   @volatile private var focused = false
   @volatile private var consistent = false
-  // null - empty, None - dialog upcoming, Some - dialog in progress
-  private val busyDialog = new SyncVar[Option[ProgressDialog]]()
-  private val busyCounter = new AtomicInteger()
-  private val busySize = 5
-  @volatile private var busyBuffer = Seq[String]()
   //AppComponent state subscriber
   val stateSubscriber = new Subscriber[AppComponent.State, AppComponent.StateContainer#Pub] {
     def notify(pub: AppComponent.StateContainer#Pub, event: AppComponent.State) =
@@ -1156,37 +1150,45 @@ object SSHDActivity extends Logging {
     def act = {
       loop {
         react {
-          case IAmBusy(origin, message, ts) =>
+          case busyMessage @ IAmBusy(origin, message, ts) =>
             log.info("receive message IAmBusy from " + origin)
             reply({
-              busyCounter.incrementAndGet
-              busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-              activity.foreach(onUpdate)
+              SSHDActivity.Dialog.busyCounter.incrementAndGet
+              SSHDActivity.Dialog.busyBuffer = SSHDActivity.Dialog.busyBuffer.takeRight(SSHDActivity.Dialog.busySize - 1) :+ message
+              activity.foreach(SSHDActivity.Dialog.onUpdate)
               AppComponent.Inner.state.set(AppComponent.State(DState.Busy))
+              if (AppComponent.Inner.state.isBusy) {
+                log.debug("trying to display progress dialog")
+                SSHDActivity.Dialog.queue ! busyMessage
+              }
               log.debug("return from message IAmBusy from " + origin)
             })
           case IAmMumble(origin, message, callback, ts) =>
             log.info("receive message IAmMumble from " + origin)
-            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-            activity.foreach(onUpdate)
+            SSHDActivity.Dialog.busyBuffer = SSHDActivity.Dialog.busyBuffer.takeRight(SSHDActivity.Dialog.busySize - 1) :+ message
+            activity.foreach(SSHDActivity.Dialog.onUpdate)
             log.debug("return from message IAmMumble from " + origin)
           case IAmWarn(origin, message, callback, ts) =>
             log.info("receive message IAmWarn from " + origin)
-            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-            activity.foreach(onUpdate)
+            SSHDActivity.Dialog.busyBuffer = SSHDActivity.Dialog.busyBuffer.takeRight(SSHDActivity.Dialog.busySize - 1) :+ message
+            activity.foreach(SSHDActivity.Dialog.onUpdate)
             log.debug("return from message IAmWarn from " + origin)
           case IAmYell(origin, message, stacktrace, callback, ts) =>
             log.info("receive message IAmYell from " + origin)
-            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-            activity.foreach(onUpdate)
+            SSHDActivity.Dialog.busyBuffer = SSHDActivity.Dialog.busyBuffer.takeRight(SSHDActivity.Dialog.busySize - 1) :+ message
+            activity.foreach(SSHDActivity.Dialog.onUpdate)
             log.debug("return from message IAmYell from " + origin)
-          case IAmReady(origin, message, ts) =>
+          case readyMessage @ IAmReady(origin, message, ts) =>
             log.info("receive message IAmReady from " + origin)
-            if (busyCounter.get > 0)
-              busyCounter.decrementAndGet
-            busyBuffer = busyBuffer.takeRight(busySize - 1) :+ message
-            activity.foreach(onUpdate)
+            if (SSHDActivity.Dialog.busyCounter.get > 0)
+              SSHDActivity.Dialog.busyCounter.decrementAndGet
+            SSHDActivity.Dialog.busyBuffer = SSHDActivity.Dialog.busyBuffer.takeRight(SSHDActivity.Dialog.busySize - 1) :+ message
+            activity.foreach(SSHDActivity.Dialog.onUpdate)
             AppComponent.Inner.state.freeBusy
+            if (!AppComponent.Inner.state.isBusy) {
+              log.debug("trying to hide progress dialog")
+              SSHDActivity.Dialog.queue ! readyMessage
+            }
             log.debug("return from message IAmReady from " + origin)
           case Message.GiveMeMoreSpaceIfYouPlease =>
             onMessageCollapse
@@ -1203,57 +1205,6 @@ object SSHDActivity extends Logging {
 
   def isRunning() = running
   def isConsistent() = consistent
-  @Loggable
-  private def onBusy(activity: SSHDActivity): Unit = {
-    if (!busyDialog.isSet) {
-      AppComponent.Inner.disableRotation()
-      busyDialog.set(AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
-        if (busyCounter.get > 0) {
-          busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
-          val dialog = new ProgressDialog(activity)
-          dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER)
-          dialog.setTitle("Please wait...")
-          dialog.setOnShowListener(new DialogInterface.OnShowListener {
-            def onShow(dialog: DialogInterface) = future {
-              // additional guard
-              Thread.sleep(DTimeout.shortest)
-              if (busyCounter.get <= 0) try {
-                dialog.dismiss
-              } catch {
-                case e =>
-                  log.warn(e.getMessage, e)
-              }
-            }
-          })
-          dialog.setMessage(busyBuffer.mkString("\n"))
-          dialog.setCancelable(false)
-          dialog.show
-          dialog
-        } else
-          null, () => {
-        busyDialog.unset()
-        busyCounter.set(0)
-      }))
-    }
-  }
-  @Loggable
-  private def onReady(activity: SSHDActivity): Unit = {
-    if (busyDialog.isSet)
-      busyDialog.get.foreach {
-        dialog =>
-          dialog.dismiss
-          busyDialog.unset()
-          AppComponent.Inner.enableRotation()
-      }
-  }
-  private def onUpdate(activity: SSHDActivity): Unit = busyDialog.get(0).foreach(_.foreach {
-    dialog =>
-      activity.runOnUiThread(new Runnable {
-        def run = {
-          dialog.setMessage(busyBuffer.mkString("\n"))
-        }
-      })
-  })
   @Loggable
   private def onMessageCollapse(): Unit = for {
     activity <- activity
@@ -1291,6 +1242,74 @@ object SSHDActivity extends Logging {
   object Dialog {
     lazy val NewConnection = AppComponent.Context.map(a => Android.getId(a, "new_connection")).getOrElse(0)
     lazy val ComponentInfo = AppComponent.Context.map(a => Android.getId(a, "component_info")).getOrElse(0)
+    private[sshd] val busyDialog = new SyncVar[ProgressDialog]()
+    private[sshd] val busyCounter = new AtomicInteger()
+    private[sshd] val busySize = 5
+    private val showDialog = new AtomicBoolean(false)
+    @volatile private[sshd] var busyBuffer = Seq[String]()
+
+    private[sshd] val queue = new Actor {
+      def act = {
+        loop {
+          react {
+            case message: IAmBusy =>
+              showDialog.set(true)
+              activity.foreach(onBusy)
+            case message: IAmReady =>
+              showDialog.set(false)
+              activity.foreach(onReady)
+          }
+        }
+      }
+    }
+
+    @Loggable
+    private def onBusy(activity: SSHDActivity): Unit = if (!busyDialog.isSet) {
+      AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
+        if (busyCounter.get > 0) {
+          busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
+          val dialog = new ProgressDialog(activity)
+          dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER)
+          dialog.setTitle("Please wait...")
+          dialog.setOnShowListener(new DialogInterface.OnShowListener {
+            def onShow(dialog: DialogInterface) = future {
+              // additional guard
+              Thread.sleep(DTimeout.shortest)
+              if (busyCounter.get <= 0) try {
+                dialog.dismiss
+              } catch {
+                case e =>
+                  log.warn(e.getMessage, e)
+              }
+            }
+          })
+          dialog.setMessage(busyBuffer.mkString("\n"))
+          dialog.setCancelable(false)
+          AppComponent.Inner.disableRotation()
+          dialog.show
+          log.debug("display progress dialog")
+          dialog
+        } else
+          null, () => {
+        log.debug("hide progress dialog")
+        busyDialog.unset()
+        busyCounter.set(0)
+        AppComponent.Inner.enableRotation()
+      }).map(dialog => busyDialog.set(dialog))
+    }
+    @Loggable
+    private def onReady(activity: SSHDActivity): Unit = Futures.future {
+      Thread.sleep(500)
+      busyDialog.get(0).foreach(dialog =>
+        if (!showDialog.get)
+          dialog.dismiss)
+    }
+    def onUpdate(activity: SSHDActivity): Unit = busyDialog.get(0).foreach {
+      dialog =>
+        activity.runOnUiThread(new Runnable {
+          def run = dialog.setMessage(busyBuffer.mkString("\n"))
+        })
+    }
   }
   object Message {
     object GiveMeMoreSpaceIfYouPlease
