@@ -22,6 +22,8 @@ Having question, suggestion or idea about the software? Contact us or [open issu
 DOCUMENTATION
 -------------
 
+### [WIKI](http://github.com/ezh/android-component-DigiSSHD/wiki)
+### [API](http://ezh.github.com/android-component-DigiSSHD/api/)
 
   [http://github.com/ezh/android-component-DigiSSHD/wiki](http://github.com/ezh/android-component-DigiSSHD/wiki)
 

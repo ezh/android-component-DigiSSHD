@@ -42,6 +42,7 @@ junit*
 /log_errors.log
 /log_info.log
 assets/armeabi/*
+_*
 
 # use glob syntax.
 syntax: glob
