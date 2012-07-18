@@ -21,6 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.info
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.CommunityBlock
@@ -78,7 +79,16 @@ class TabActivity extends ListActivity with Logging {
     legalHeader.setText(Html.fromHtml(Android.getString(this, "block_legal_title").getOrElse("legal")))
     // prepare active view
     val lv = getListView()
-    lv.addFooterView(getLayoutInflater.inflate(R.layout.stub_footer, null))
+    val footer = getLayoutInflater.inflate(R.layout.stub_footer, null)
+    for {
+      footerText <- Option(footer.findViewById(android.R.id.text1))
+      info <- AnyBase.info.get
+    } {
+      footerText.setVisibility(View.VISIBLE)
+      footerText.asInstanceOf[TextView].setText(Html.fromHtml(Android.getString(this, "footer_version").
+        getOrElse("<i>version: %s, build: %s</i>").format(info.appVersion, info.appBuild)))
+      lv.addFooterView(footer)
+    }
     registerForContextMenu(lv)
     TabActivity.adapter.foreach(adapter => runOnUiThread(new Runnable { def run = setListAdapter(adapter) }))
   }

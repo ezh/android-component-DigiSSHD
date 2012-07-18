@@ -91,7 +91,9 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.CheckedTextView
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -789,6 +791,20 @@ object SSHDUsers extends Logging with Passwords {
     editor.commit
   }
   @Loggable
+  def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) {
+    val userPEnabledPref = context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE)
+    val editor = userPEnabledPref.edit
+    if (enabled)
+      editor.putBoolean(user.name, true)
+    else
+      editor.putBoolean(user.name, false)
+    editor.commit
+  }
+  @Loggable
+  def isPasswordEnabled(context: Context, user: UserInfo): Boolean =
+    context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE).
+      getBoolean(user.name, true)
+  @Loggable
   def homeDirectory(context: Context, user: UserInfo): File =
     AppControl.Inner.getExternalDirectory(DTimeout.long) getOrElse new File("/")
   @Loggable
@@ -1161,15 +1177,24 @@ object SSHDUsers extends Logging with Passwords {
       val maxLengthFilter = new InputFilter.LengthFilter(5)
       val passwordLayout = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
         inflate(R.layout.alertdialog_text, null).asInstanceOf[LinearLayout]
+      val isUserPasswordEnabled = isPasswordEnabled(context, user)
+      val enablePasswordButton = new CheckBox(context)
+      enablePasswordButton.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+      enablePasswordButton.setChecked(isUserPasswordEnabled)
+      passwordLayout.addView(enablePasswordButton, 0)
       val togglePasswordButton = new ImageButton(context)
       togglePasswordButton.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
       togglePasswordButton.setImageResource(R.drawable.btn_eye)
       togglePasswordButton.setBackgroundResource(_root_.android.R.color.transparent)
+      if (!isUserPasswordEnabled)
+        togglePasswordButton.setEnabled(false)
       passwordLayout.addView(togglePasswordButton)
       val passwordField = passwordLayout.findViewById(_root_.android.R.id.edit).asInstanceOf[EditText]
       passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
       passwordField.setText(user.password)
       passwordField.setFilters(Array(SSHDUsers.userPasswordFilter))
+      if (!isUserPasswordEnabled)
+        passwordField.setEnabled(false)
       val dialog = new AlertDialog.Builder(context).
         setTitle(Android.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name)).
         setMessage(Html.fromHtml(Android.getString(context, "dialog_password_message").
@@ -1182,6 +1207,7 @@ object SSHDUsers extends Logging with Passwords {
             Toast.makeText(context, notification.format(user.name), Toast.LENGTH_SHORT).show()
             val newUser = user.copy(password = passwordField.getText.toString)
             save(context, newUser)
+            SSHDUsers.setPasswordEnabled(enablePasswordButton.isChecked, context, newUser)
             adapter.foreach {
               adapter =>
                 val position = adapter.getPosition(user)
@@ -1208,6 +1234,24 @@ object SSHDUsers extends Logging with Passwords {
       dialog.show()
       val ok = dialog.findViewById(_root_.android.R.id.button1)
       ok.setEnabled(false)
+      enablePasswordButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = {
+          if (isChecked != isPasswordEnabled(buttonView.getContext, user)) {
+            if ((isChecked && passwordField.getText.toString.nonEmpty) || !isChecked)
+              ok.setEnabled(true)
+          } else {
+            if (passwordField.getText.toString == user.password)
+              ok.setEnabled(false)
+          }
+          if (isChecked) {
+            togglePasswordButton.setEnabled(true)
+            passwordField.setEnabled(true)
+          } else {
+            togglePasswordButton.setEnabled(false)
+            passwordField.setEnabled(false)
+          }
+        }
+      })
       togglePasswordButton.setOnClickListener(new View.OnClickListener {
         val showPassword = new AtomicBoolean(false)
         def onClick(v: View) {

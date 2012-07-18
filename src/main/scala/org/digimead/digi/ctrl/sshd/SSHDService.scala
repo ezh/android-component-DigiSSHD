@@ -168,7 +168,10 @@ object SSHDService extends Logging {
               case AuthentificationMode.AuthType.SingleUser =>
                 SSHDUsers.list.find(_.name == "android") match {
                   case Some(systemUser) =>
-                    Some(systemUser.password)
+                    if (SSHDUsers.isPasswordEnabled(context, systemUser))
+                      Some(systemUser.password)
+                    else
+                      None
                   case None =>
                     log.fatal("system user not found")
                     None
@@ -179,7 +182,15 @@ object SSHDService extends Logging {
                 log.fatal("invalid authenticatin type \"" + invalid + "\"")
                 None
             }
-            val masterPasswordOption = masterPassword.map(pw => Seq("-Y", pw)).getOrElse(Seq[String]())
+            val masterPasswordOption = masterPassword match {
+              case Some(pw) =>
+                Seq("-Y", pw) // Enable master password to android account
+              case None =>
+                if (AuthentificationMode.getStateExt(context) == AuthentificationMode.AuthType.SingleUser)
+                  Seq("-s") // Disable password logins
+                else
+                  Seq[String]()
+            }
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
             AppControl.Inner.getInternalDirectory(DTimeout.long) match {
               case Some(path) =>
