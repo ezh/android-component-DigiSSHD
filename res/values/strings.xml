@@ -31,7 +31,7 @@
     <string name="app_name_filter_add">DigiSSHD: Add interface filters</string>
     <string name="app_name_filter_allow">DigiSSHD: Allow connection filters</string>
     <string name="app_name_filter_deny">DigiSSHD: Deny connection filters</string>
-    <string name="app_name_filter">DigiSSHD: Filter</string>
+    <string name="app_name_filter">DigiSSHD: Filters</string>
     <string name="app_name_filter_remove">DigiSSHD: Remove interface filters</string>
     <string name="app_name_information">DigiSSHD: Information</string>
     <string name="app_name_multiuser">DigiSSHD: Multi User Mode</string>

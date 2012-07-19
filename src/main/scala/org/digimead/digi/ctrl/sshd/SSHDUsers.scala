@@ -116,10 +116,9 @@ class SSHDUsers extends ListActivity with Logging {
   private lazy val deleteAll = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_footer_delete_all).asInstanceOf[TextView])
   private lazy val userName = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_name).asInstanceOf[TextView]).getOrElse(null))
   private lazy val userGenerateButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_add).asInstanceOf[ImageButton]).getOrElse(null))
-  private lazy val userHome = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_home).asInstanceOf[TextView]).getOrElse(null))
-  private lazy val userHomeChangeButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_change_home).asInstanceOf[ImageButton]).getOrElse(null))
   private lazy val userPassword = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_password).asInstanceOf[TextView]).getOrElse(null))
   private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_show_password).asInstanceOf[ImageButton]).getOrElse(null))
+  private lazy val userPasswordEnableCheckbox = new WeakReference(dynamicFooter.get.map(_.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]).getOrElse(null))
   private val lastActiveUserInfo = new AtomicReference[Option[UserInfo]](None)
   log.debug("alive")
 
@@ -134,8 +133,8 @@ class SSHDUsers extends ListActivity with Logging {
     SSHDUsers.adapter.foreach(setListAdapter)
     for {
       userName <- userName.get
-      userHome <- userHome.get
       userPassword <- userPassword.get
+      userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
     } {
       userName.addTextChangedListener(new TextWatcher() {
         def afterTextChanged(s: Editable) { updateFieldsState }
@@ -143,18 +142,29 @@ class SSHDUsers extends ListActivity with Logging {
         def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
       userName.setFilters(Array(SSHDUsers.userNameFilter))
-      userHome.addTextChangedListener(new TextWatcher() {
-        def afterTextChanged(s: Editable) { updateFieldsState }
-        def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-        def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-      })
-      userHome.setFilters(Array(SSHDUsers.userHomeFilter))
       userPassword.addTextChangedListener(new TextWatcher() {
         def afterTextChanged(s: Editable) { updateFieldsState }
         def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
         def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
       userPassword.setFilters(Array(SSHDUsers.userPasswordFilter))
+      userPasswordEnableCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = {
+          val context = buttonView.getContext
+          lastActiveUserInfo.get.foreach {
+            user =>
+              if (isChecked) {
+                SSHDUsers.setPasswordEnabled(true, context, user)
+                Toast.makeText(context, Android.getString(context, "enable_password_authentication").
+                  getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
+              } else {
+                SSHDUsers.setPasswordEnabled(false, context, user)
+                Toast.makeText(context, Android.getString(context, "disable_password_authentication").
+                  getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
+              }
+          }
+        }
+      })
     }
     val lv = getListView()
     registerForContextMenu(getListView())
@@ -214,16 +224,16 @@ class SSHDUsers extends ListActivity with Logging {
   override def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
     adapter <- SSHDUsers.adapter
     userName <- userName.get
-    userHome <- userHome.get
     userPassword <- userPassword.get
+    userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
   } {
     adapter.getItem(position) match {
       case user: UserInfo =>
         if (SSHDUsers.multiUser || user.name == "android") {
           lastActiveUserInfo.set(Some(user))
           userName.setText(user.name)
-          userHome.setText(user.home)
           userPassword.setText(user.password)
+          userPasswordEnableCheckbox.setChecked(SSHDUsers.isPasswordEnabled(this, user))
           updateFieldsState()
         } else
           Toast.makeText(this, Android.getString(this, "users_in_single_user_mode").getOrElse("only android user available in single user mode"), Toast.LENGTH_SHORT).show()
@@ -329,14 +339,12 @@ class SSHDUsers extends ListActivity with Logging {
   def onClickApply(v: View) = synchronized {
     for {
       userName <- userName.get
-      userHome <- userHome.get
       userPassword <- userPassword.get
       adapter <- SSHDUsers.adapter
     } {
       val name = userName.getText.toString.trim
-      val home = userHome.getText.toString.trim
       val password = userPassword.getText.toString.trim
-      assert(name.nonEmpty && home.nonEmpty && password.nonEmpty, "one of user fields is empty")
+      assert(name.nonEmpty && password.nonEmpty, "one of user fields is empty")
       lastActiveUserInfo.get match {
         case Some(user) if name == "android" =>
           new AlertDialog.Builder(this).
@@ -371,7 +379,7 @@ class SSHDUsers extends ListActivity with Logging {
                   getOrElse("update user \"%s\"").format(name)
                 IAmWarn(message)
                 Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-                val newUser = user.copy(name = name, password = password, home = home)
+                val newUser = user.copy(name = name, password = password)
                 lastActiveUserInfo.set(Some(newUser))
                 SSHDUsers.save(v.getContext, newUser)
                 val position = adapter.getPosition(user)
@@ -394,6 +402,14 @@ class SSHDUsers extends ListActivity with Logging {
                   getOrElse("created user \"%s\"").format(name)
                 IAmWarn(message)
                 Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
+                // home
+                val home = AppControl.Inner.getExternalDirectory(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
+                  val sdcard = new File("/sdcard")
+                  if (!sdcard.exists)
+                    new File("/")
+                  else
+                    sdcard
+                }).getAbsolutePath
                 val newUser = UserInfo(name, password, home, true)
                 lastActiveUserInfo.set(Some(newUser))
                 SSHDUsers.save(v.getContext, newUser)
@@ -538,25 +554,15 @@ class SSHDUsers extends ListActivity with Logging {
         }
         name
       }
-      // home
-      val home = AppControl.Inner.getExternalDirectory(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
-        val sdcard = new File("/sdcard")
-        if (!sdcard.exists)
-          new File("/")
-        else
-          sdcard
-      }).getAbsolutePath
       // password
       val password = SSHDUsers.generate()
       for {
         userName <- userName.get
-        userHome <- userHome.get
         userPasswrod <- userPassword.get
       } {
         runOnUiThread(new Runnable {
           def run {
             userName.setText(name)
-            userHome.setText(home)
             userPasswrod.setText(password)
             updateFieldsState()
           }
@@ -567,7 +573,7 @@ class SSHDUsers extends ListActivity with Logging {
         log.error(e.getMessage, e)
     }
   }
-  @Loggable
+  /*@Loggable
   def onClickChangeHomeDirectory(v: View): Unit = userHome.get.foreach {
     userHome =>
       if (lastActiveUserInfo.get.exists(_.name == "android")) {
@@ -605,12 +611,12 @@ class SSHDUsers extends ListActivity with Logging {
         FileChooser.createDialog(this, Android.getString(this, "dialog_select_folder").getOrElse("Select Folder"),
           userHomeFile, onResultChangeHomeDirectory, filter).show()
       }
-  }
-  @Loggable
+  }*/
+  /*  @Loggable
   def onResultChangeHomeDirectory(context: Context, path: File, files: Seq[File], stash: AnyRef) = userHome.get.foreach {
     userHome =>
       userHome.setText(path.toString)
-  }
+  }*/
   @Loggable
   def onClickShowPassword(v: View): Unit = for {
     userPasswordShowButton <- userPasswordShowButton.get
@@ -630,7 +636,6 @@ class SSHDUsers extends ListActivity with Logging {
   @Loggable
   private def updateFieldsState(): Unit = for {
     userName <- userName.get
-    userHome <- userHome.get
     userPassword <- userPassword.get
     apply <- apply.get
     blockAll <- blockAll.get
@@ -640,18 +645,15 @@ class SSHDUsers extends ListActivity with Logging {
     if (lastActiveUserInfo.get.nonEmpty) {
       if (lastActiveUserInfo.get.exists(u =>
         u.name == userName.getText.toString.trim &&
-          u.home.toString == userHome.getText.toString.trim &&
           u.password == userPassword.getText.toString.trim))
         apply.setEnabled(false)
       else if (userName.getText.toString.trim.nonEmpty &&
-        userHome.getText.toString.trim.nonEmpty &&
         userPassword.getText.toString.trim.nonEmpty)
         apply.setEnabled(true)
       else
         apply.setEnabled(false)
     } else {
       if (userName.getText.toString.trim.nonEmpty &&
-        userHome.getText.toString.trim.nonEmpty &&
         userPassword.getText.toString.trim.nonEmpty) {
         apply.setEnabled(true)
       } else
@@ -660,11 +662,9 @@ class SSHDUsers extends ListActivity with Logging {
     // set userName userHome userPassword
     if (lastActiveUserInfo.get.exists(_.name == "android")) {
       userName.setEnabled(true)
-      userHome.setEnabled(false)
       userPassword.setEnabled(true)
     } else {
       userName.setEnabled(true)
-      userHome.setEnabled(true)
       userPassword.setEnabled(true)
     }
     // single user mode
@@ -791,7 +791,7 @@ object SSHDUsers extends Logging with Passwords {
     editor.commit
   }
   @Loggable
-  def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) {
+  def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) = synchronized {
     val userPEnabledPref = context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE)
     val editor = userPEnabledPref.edit
     if (enabled)
@@ -801,9 +801,10 @@ object SSHDUsers extends Logging with Passwords {
     editor.commit
   }
   @Loggable
-  def isPasswordEnabled(context: Context, user: UserInfo): Boolean =
+  def isPasswordEnabled(context: Context, user: UserInfo): Boolean = synchronized {
     context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE).
       getBoolean(user.name, true)
+  }
   @Loggable
   def homeDirectory(context: Context, user: UserInfo): File =
     AppControl.Inner.getExternalDirectory(DTimeout.long) getOrElse new File("/")
@@ -1236,7 +1237,8 @@ object SSHDUsers extends Logging with Passwords {
       ok.setEnabled(false)
       enablePasswordButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
         def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = {
-          if (isChecked != isPasswordEnabled(buttonView.getContext, user)) {
+          val context = buttonView.getContext
+          if (isChecked != isPasswordEnabled(context, user)) {
             if ((isChecked && passwordField.getText.toString.nonEmpty) || !isChecked)
               ok.setEnabled(true)
           } else {
@@ -1246,9 +1248,13 @@ object SSHDUsers extends Logging with Passwords {
           if (isChecked) {
             togglePasswordButton.setEnabled(true)
             passwordField.setEnabled(true)
+            Toast.makeText(context, Android.getString(context, "enable_password_authentication").
+              getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
           } else {
             togglePasswordButton.setEnabled(false)
             passwordField.setEnabled(false)
+            Toast.makeText(context, Android.getString(context, "disable_password_authentication").
+              getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
           }
         }
       })

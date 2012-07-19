@@ -240,7 +240,8 @@ Copyright © 2011-2012 Alexey B. Aksenov/Ezh. All rights reserved."""
           supportBlock = Some(new SupportBlock(context, Uri.parse(SSHDActivity.info.project), Uri.parse(SSHDActivity.info.project + "/issues"),
             SSHDActivity.info.email, SSHDActivity.info.name, "+18008505240", "ezhariur", "413030952"))
           communityBlock = Some(new CommunityBlock(context, Some(Uri.parse("http://forum.xda-developers.com/showthread.php?t=1612044")),
-            Some(Uri.parse(SSHDActivity.info.project + "/wiki"))))
+            Some(Uri.parse(SSHDActivity.info.project + "/wiki")), Some(Uri.parse(SSHDActivity.info.translation)),
+            Some(Uri.parse(SSHDActivity.info.translationCommon))))
           thanksBlock = Some(new ThanksBlock(context))
           legalBlock = Some(new LegalBlock(context, List(LegalBlock.Item(legal)("https://github.com/ezh/android-component-DigiSSHD/blob/master/LICENSE"))))
           for {

@@ -19,10 +19,34 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
  -->
- <resources>
-    <string name="app_name">DigiSSHD</string>
-    <string name="status_initializing">Инициализация&#8230;</string>
-    <string name="status_ready">Готовность</string>
-    <string name="status_error">Ошибка, %1$s</string>
-
+<resources>
+    <string name="allow_all">любой интерфейс</string>
+    <string name="app_name_filter">DigiSSHD: Фильтры</string>
+    <string name="app_name_filter_add">DigiSSHD: Добавление интерфейсов</string>
+    <string name="app_name_filter_remove">DigiSSHD: Удаление интерфейсов</string>
+    <string name="app_name_information">DigiSSHD: Информация</string>
+    <string name="app_name_multiuser">DigiSSHD: Многопользовательский режим</string>
+    <string name="app_name_options">DigiSSHD: Настройки</string>
+    <string name="app_name_service">DigiSSHD: Сервис</string>
+    <string name="app_name_sessions">DigiSSHD: Сессии</string>
+    <string name="app_name_singleuser">DigiSSHD: Однопользовательский режим</string>
+    <string name="app_name_users">DigiSSHD: Пользователи</string>
+    <string name="apply">Применить</string>
+    <string name="comm_option_block">настройки</string>
+    <string name="comm_session_block">список сессий</string>
+    <string name="copy_to_clipboard">копировать в буфер обмена</string>
+    <string name="dialog_help_title">Помощь</string>
+    <string name="dialog_interfaces_legend_title">Легенда интерфейсов</string>
+    <string name="dialog_port_title">Установить сетевой порт</string>
+    <string name="dialog_recovery_title">Автоматическое восстановление</string>
+    <string name="info_interfaces">интерфейсы</string>
+    <string name="info_support">инфраструктура</string>
+    <string name="info_thanks">благодарности</string>
+    <string name="interface1">интерфейс</string>
+    <string name="legend_interface_active">- активный интерфейс</string>
+    <string name="legend_interface_passive">- пассивный интерфейс</string>
+    <string name="legend_interface_unused">- неиспользуемый интерфейс</string>
+    <string name="no_session_filters">фильтры не определены</string>
+    <string name="no_sessions">Нет активных сессий</string>
+    <string name="option_android_user_name">системный пользователь [android]</string>
 </resources>
