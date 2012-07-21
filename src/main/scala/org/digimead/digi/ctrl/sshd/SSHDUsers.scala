@@ -149,21 +149,7 @@ class SSHDUsers extends ListActivity with Logging {
       })
       userPassword.setFilters(Array(SSHDUsers.userPasswordFilter))
       userPasswordEnableCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-        def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = {
-          val context = buttonView.getContext
-          lastActiveUserInfo.get.foreach {
-            user =>
-              if (isChecked) {
-                SSHDUsers.setPasswordEnabled(true, context, user)
-                Toast.makeText(context, Android.getString(context, "enable_password_authentication").
-                  getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
-              } else {
-                SSHDUsers.setPasswordEnabled(false, context, user)
-                Toast.makeText(context, Android.getString(context, "disable_password_authentication").
-                  getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
-              }
-          }
-        }
+        def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = updateFieldsState
       })
     }
     val lv = getListView()
@@ -261,8 +247,10 @@ class SSHDUsers extends ListActivity with Logging {
             if (item.name != "android")
               menu.add(Menu.NONE, Android.getId(v.getContext, "users_delete"), 1,
                 Android.getString(v.getContext, "users_delete").getOrElse("Delete"))
-            menu.add(Menu.NONE, Android.getId(v.getContext, "users_copy_info"), 3,
-              Android.getString(v.getContext, "users_copy_info").getOrElse("Copy information"))
+            menu.add(Menu.NONE, Android.getId(v.getContext, "users_copy_details"), 3,
+              Android.getString(v.getContext, "users_copy_details").getOrElse("Copy details"))
+            menu.add(Menu.NONE, Android.getId(v.getContext, "users_show_details"), 3,
+              Android.getString(v.getContext, "users_show_details").getOrElse("Show details"))
           case item =>
             log.fatal("unknown item " + item)
         }
@@ -306,10 +294,10 @@ class SSHDUsers extends ListActivity with Logging {
                 setIcon(android.R.drawable.ic_dialog_alert).
                 create().show()
               true
-            case id if id == Android.getId(this, "users_copy_info") =>
+            case id if id == Android.getId(this, "users_copy_details") =>
               try {
-                val message = Android.getString(SSHDUsers.this, "users_copy_info").
-                  getOrElse("Copy information ablout \"%s\" to clipboard").format(item.name)
+                val message = Android.getString(SSHDUsers.this, "users_copy_details").
+                  getOrElse("Copy details about \"%s\" to clipboard").format(item.name)
                 runOnUiThread(new Runnable {
                   def run = try {
                     val clipboard = SSHDUsers.this.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
@@ -322,7 +310,15 @@ class SSHDUsers extends ListActivity with Logging {
                 })
               } catch {
                 case e =>
-                  IAmYell("Unable to copy to clipboard information about \"" + item.name + "\"", e)
+                  IAmYell("Unable to copy to clipboard details about \"" + item.name + "\"", e)
+              }
+              true
+            case id if id == Android.getId(this, "users_show_details") =>
+              try {
+                SSHDUsers.Dialog.createDialogUserDetails(this, item).show()
+              } catch {
+                case e =>
+                  IAmYell("Unable to show details about \"" + item.name + "\"", e)
               }
               true
             case id =>
@@ -341,6 +337,7 @@ class SSHDUsers extends ListActivity with Logging {
       userName <- userName.get
       userPassword <- userPassword.get
       adapter <- SSHDUsers.adapter
+      userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
     } {
       val name = userName.getText.toString.trim
       val password = userPassword.getText.toString.trim
@@ -359,6 +356,7 @@ class SSHDUsers extends ListActivity with Logging {
                 val newUser = user.copy(password = password)
                 lastActiveUserInfo.set(Some(newUser))
                 SSHDUsers.save(v.getContext, newUser)
+                SSHDUsers.setPasswordEnabled(userPasswordEnableCheckbox.isChecked, v.getContext, newUser)
                 val position = adapter.getPosition(user)
                 adapter.remove(user)
                 adapter.insert(newUser, position)
@@ -382,6 +380,7 @@ class SSHDUsers extends ListActivity with Logging {
                 val newUser = user.copy(name = name, password = password)
                 lastActiveUserInfo.set(Some(newUser))
                 SSHDUsers.save(v.getContext, newUser)
+                SSHDUsers.setPasswordEnabled(userPasswordEnableCheckbox.isChecked, v.getContext, newUser)
                 val position = adapter.getPosition(user)
                 adapter.remove(user)
                 adapter.insert(newUser, position)
@@ -413,6 +412,7 @@ class SSHDUsers extends ListActivity with Logging {
                 val newUser = UserInfo(name, password, home, true)
                 lastActiveUserInfo.set(Some(newUser))
                 SSHDUsers.save(v.getContext, newUser)
+                SSHDUsers.setPasswordEnabled(userPasswordEnableCheckbox.isChecked, v.getContext, newUser)
                 val position = (SSHDUsers.list :+ newUser).sortBy(_.name).indexOf(newUser)
                 adapter.insert(newUser, position)
                 updateFieldsState()
@@ -640,12 +640,14 @@ class SSHDUsers extends ListActivity with Logging {
     apply <- apply.get
     blockAll <- blockAll.get
     deleteAll <- deleteAll.get
+    userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
   } {
     // set apply
     if (lastActiveUserInfo.get.nonEmpty) {
       if (lastActiveUserInfo.get.exists(u =>
         u.name == userName.getText.toString.trim &&
-          u.password == userPassword.getText.toString.trim))
+          u.password == userPassword.getText.toString.trim &&
+          userPasswordEnableCheckbox.isChecked == SSHDUsers.isPasswordEnabled(userPasswordEnableCheckbox.getContext, u)))
         apply.setEnabled(false)
       else if (userName.getText.toString.trim.nonEmpty &&
         userPassword.getText.toString.trim.nonEmpty)
@@ -659,14 +661,16 @@ class SSHDUsers extends ListActivity with Logging {
       } else
         apply.setEnabled(false)
     }
-    // set userName userHome userPassword
-    if (lastActiveUserInfo.get.exists(_.name == "android")) {
+    // set userName
+    if (lastActiveUserInfo.get.exists(_.name == "android"))
+      userName.setEnabled(false)
+    else
       userName.setEnabled(true)
+    // set userPassword
+    if (userPasswordEnableCheckbox.isChecked)
       userPassword.setEnabled(true)
-    } else {
-      userName.setEnabled(true)
-      userPassword.setEnabled(true)
-    }
+    else
+      userPassword.setEnabled(false)
     // single user mode
     if (!SSHDUsers.multiUser) {
       userName.setEnabled(false)
@@ -789,6 +793,22 @@ object SSHDUsers extends Logging with Passwords {
     val editor = userPref.edit
     editor.remove(user.name)
     editor.commit
+  }
+  @Loggable
+  def getUserUID(context: Context, user: UserInfo): Option[Int] = synchronized {
+    None
+  }
+  @Loggable
+  def setUserUID(context: Context, user: UserInfo, uid: Option[Int]): Unit = synchronized {
+    None
+  }
+  @Loggable
+  def getUserGID(context: Context, user: UserInfo): Option[Int] = synchronized {
+    None
+  }
+  @Loggable
+  def setUserGID(context: Context, user: UserInfo, gid: Option[Int]): Unit = synchronized {
+    None
   }
   @Loggable
   def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) = synchronized {
@@ -1125,6 +1145,63 @@ object SSHDUsers extends Logging with Passwords {
     }
   }
   object Dialog {
+    @Loggable
+    def createDialogUserDetails(context: Context, user: UserInfo): AlertDialog = {
+      val title = Android.getString(context, "users_details_title").getOrElse("user \"%s\"").format(user.name)
+      val message =
+        Android.getString(context, "users_details_enabled").getOrElse("account: %s").
+          format(if (user.enabled)
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>") +
+          Android.getString(context, "users_details_uid").getOrElse("UID: %s").
+          format((getUserUID(context, user) match {
+            case Some(uid) => Android.getString(context, "user_uid_custom").getOrElse("<font color='yellow'>%s</font>").format(uid) + "<br/>"
+            case None => Android.getString(context, "user_default").getOrElse("default")
+          }) + "<br/>") +
+          Android.getString(context, "users_details_gid").getOrElse("GID: %s").
+          format((getUserGID(context, user) match {
+            case Some(gid) => Android.getString(context, "user_gid_custom").getOrElse("<font color='yellow'>%s</font>").format(gid) + "<br/>"
+            case None => Android.getString(context, "user_default").getOrElse("default")
+          }) + "<br/>") +
+          Android.getString(context, "users_details_password_enabled").getOrElse("password authentication: %s").
+          format(if (isPasswordEnabled(context, user))
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>") +
+          Android.getString(context, "users_details_authorized_keys").getOrElse("authorized_keys: %s").
+          format(if (isPasswordEnabled(context, user))
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>") +
+          Android.getString(context, "users_details_message_enabled").getOrElse("public key: %s").
+          format(if (isPasswordEnabled(context, user))
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>") +
+          Android.getString(context, "users_details_message_enabled").getOrElse("dropbear private key: %s").
+          format(if (isPasswordEnabled(context, user))
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>") +
+          Android.getString(context, "users_details_message_enabled").getOrElse("openssh private key: %s").
+          format(if (isPasswordEnabled(context, user))
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>") +
+          Android.getString(context, "users_details_message_enabled").getOrElse("home: %s").
+          format(if (isPasswordEnabled(context, user))
+            Android.getString(context, "user_enabled").getOrElse("<font color='green'>enabled</font>") + "<br/>"
+          else
+            Android.getString(context, "user_disabled").getOrElse("<font color='red'>disabled</font>") + "<br/>")
+      new AlertDialog.Builder(context).
+        setTitle(title).
+        setMessage(Html.fromHtml(message)).
+        setPositiveButton(android.R.string.ok, null).
+        setNegativeButton(_root_.android.R.string.cancel, null).
+        setIcon(_root_.android.R.drawable.ic_dialog_alert).
+        create()
+    }
     @Loggable
     def createDialogUserEnable(context: Context, user: UserInfo, callback: (UserInfo) => Any): AlertDialog = {
       val title = Android.getString(context, "users_enable_title").getOrElse("Enable user \"%s\"").format(user.name)
