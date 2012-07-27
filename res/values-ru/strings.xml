@@ -32,8 +32,6 @@
     <string name="app_name_singleuser">DigiSSHD: Однопользовательский режим</string>
     <string name="app_name_users">DigiSSHD: Пользователи</string>
     <string name="apply">Применить</string>
-    <string name="comm_option_block">настройки</string>
-    <string name="comm_session_block">список сессий</string>
     <string name="copy_to_clipboard">копировать в буфер обмена</string>
     <string name="dialog_help_title">Помощь</string>
     <string name="dialog_interfaces_legend_title">Легенда интерфейсов</string>

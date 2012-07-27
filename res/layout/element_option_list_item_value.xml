@@ -25,17 +25,14 @@
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingLeft="16dip"
-    android:paddingRight="12dip" > <!-- android:minHeight="?android:attr/listPreferredItemHeightSmall" -->
+    android:paddingRight="12dip" >
 
     <LinearLayout
-        android:id="@android:id/content"
         android:layout_width="0dip"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="vertical" >
-
-        <!-- android:textColor="?android:attr/textColorAlertDialogListItem" -->
 
         <TextView
             android:id="@android:id/text1"
@@ -45,8 +42,6 @@
             android:gravity="center_vertical|left"
             android:singleLine="true"
             android:textAppearance="?android:attr/textAppearanceMedium" />
-
-        <!-- android:textColor="?android:attr/textColorAlertDialogListItem" -->
 
         <TextView
             android:id="@android:id/text2"
@@ -58,13 +53,14 @@
             android:textAppearance="?android:attr/textAppearanceSmall" />
     </LinearLayout>
 
-    <CheckBox
-        android:id="@android:id/checkbox"
-        android:layout_width="35dip"
+    <TextView
+        android:id="@android:id/content"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:clickable="false"
-        android:focusable="false"
-        android:gravity="center_vertical"
-        android:paddingRight="12dip" />
+        android:ellipsize="marquee"
+        android:gravity="center"
+        android:paddingRight="12dip"
+        android:singleLine="false"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 
 </LinearLayout>

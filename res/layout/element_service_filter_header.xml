@@ -41,23 +41,23 @@
             <!-- android:background="#00ff00" -->
 
             <Button
-                android:id="@+id/service_interface_filters_add_button"
+                android:id="@+id/service_filter_add_button"
                 style="@style/ButtonNormalText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_filter_add"
-                android:text="@string/service_interface_filters_add" >
+                android:text="@string/service_filter_add" >
             </Button>
 
             <Button
-                android:id="@+id/service_interface_filters_remove_button"
+                android:id="@+id/service_filter_remove_button"
                 style="@style/ButtonNormalText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:drawableTop="@drawable/ic_filter_del"
-                android:text="@string/service_interface_filters_remove" >
+                android:text="@string/service_filter_remove" >
             </Button>
         </TableRow>
     </TableLayout>
@@ -65,6 +65,6 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@drawable/divider" />
+        android:background="@drawable/divider_h" />
 
 </LinearLayout>

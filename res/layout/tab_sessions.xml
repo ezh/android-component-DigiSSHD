@@ -20,14 +20,14 @@
  ~
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical" >
 
     <ListView
         android:id="@android:id/list"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent" >
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
     </ListView>
 
     <LinearLayout
@@ -37,36 +37,41 @@
         android:orientation="vertical" >
 
         <include
-            android:id="@+id/nodata_header_servicesoftware"
+            android:id="@+id/nodata_header_connectionfilter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_servicesoftware"
+            android:id="@+id/nodata_text_connectionfilter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
 
         <include
             android:id="@+id/nodata_header_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
             android:id="@+id/nodata_text_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
 
         <include
-            android:id="@+id/nodata_header_serviceenvironment"
+            android:id="@+id/nodata_header_session"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_serviceenvironment"
+            android:id="@+id/nodata_text_session"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
 
-        <include
-            android:id="@+id/nodata_header_interfacefilter"
-            layout="@layout/header" />
-
-        <include
-            android:id="@+id/nodata_text_interfacefilter"
-            layout="@layout/block_list_item" />
     </LinearLayout>
 
 </LinearLayout>

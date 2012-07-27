@@ -45,5 +45,5 @@
         android:id="@+id/menu_options"
         android:icon="@android:drawable/ic_menu_preferences"
         android:title="@string/menu_options"/>
-    
+
 </menu>

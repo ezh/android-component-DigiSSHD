@@ -37,35 +37,51 @@
         android:orientation="vertical" >
 
         <include
-            android:id="@+id/nodata_header_interface"
+            android:id="@+id/nodata_header_servicesoftware"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_interface"
+            android:id="@+id/nodata_text_servicesoftware"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
 
         <include
-            android:id="@+id/nodata_header_community"
+            android:id="@+id/nodata_header_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_community"
+            android:id="@+id/nodata_text_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
 
         <include
-            android:id="@+id/nodata_header_support"
+            android:id="@+id/nodata_header_serviceenvironment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_support"
+            android:id="@+id/nodata_text_serviceenvironment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
 
         <include
-            android:id="@+id/nodata_header_legal"
+            android:id="@+id/nodata_header_interfacefilter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/header" />
 
         <include
-            android:id="@+id/nodata_text_legal"
+            android:id="@+id/nodata_text_interfacefilter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             layout="@layout/block_list_item" />
     </LinearLayout>
 

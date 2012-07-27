@@ -22,43 +22,28 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical" >
+    android:orientation="vertical"
+    android:padding="10dp" >
 
-    <ListView
-        android:id="@android:id/list"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent" >
-    </ListView>
-
-    <LinearLayout
-        android:id="@id/android:empty"
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical" >
+        android:layout_height="wrap_content"
+        android:drawableLeft="@drawable/ic_interface_active"
+        android:text="@string/legend_interface_active"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
 
-        <include
-            android:id="@+id/nodata_header_connectionfilter"
-            layout="@layout/header" />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawableLeft="@drawable/ic_interface_passive"
+        android:text="@string/legend_interface_passive"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
 
-        <include
-            android:id="@+id/nodata_text_connectionfilter"
-            layout="@layout/block_list_item" />
-
-        <include
-            android:id="@+id/nodata_header_option"
-            layout="@layout/header" />
-
-        <include
-            android:id="@+id/nodata_text_option"
-            layout="@layout/block_list_item" />
-
-        <include
-            android:id="@+id/nodata_header_session"
-            layout="@layout/header" />
-
-        <include
-            android:id="@+id/nodata_text_session"
-            layout="@layout/block_list_item" />
-    </LinearLayout>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawableLeft="@drawable/ic_interface_unused"
+        android:text="@string/legend_interface_unused"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
 
 </LinearLayout>

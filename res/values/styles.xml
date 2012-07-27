@@ -87,7 +87,7 @@
     </style>
 
     <style name="HeaderWithDivider">
-        <item name="android:background">@drawable/divider</item>
+        <item name="android:background">@drawable/divider_h</item>
     </style>
 
 </resources>
