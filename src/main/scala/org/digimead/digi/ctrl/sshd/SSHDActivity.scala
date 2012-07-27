@@ -29,6 +29,7 @@ import scala.collection.immutable.HashMap
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DActivity
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
@@ -41,6 +42,8 @@ import org.digimead.digi.ctrl.sshd.session.TabContent
 
 import com.actionbarsherlock.app.ActionBar
 import com.actionbarsherlock.app.SherlockFragmentActivity
+import com.actionbarsherlock.view.Menu
+import com.actionbarsherlock.view.MenuInflater
 
 import android.app.Activity
 import android.content.BroadcastReceiver
@@ -130,6 +133,8 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
   @Loggable
   override def onResume() = SSHDActivity.ppGroup("SSHDActivity.onResume") {
     super.onResume()
+    if (SSHDActivity.focused)
+      SafeDialog.enable
     SSHDActivity.State.actor ! SSHDActivity.State.Event.OnResume(this)
   }
   /**
@@ -168,8 +173,27 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
   @Loggable
   override def onWindowFocusChanged(hasFocus: Boolean) = {
     super.onWindowFocusChanged(hasFocus)
+    SSHDActivity.focused = hasFocus
     if (!SSHDActivity.layoutAdjusted && hasFocus)
       SSHDActivity.adjustVisibleLayout(this)
+    if (AppComponent.Inner != null && SSHDActivity.State.get == SSHDActivity.State.Running)
+      if (SSHDActivity.focused)
+        SafeDialog.enable
+      else
+        SafeDialog.suspend
+  }
+  @Loggable
+  override def onCreateOptionsMenu(menu: Menu): Boolean = {
+    super.onCreateOptionsMenu(menu)
+    val inflater = getSupportMenuInflater()
+    inflater.inflate(R.menu.menu, menu)
+    true
+    //import com.actionbarsherlock.view.MenuItem
+    //
+    //menu.add(0, 1, 1, android.R.string.cancel).setIcon(android.R.drawable.ic_menu_camera).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+    //menu.add(0, 2, 2, android.R.string.cut).setIcon(android.R.drawable.ic_menu_agenda).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+    //menu.add(0, 3, 3, android.R.string.paste).setIcon(android.R.drawable.ic_menu_compass).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+    //menu.add(0, 4, 4, android.R.string.search_go).setIcon(android.R.drawable.ic_menu_upload).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
   }
 }
 
@@ -182,6 +206,7 @@ object SSHDActivity extends Logging {
     (group, group.start("SSHDActivity$"))
   }
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
+  @volatile private var focused = false
   @volatile private var layoutVariant = Layout.Normal
   @volatile private var layoutAdjusted = false
   lazy val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
@@ -212,10 +237,11 @@ object SSHDActivity extends Logging {
     HashMap[String, () => Option[Fragment]]()
   }
   ppLoading.stop()
+  // TODO REMOVE
+  AnyBase.initializeDebug()
   Logging.addLogger(AndroidLogger)
 
-  def getLayoutVariant() =
-    layoutVariant
+  def getLayoutVariant() = layoutVariant
   def adjustHiddenLayout(activity: SherlockFragmentActivity): Unit = Layout.synchronized {
     ppGroup("SSHDActivity.adjustHiddenLayout") {
       val size = new Point
@@ -465,6 +491,10 @@ object SSHDActivity extends Logging {
         e match {
           case Event.OnResume(activity) =>
             activity.onResumeExt(activity)
+            if (SSHDActivity.focused)
+              SafeDialog.enable
+            else
+              SafeDialog.suspend
             super.event(e)
           case event =>
             log.fatal("illegal event " + event)

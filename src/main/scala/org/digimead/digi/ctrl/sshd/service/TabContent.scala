@@ -102,7 +102,6 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
   @Loggable
   override def onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) = {
     import com.actionbarsherlock.view.MenuItem
-    inflater.inflate(R.menu.menu, menu)
     menu.add(0, 1, 1, android.R.string.cancel).setIcon(android.R.drawable.ic_menu_camera).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
     menu.add(0, 2, 2, android.R.string.cut).setIcon(android.R.drawable.ic_menu_agenda).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
     menu.add(0, 3, 3, android.R.string.paste).setIcon(android.R.drawable.ic_menu_compass).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
@@ -127,6 +126,8 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             environmentBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item: ComponentBlock.Item =>
             componentBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          case null =>
+            // loading...
           case item =>
             log.fatal("unknown item " + item)
         }
@@ -172,6 +173,8 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
         TabContent.optionBlock.foreach(_.onListItemClick(l, v, optionItem))
       case componentItem: ComponentBlock.Item =>
         TabContent.componentBlock.foreach(_.onListItemClick(l, v, componentItem))
+      case null =>
+        // loading...
       case item =>
       // skip clicks on splitter, footer, etc...
     }

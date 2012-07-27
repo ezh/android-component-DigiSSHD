@@ -132,7 +132,7 @@ class SSHDService extends Service with DService {
 
 object SSHDService extends Logging {
   @volatile private var service: Option[SSHDService] = None
-  Logging.addLogger(FileLogger)
+  Futures.future { Logging.addLogger(FileLogger) }
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50, DTimeout.longest) {
@@ -193,11 +193,7 @@ object SSHDService extends Logging {
                   Seq[String]()
             }
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
-            (if (AnyBase.uiThreadID == Thread.currentThread.getId) {
-              log.debug("access to getExecutableInfo from UI thread, skip getInternalDirectory"); None
-            } else {
-              AppControl.Inner.getInternalDirectory(DTimeout.long)
-            }) match {
+            AppControl.Inner.getInternalDirectory(DTimeout.long) match {
               case Some(path) =>
                 val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)

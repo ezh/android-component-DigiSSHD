@@ -81,7 +81,7 @@ object UserKeys extends Logging {
     getDropbearKeyFile(context, user).map(file => new File(file.getParentFile, "openssh_user_key." + Uri.encode(user.name)))
   @Loggable
   def importKey(activity: Activity, user: UserInfo) {
-    AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
+    /*AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
       val dialog = FileChooser.createDialog(activity,
         Android.getString(activity, "dialog_import_key").getOrElse("Import public key"),
         new File("/"),
@@ -92,7 +92,7 @@ object UserKeys extends Logging {
         user)
       dialog.show()
       dialog
-    })
+    })*/
   }
   def importKeyOnClick(context: Context, file: File): Boolean = try {
     if (scala.io.Source.fromFile(file).getLines.filter(_.startsWith("ssh-")).isEmpty) {

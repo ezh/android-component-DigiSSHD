@@ -22,6 +22,7 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import java.util.ArrayList
+import java.util.Arrays
 
 import scala.Array.canBuildFrom
 import scala.ref.WeakReference
@@ -186,21 +187,26 @@ object FilterBlock extends Logging {
     }
   }
   class Adapter(context: Context)
-    extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_checked, android.R.id.text1, new ArrayList[Item]()) {
+    extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_checked, android.R.id.text1, new ArrayList[Item](Arrays.asList(null))) {
     private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = getItem(position)
-      item.view.get match {
-        case None =>
-          val view = inflater.inflate(android.R.layout.simple_list_item_checked, null).asInstanceOf[CheckedTextView]
-          view.setText(item.toString)
-          view.setChecked(item.state)
-          item.view = new WeakReference(view)
-          Level.professional(view)
-          view
-        case Some(view) =>
-          view
-      }
+      if (item == null) {
+        val view = new TextView(parent.getContext)
+        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view
+      } else
+        item.view.get match {
+          case None =>
+            val view = inflater.inflate(android.R.layout.simple_list_item_checked, null).asInstanceOf[CheckedTextView]
+            view.setText(item.toString)
+            view.setChecked(item.state)
+            item.view = new WeakReference(view)
+            Level.professional(view)
+            view
+          case Some(view) =>
+            view
+        }
     }
   }
 }

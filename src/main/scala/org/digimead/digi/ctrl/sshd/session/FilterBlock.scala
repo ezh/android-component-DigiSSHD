@@ -21,6 +21,9 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
+import java.util.ArrayList
+import java.util.Arrays
+
 import scala.actors.Futures
 import scala.ref.WeakReference
 
@@ -137,12 +140,13 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
     items.head.updateUI
 }
 
+// items
 object FilterBlock extends Logging {
   @volatile private var block: Option[FilterBlock] = None
   /** InterfaceBlock adapter */
   private[session] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
-      new FilterBlock.Adapter(context.getApplicationContext, items)
+      new FilterBlock.Adapter(context.getApplicationContext)
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -203,50 +207,55 @@ object FilterBlock extends Logging {
       }
     }
   }
-  class Adapter(context: Context, data: Seq[Item])
-    extends ArrayAdapter[Item](context, R.layout.element_session_filter_item, android.R.id.text1, data.toArray) {
+  class Adapter(context: Context)
+    extends ArrayAdapter[Item](context, R.layout.element_session_filter_item, android.R.id.text1, new ArrayList[Item](Arrays.asList(null))) {
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = getItem(position)
-      item.view.get match {
-        case None =>
-          val view = super.getView(position, convertView, parent)
-          val leftPart = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-          val rightPart = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
-          val button = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
-          item.leftPart = new WeakReference(leftPart)
-          item.rightPart = new WeakReference(rightPart)
-          button.setOnTouchListener(new View.OnTouchListener {
-            def onTouch(v: View, event: MotionEvent): Boolean = {
-              if (event.getAction() == MotionEvent.ACTION_DOWN)
-                block.foreach(_.onClickButton(v))
-              false // no, it isn't
-            }
-          })
-          leftPart.setOnTouchListener(new View.OnTouchListener {
-            def onTouch(v: View, event: MotionEvent): Boolean = {
-              if (event.getAction() == MotionEvent.ACTION_DOWN)
-                block.foreach(_.onClickLeftPart(v))
-              false // no, it isn't
-            }
-          })
-          rightPart.setOnTouchListener(new View.OnTouchListener {
-            def onTouch(v: View, event: MotionEvent): Boolean = {
-              if (event.getAction() == MotionEvent.ACTION_DOWN)
-                block.foreach(_.onClickRightPart(v))
-              false // no, it isn't
-            }
-          })
-          Level.professional(view)
-          item.view = new WeakReference(view)
-          item.updateUI
-          if (item.isFilterADA)
-            FilterBlock.iconADA.foreach(button.setBackgroundDrawable)
-          else
-            FilterBlock.iconDAD.foreach(button.setBackgroundDrawable)
-          view
-        case Some(view) =>
-          view
-      }
+      if (item == null) {
+        val view = new TextView(parent.getContext)
+        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view
+      } else
+        item.view.get match {
+          case None =>
+            val view = super.getView(position, convertView, parent)
+            val leftPart = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
+            val rightPart = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
+            val button = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
+            item.leftPart = new WeakReference(leftPart)
+            item.rightPart = new WeakReference(rightPart)
+            button.setOnTouchListener(new View.OnTouchListener {
+              def onTouch(v: View, event: MotionEvent): Boolean = {
+                if (event.getAction() == MotionEvent.ACTION_DOWN)
+                  block.foreach(_.onClickButton(v))
+                false // no, it isn't
+              }
+            })
+            leftPart.setOnTouchListener(new View.OnTouchListener {
+              def onTouch(v: View, event: MotionEvent): Boolean = {
+                if (event.getAction() == MotionEvent.ACTION_DOWN)
+                  block.foreach(_.onClickLeftPart(v))
+                false // no, it isn't
+              }
+            })
+            rightPart.setOnTouchListener(new View.OnTouchListener {
+              def onTouch(v: View, event: MotionEvent): Boolean = {
+                if (event.getAction() == MotionEvent.ACTION_DOWN)
+                  block.foreach(_.onClickRightPart(v))
+                false // no, it isn't
+              }
+            })
+            Level.professional(view)
+            item.view = new WeakReference(view)
+            item.updateUI
+            if (item.isFilterADA)
+              FilterBlock.iconADA.foreach(button.setBackgroundDrawable)
+            else
+              FilterBlock.iconDAD.foreach(button.setBackgroundDrawable)
+            view
+          case Some(view) =>
+            view
+        }
     }
   }
 }

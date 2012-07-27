@@ -22,16 +22,16 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import java.io.File
+import java.util.ArrayList
+import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
-import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
@@ -45,9 +45,7 @@ import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -79,12 +77,13 @@ class OptionBlock(val context: Context)(implicit @transient val dispatcher: Disp
     item.onContextItemSelected(menuItem)
 }
 
+//, items.toArray
 object OptionBlock extends Logging {
   @volatile private var block: Option[OptionBlock] = None
   /** OptionBlock adapter */
   private[service] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
-      new OptionBlock.Adapter(context, items.toArray)
+      new OptionBlock.Adapter(context)
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -108,7 +107,7 @@ object OptionBlock extends Logging {
       callback(activity)
     else {
       val affirmative = new AtomicBoolean(false)
-      AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
+      /*   AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
         val dialog = new AlertDialog.Builder(activity).
           setTitle(Android.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
           setMessage(Android.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
@@ -120,7 +119,7 @@ object OptionBlock extends Logging {
           create
         dialog.show
         dialog
-      }, () => Futures.future { if (affirmative.get) callback(activity) })
+      }, () => Futures.future { if (affirmative.get) callback(activity) })*/
     }
   }
 
@@ -132,52 +131,57 @@ object OptionBlock extends Logging {
     def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {}
     def onContextItemSelected(menuItem: MenuItem): Boolean = false
   }
-  class Adapter(context: Context, data: Array[Item])
-    extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_1, android.R.id.text1, data) {
+  class Adapter(context: Context)
+    extends ArrayAdapter[Item](context, android.R.layout.simple_list_item_1, android.R.id.text1, new ArrayList[Item](Arrays.asList(null))) {
     private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
-      val item = data(position)
-      item.view.get match {
-        case None =>
-          val view =
-            item match {
-              case item @ DefaultUser =>
-                val view = item.getView(context, inflater)
-                Level.novice(view)
-                view
-              case item @ GrantSuperuserPermission =>
-                val view = item.getView(context, inflater)
-                Level.intermediate(view)
-                view
-              case item @ NetworkPort =>
-                val view = item.getView(context, inflater)
-                Level.intermediate(view)
-                view
-              case item @ RSAPublicKeyEncription =>
-                val view = item.getView(context, inflater)
-                Level.intermediate(view)
-                view
-              case item @ DSAPublicKeyEncription =>
-                val view = item.getView(context, inflater)
-                Level.intermediate(view)
-                view
-              case item @ AuthentificationMode =>
-                val view = item.getView(context, inflater)
-                Level.intermediate(view)
-                view
-              case _ =>
-                inflater.inflate(Android.getId(context, "option_list_item_multiple_choice", "layout"), null)
-            }
-          val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-          val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
-          text2.setVisibility(View.VISIBLE)
-          text1.setText(Html.fromHtml(item.option.name(context)))
-          text2.setText(Html.fromHtml(item.option.description(context)))
-          item.view = new WeakReference(view)
-          view
-        case Some(view) =>
-          view
-      }
+      val item = getItem(position)
+      if (item == null) {
+        val view = new TextView(parent.getContext)
+        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view
+      } else
+        item.view.get match {
+          case None =>
+            val view =
+              item match {
+                case item @ DefaultUser =>
+                  val view = item.getView(context, inflater)
+                  Level.novice(view)
+                  view
+                case item @ GrantSuperuserPermission =>
+                  val view = item.getView(context, inflater)
+                  Level.intermediate(view)
+                  view
+                case item @ NetworkPort =>
+                  val view = item.getView(context, inflater)
+                  Level.intermediate(view)
+                  view
+                case item @ RSAPublicKeyEncription =>
+                  val view = item.getView(context, inflater)
+                  Level.intermediate(view)
+                  view
+                case item @ DSAPublicKeyEncription =>
+                  val view = item.getView(context, inflater)
+                  Level.intermediate(view)
+                  view
+                case item @ AuthentificationMode =>
+                  val view = item.getView(context, inflater)
+                  Level.intermediate(view)
+                  view
+                case _ =>
+                  inflater.inflate(Android.getId(context, "option_list_item_multiple_choice", "layout"), null)
+              }
+            val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
+            val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
+            text2.setVisibility(View.VISIBLE)
+            text1.setText(Html.fromHtml(item.option.name(context)))
+            text2.setText(Html.fromHtml(item.option.description(context)))
+            item.view = new WeakReference(view)
+            view
+          case Some(view) =>
+            view
+        }
     }
   }
 }

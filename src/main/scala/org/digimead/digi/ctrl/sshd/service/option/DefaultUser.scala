@@ -50,7 +50,7 @@ object DefaultUser extends CheckBoxItem with Logging {
           Toast.makeText(view.getContext, "\"android\" is always enabled in single user mode", Toast.LENGTH_SHORT).show()
         }
       else
-        AppComponent.Inner.showDialogSafe(context, "android_user_state", () => {
+        //AppComponent.Inner.showDialogSafe(context, "android_user_state", () => {
           //          val dialog = if (android.enabled)
           //            SSHDUsers.Dialog.createDialogUserDisable(context, android, (user) => {
           //              android = user
@@ -64,7 +64,7 @@ object DefaultUser extends CheckBoxItem with Logging {
           //          dialog.show
           //          dialog
           null
-        })
+        //})
   }
   // fucking android 2.x :-/, shitty puzzles
   def updateCheckbox(view: CheckBox) = {
@@ -80,7 +80,7 @@ object DefaultUser extends CheckBoxItem with Logging {
     TabContent.fragment.map {
       fragment =>
         val context = fragment.getActivity
-        AppComponent.Inner.showDialogSafe[AlertDialog](context, "dialog_password", () => {
+        //AppComponent.Inner.showDialogSafe[AlertDialog](context, "dialog_password", () => {
           /*          SSHDUsers.Dialog.createDialogUserChangePassword(context, android, (user) => {
             android = user
             if (SSHDPreferences.AuthentificationMode.get(activity) == AuthentificationMode.AuthType.SingleUser &&
@@ -124,8 +124,8 @@ object DefaultUser extends CheckBoxItem with Logging {
                 })
               }
           })*/
-          null
-        })
+         // null
+        ///})
     }
   }
   /*  

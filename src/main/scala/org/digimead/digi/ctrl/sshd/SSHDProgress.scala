@@ -47,7 +47,7 @@ object SSHDProgress extends Logging {
 
   @Loggable
   private def onBusy(activity: SSHDActivity): Unit = if (!busyDialog.isSet) {
-    AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
+/*    AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
       if (busyCounter.get > 0) {
         busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
         val dialog = new ProgressDialog(activity)
@@ -77,7 +77,7 @@ object SSHDProgress extends Logging {
       busyDialog.unset()
       busyCounter.set(0)
       AppComponent.Inner.enableRotation()
-    }).map(dialog => busyDialog.set(dialog))
+    }).map(dialog => busyDialog.set(dialog))*/
   }
   @Loggable
   private def onReady(activity: SSHDActivity): Unit = Futures.future {

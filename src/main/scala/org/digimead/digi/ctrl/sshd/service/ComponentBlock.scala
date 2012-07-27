@@ -21,6 +21,8 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
+import java.util.ArrayList
+import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
@@ -198,13 +200,13 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
   }
 }
 
+//SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.executableID)
 object ComponentBlock extends Logging {
   @volatile private var block: Option[ComponentBlock] = None
   /** InterfaceBlock adapter */
   private[service] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
-      new ComponentBlock.Adapter(context.getApplicationContext, Android.getId(context, "component_list_item", "layout"),
-        SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.executableID)))
+      new ComponentBlock.Adapter(context.getApplicationContext, Android.getId(context, "component_list_item", "layout"))
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -314,32 +316,37 @@ object ComponentBlock extends Logging {
       lock.unlock
     }
   }
-  class Adapter(context: Context, textViewResourceId: Int, data: Seq[Item])
-    extends ArrayAdapter[Item](context, textViewResourceId, android.R.id.text1, data.toArray) {
+  class Adapter(context: Context, textViewResourceId: Int)
+    extends ArrayAdapter[Item](context, textViewResourceId, android.R.id.text1, new ArrayList[Item](Arrays.asList(null))) {
     private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
-      val item = data(position)
-      item.view.get match {
-        case None =>
-          val execInfo = item.executableInfo()
-          val view = inflater.inflate(textViewResourceId, null)
-          val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-          val description = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-          val subinfo = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
-          val icon = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
-          icon.setFocusable(false)
-          icon.setFocusableInTouchMode(false)
-          name.setText(execInfo.name)
-          description.setText(execInfo.description)
-          subinfo.setText(execInfo.version + " / " + execInfo.license)
-          item.view = new WeakReference(view)
-          icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          item.init(context, icon, false)
-          Level.novice(view)
-          view
-        case Some(view) =>
-          view
-      }
+      val item = getItem(position)
+      if (item == null) {
+        val view = new TextView(parent.getContext)
+        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view
+      } else
+        item.view.get match {
+          case None =>
+            val execInfo = item.executableInfo()
+            val view = inflater.inflate(textViewResourceId, null)
+            val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
+            val description = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
+            val subinfo = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
+            val icon = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
+            icon.setFocusable(false)
+            icon.setFocusableInTouchMode(false)
+            name.setText(execInfo.name)
+            description.setText(execInfo.description)
+            subinfo.setText(execInfo.version + " / " + execInfo.license)
+            item.view = new WeakReference(view)
+            icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
+            item.init(context, icon, false)
+            Level.novice(view)
+            view
+          case Some(view) =>
+            view
+        }
     }
   }
   object Dialog {

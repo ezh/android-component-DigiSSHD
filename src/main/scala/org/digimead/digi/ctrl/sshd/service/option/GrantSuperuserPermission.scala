@@ -23,7 +23,6 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DOption
@@ -31,6 +30,7 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
+import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import android.app.AlertDialog
 import android.content.DialogInterface
@@ -49,9 +49,12 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
         view.setChecked(false)
     } else
       Futures.future { // leave UI thread
-/*        TabActivity.activity.foreach {
-          activity =>
-            AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_root", () => {
+        TabContent.fragment.foreach {
+          fragment =>
+            val activity = fragment.getActivity
+            log.g_a_s_e("SHOW!")
+            /*AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_root", () => {
+              log.g_a_s_e("INNER")
               val dialog = new AlertDialog.Builder(activity).
                 setTitle(R.string.dialog_root_title).
                 setMessage(R.string.dialog_root_message).
@@ -77,9 +80,10 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
                 setIcon(R.drawable.ic_danger).
                 create()
               dialog.show()
+              log.g_a_s_e("SHOW!")
               dialog
-            })
-        }*/
+            })*/
+        }
       }
   @Loggable
   def onListItemClick(l: ListView, v: View) =
