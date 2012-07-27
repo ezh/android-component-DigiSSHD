@@ -19,12 +19,13 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" >
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" >
 
-    <gradient
-        android:angle="0"
-        android:centerColor="@android:color/secondary_text_dark"
-        android:endColor="@android:color/@android:color/transparent"
-        android:startColor="@android:color/@android:color/transparent" />
+    <item
+        android:id="@+android:id/background"
+        android:drawable="@android:color/transparent"/>
+    <item
+        android:id="@+android:id/toggle"
+        android:drawable="@drawable/btn_toggle"/>
 
-</shape>
+</layer-list>
