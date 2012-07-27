@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -51,10 +51,12 @@ import org.digimead.digi.ctrl.lib.util.Hash
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 import org.digimead.digi.ctrl.sshd.service.option.DSAPublicKeyEncription
 import org.digimead.digi.ctrl.sshd.service.option.NetworkPort
 import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
-import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
+import org.digimead.digi.ctrl.sshd.user.UserAdapter
+import org.digimead.digi.ctrl.sshd.user.UserProfile
 
 import android.app.Service
 import android.content.Context
@@ -104,12 +106,12 @@ class SSHDService extends Service with DService {
         }
       }
     Futures.future {
-      if (!SSHDActivity.isConsistent) {
+      /*      if (!SSHDActivity.isConsistent) {
         SSHDService.addLazyInit
         Message.addLazyInit
         AppComponent.LazyInit.init
       }
-      ready.set(true)
+      ready.set(true)*/
     }
   }
   @Loggable
@@ -131,7 +133,6 @@ class SSHDService extends Service with DService {
 object SSHDService extends Logging {
   @volatile private var service: Option[SSHDService] = None
   Logging.addLogger(FileLogger)
-  SSHDCommon
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50, DTimeout.longest) {
@@ -146,7 +147,7 @@ object SSHDService extends Logging {
   }
 
   @Loggable
-  def getExecutableInfo(workdir: String, allowCallFromUI: Boolean = false): Seq[ExecutableInfo] = try {
+  def getExecutableInfo(workdir: String): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
       context <- AppComponent.Context
@@ -166,9 +167,9 @@ object SSHDService extends Logging {
           case "dropbear" =>
             val masterPassword = AuthentificationMode.getStateExt(context) match {
               case AuthentificationMode.AuthType.SingleUser =>
-                SSHDUsers.list.find(_.name == "android") match {
+                UserAdapter.find(context, "android") match {
                   case Some(systemUser) =>
-                    if (SSHDUsers.isPasswordEnabled(context, systemUser))
+                    if (UserAdapter.isPasswordEnabled(context, systemUser))
                       Some(systemUser.password)
                     else
                       None
@@ -192,7 +193,11 @@ object SSHDService extends Logging {
                   Seq[String]()
             }
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
-            AppControl.Inner.getInternalDirectory(DTimeout.long) match {
+            (if (AnyBase.uiThreadID == Thread.currentThread.getId) {
+              log.debug("access to getExecutableInfo from UI thread, skip getInternalDirectory"); None
+            } else {
+              AppControl.Inner.getInternalDirectory(DTimeout.long)
+            }) match {
               case Some(path) =>
                 val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)
@@ -356,7 +361,7 @@ object SSHDService extends Logging {
             val profileFile = new File(path, ".profile")
             if (!profileFile.exists) {
               IAmMumble("Create default user profile")
-              Common.writeToFile(profileFile, SSHDUserProfile.content)
+              Common.writeToFile(profileFile, UserProfile.content)
             }
           case _ =>
             false
@@ -470,8 +475,8 @@ object SSHDService extends Logging {
       log.debug("process Binder::user " + name)
       AppComponent.Context.flatMap {
         context =>
-          SSHDUsers.find(context, name).map(user => {
-            val userHome = SSHDUsers.homeDirectory(context, user)
+          UserAdapter.find(context, name).map(user => {
+            val userHome = UserAdapter.homeDirectory(context, user)
             user.copy(password = Hash.crypt(user.password), home = userHome.getAbsolutePath)
           })
       } getOrElse null

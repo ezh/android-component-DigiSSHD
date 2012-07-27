@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,14 +24,12 @@ package org.digimead.digi.ctrl.sshd.session
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-
 import scala.Option.option2Iterable
 import scala.actors.Actor
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.SynchronizedMap
 import scala.ref.WeakReference
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Level
@@ -44,7 +42,6 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
-
 import android.app.Activity
 import android.database.Cursor
 import android.view.LayoutInflater
@@ -54,11 +51,12 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SimpleCursorAdapter
 import android.widget.TextView
+import android.content.Context
 
-class SessionAdapter(context: Activity, layout: Int)
+class SessionAdapter(context: Context, layout: Int)
   extends SimpleCursorAdapter(context, layout, null, Array[String](), Array[Int]()) with Logging {
-  private var inflater: LayoutInflater = context.getLayoutInflater
   private[session] val item = new HashMap[Int, SessionBlock.Item] with SynchronizedMap[Int, SessionBlock.Item]
+ /* private var inflater: LayoutInflater = context.getLayoutInflater
   private val v = android.os.Build.VERSION.SDK.toInt
   SessionAdapter.adapter.set(new WeakReference(this))
 
@@ -178,7 +176,7 @@ class SessionAdapter(context: Activity, layout: Int)
       case e =>
         log.error(e.getMessage, e)
     }
-  }
+  }*/
 }
 
 object SessionAdapter extends Logging {
@@ -195,7 +193,7 @@ object SessionAdapter extends Logging {
     def act = {
       loop {
         react {
-          case _ =>
+/*          case _ =>
             adapter.get.get match {
               case Some(adapter) =>
                 val waiting = adapter.item.values.flatMap(updateDurationText)
@@ -209,7 +207,8 @@ object SessionAdapter extends Logging {
                   waiting.head._1.postInvalidate
                 }
               case None =>
-            }
+            }*/
+          case _ =>
         }
       }
     }
@@ -217,7 +216,7 @@ object SessionAdapter extends Logging {
 
   private def schedule(duration: Int) =
     jscheduler.scheduleAtFixedRate(new Runnable { def run { SessionAdapter.actor ! () } }, 0, duration, TimeUnit.MILLISECONDS)
-  private def updateDurationText(item: SessionBlock.Item): Option[(TextView, String)] = item.durationField.get.flatMap {
+/*  private def updateDurationText(item: SessionBlock.Item): Option[(TextView, String)] = item.durationField.get.flatMap {
     durationField =>
       if (durationField.getVisibility == View.VISIBLE) {
         val time = System.currentTimeMillis - item.connection.timestamp
@@ -231,5 +230,5 @@ object SessionAdapter extends Logging {
         Some((durationField, text))
       } else
         None
-  }
+  }*/
 }

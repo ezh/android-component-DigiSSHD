@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -50,19 +50,19 @@ class FilterRemoveActivity extends ListActivity with Logging {
     new FilterRemoveAdapter(this, values)
   }
   private lazy val inflater = getLayoutInflater()
-  private lazy val footerApply = findViewById(R.id.service_filter_footer_apply).asInstanceOf[Button]
+  //private lazy val footerApply = findViewById(R.id.service_filter_footer_apply).asInstanceOf[Button]
   log.debug("alive")
   /** Called when the activity is first created. */
   @Loggable
   override def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
-    AnyBase.init(this, false)
+/*    AnyBase.init(this, false)
     AnyBase.preventShutdown(this)
     setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_BEHIND)
     setContentView(R.layout.service_filter)
     val footer = inflater.inflate(R.layout.service_filter_footer, null)
     getListView().addFooterView(footer, null, false)
-    setListAdapter(adapter)
+    setListAdapter(adapter)*/
   }
   @Loggable
   override def onDestroy() {
@@ -71,7 +71,7 @@ class FilterRemoveActivity extends ListActivity with Logging {
   }
   @Loggable
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
-    runOnUiThread(new Runnable {
+/*    runOnUiThread(new Runnable {
       def run = {
         adapter.itemClick(position)
         if (adapter.getPending.isEmpty)
@@ -79,7 +79,7 @@ class FilterRemoveActivity extends ListActivity with Logging {
         else
           footerApply.setEnabled(true)
       }
-    })
+    })*/
   }
   @Loggable
   def applySelectedFilters(v: View) {

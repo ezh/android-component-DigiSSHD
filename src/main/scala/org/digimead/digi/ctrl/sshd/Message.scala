@@ -74,12 +74,12 @@ object Message extends Logging {
   implicit val dispatcher: Dispatcher = new Dispatcher {
     def process(message: DMessage): Unit = {
       queue.offer(message)
-      if (SSHDActivity.isConsistent)
-        if (message.isInstanceOf[IAmBusy]) {
+      
+/*        if (message.isInstanceOf[IAmBusy]) {
           log.debug("send request IAmBusy")
           SSHDActivity.actor !? (DTimeout.normal, message) orElse ({ log.fatal("request IAmBusy hang with timeout " + DTimeout.normal); None })
         } else
-          SSHDActivity.actor ! message
+          SSHDActivity.actor ! message*/
     }
   }
 

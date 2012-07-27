@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,13 +24,12 @@ package org.digimead.digi.ctrl.sshd.service
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
-import scala.actors.Futures.future
+import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConstant
@@ -40,49 +39,66 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.SSHDActivity
+import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDService
 
 import com.commonsware.cwac.merge.MergeAdapter
 
+import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
+import android.support.v4.app.DialogFragment
+import android.support.v4.app.Fragment
 import android.text.ClipboardManager
 import android.text.Html
+import android.text.method.LinkMovementMethod
+import android.text.util.Linkify
 import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.ListView
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 
 class ComponentBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[ComponentBlock.Item] with Logging {
-  lazy val items = getAppSeq
-  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  private lazy val adapter = new ComponentBlock.Adapter(context, Android.getId(context, "component_list_item", "layout"), items)
   ComponentBlock.block = Some(this)
+
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
-    header.setText(Html.fromHtml(Android.getString(context, "block_components_title").getOrElse("components")))
-    mergeAdapter.addView(header)
-    mergeAdapter.addAdapter(adapter)
+    Option(ComponentBlock.header).foreach(mergeAdapter.addView)
+    Option(ComponentBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
   @Loggable
-  def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = future {
-    val bundle = new Bundle()
+  def items = for (i <- 0 to ComponentBlock.adapter.getCount) yield ComponentBlock.adapter.getItem(i)
+  @Loggable
+  def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = for {
+    fragment <- TabContent.fragment
+    dialog <- ComponentBlock.Dialog.info
+  } if (dialog.isVisible) {
+    dialog.updateContent(item.executableInfo())
+  } else {
+    val bundle = new Bundle
     bundle.putParcelable("info", item.executableInfo())
-    SSHDActivity.activity.foreach(AppComponent.Inner.showDialogSafe(_, "SSHDActivity.Dialog.ComponentInfo", SSHDActivity.Dialog.ComponentInfo, bundle))
+    dialog.setArguments(bundle)
+    if (fragment.isTopPanelAvailable) {
+      val ft = fragment.getActivity.getSupportFragmentManager.beginTransaction
+      ft.replace(R.id.main_topPanel, dialog)
+      ft.commit()
+    } else
+      dialog.show(fragment.getActivity.getSupportFragmentManager, "dialog_info_interfaces")
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
@@ -100,20 +116,18 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
   override def onContextItemSelected(menuItem: MenuItem, item: ComponentBlock.Item): Boolean = {
     menuItem.getItemId match {
       case id if id == Android.getId(context, "block_component_jump_to_project") =>
-        future {
-          try {
-            val execInfo = item.executableInfo()
-            val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(execInfo.project))
-            intent.addCategory(Intent.CATEGORY_BROWSABLE)
-            context.startActivity(intent)
-          } catch {
-            case e =>
-              IAmYell("Unable to open link: " + item.value, e)
-          }
+        try {
+          val execInfo = item.executableInfo()
+          val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(execInfo.project))
+          intent.addCategory(Intent.CATEGORY_BROWSABLE)
+          context.startActivity(intent)
+        } catch {
+          case e =>
+            IAmYell("Unable to open link: " + item.value, e)
         }
         true
       case id if id == Android.getId(context, "block_component_copy_command_line") =>
-        future {
+        Futures.future {
           try {
             val execInfo = item.executableInfo()
             val message = Android.getString(context, "block_component_copy_command_line").
@@ -135,7 +149,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
         }
         true
       case id if id == Android.getId(context, "block_component_copy_info") =>
-        future {
+        Futures.future {
           try {
             val execInfo = item.executableInfo()
             val env = execInfo.env.mkString("""<br/>""")
@@ -171,23 +185,45 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
         false
     }
   }
-  @Loggable
-  def getAppSeq(): Seq[ComponentBlock.Item] =
-    SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.executableID))
+
   @Loggable
   def updateComponentsState(state: DState.Value) = synchronized {
-    state match {
+    /*   state match {
       case DState.Active =>
         items.foreach(i => i.view.get.foreach(view => i.state(true)))
       case DState.Passive =>
         items.foreach(i => i.view.get.foreach(view => i.state(false)))
       case _ =>
-    }
+    }*/
   }
 }
 
 object ComponentBlock extends Logging {
   @volatile private var block: Option[ComponentBlock] = None
+  /** InterfaceBlock adapter */
+  private[service] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new ComponentBlock.Adapter(context.getApplicationContext, Android.getId(context, "component_list_item", "layout"),
+        SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.executableID)))
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** InterfaceBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Android.getString(context, "block_components_title").getOrElse("components")))
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+
+  @Loggable
+  private def items(): Seq[ComponentBlock.Item] =
+    SSHDService.getExecutableInfo(".").map(ei => ComponentBlock.Item(ei.name, ei.executableID))
   case class Item(value: String, id: Int) extends Block.Item with Logging {
     @volatile private var activeDrawable: Option[Drawable] = None
     @volatile private var passiveDrawable: Option[Drawable] = None
@@ -195,8 +231,8 @@ object ComponentBlock extends Logging {
     @volatile private var icon: WeakReference[ImageView] = new WeakReference(null)
     @volatile private var context: WeakReference[Context] = new WeakReference(null)
     private val lock = new ReentrantLock
-    def executableInfo(allowCallFromUI: Boolean = false): ExecutableInfo =
-      SSHDService.getExecutableInfo(".", allowCallFromUI).filter(_.executableID == id).head
+    def executableInfo(): ExecutableInfo =
+      SSHDService.getExecutableInfo(".").filter(_.executableID == id).head
     override def toString() = value
     @Loggable
     def init(_context: Context, _icon: ImageView, _active: Boolean) = synchronized {
@@ -210,7 +246,7 @@ object ComponentBlock extends Logging {
           activeDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_work", "anim")))
         if (passiveDrawable.isEmpty)
           passiveDrawable = Some(_context.getResources.getDrawable(Android.getId(_context, "ic_executable_wait", "anim")))
-        future { state(_active) }
+        Futures.future { state(_active) }
       }) getOrElse {
         log.fatal("unable to init() for " + this)
       }
@@ -285,7 +321,7 @@ object ComponentBlock extends Logging {
       val item = data(position)
       item.view.get match {
         case None =>
-          val execInfo = item.executableInfo(true)
+          val execInfo = item.executableInfo()
           val view = inflater.inflate(textViewResourceId, null)
           val name = view.findViewById(android.R.id.title).asInstanceOf[TextView]
           val description = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
@@ -298,23 +334,61 @@ object ComponentBlock extends Logging {
           subinfo.setText(execInfo.version + " / " + execInfo.license)
           item.view = new WeakReference(view)
           icon.setBackgroundDrawable(context.getResources.getDrawable(Android.getId(context, "ic_executable_wait", "anim")))
-          if (AppControl.Inner.isAvailable.getOrElse(false)) {
-            AppControl.Inner.callStatus(context.getPackageName, true)() match {
-              case Right(componentState) =>
-                if (componentState.state == DState.Active)
-                  item.init(context, icon, true)
-                else
-                  item.init(context, icon, false)
-              case Left(error) =>
-                item.init(context, icon, false)
-            }
-          } else
-            item.init(context, icon, false)
+          item.init(context, icon, false)
           Level.novice(view)
           view
         case Some(view) =>
           view
       }
+    }
+  }
+  object Dialog {
+    private[ComponentBlock] lazy val info = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[Info].getName, null).asInstanceOf[Info])
+    class Info extends DialogFragment with Logging {
+      @volatile private var content = new WeakReference[TextView](null)
+      @Loggable
+      override def onCreate(savedInstanceState: Bundle) {
+        super.onCreate(savedInstanceState)
+      }
+      @Loggable
+      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
+        val context = getActivity
+        val view = new ScrollView(context)
+        val message = new TextView(context)
+        view.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        message.setMovementMethod(LinkMovementMethod.getInstance())
+        message.setId(Int.MaxValue)
+        content = new WeakReference(message)
+        updateContent()
+        view
+      }
+      @Loggable
+      override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
+        new AlertDialog.Builder(getActivity).
+          setTitle(R.string.dialog_component_info_title).
+          setView(onCreateView(null, null, null)).
+          setPositiveButton(android.R.string.ok, null).
+          setIcon(R.drawable.ic_launcher).
+          create()
+      }
+      def updateContent(info: ExecutableInfo = getArguments.getParcelable[ExecutableInfo]("info")) =
+        content.get.foreach {
+          content =>
+            val context = getActivity
+            val env = info.env.mkString("""<br/>""")
+            val s = Android.getString(context, "dialog_component_info_message").get.format(info.name,
+              info.description,
+              info.project,
+              info.license,
+              info.version,
+              info.state,
+              info.port.getOrElse("-"),
+              info.commandLine.map(_.mkString(" ")).getOrElse("-"),
+              if (env.nonEmpty) env else "-")
+            Linkify.addLinks(content, Linkify.ALL)
+            content.setText(Html.fromHtml(s))
+        }
     }
   }
 }

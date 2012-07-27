@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -26,30 +26,13 @@ import scala.actors.Futures
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.SSHDUsers
-import org.digimead.digi.ctrl.sshd.service.OptionBlock
-import org.digimead.digi.ctrl.sshd.service.TabActivity
+import org.digimead.digi.ctrl.sshd.service.TabContent
 
-import android.app.Activity
 import android.app.AlertDialog
-import android.content.Context
-import android.content.DialogInterface
-import android.view.ContextMenu
-import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
-import android.view.MotionEvent
 import android.view.View
 import android.widget.CheckBox
 import android.widget.ListView
@@ -57,30 +40,30 @@ import android.widget.Toast
 
 object DefaultUser extends CheckBoxItem with Logging {
   val option: DOption.OptVal = DOption.Value("android_user", classOf[Boolean], true: java.lang.Boolean)
-  @volatile var android = AppComponent.Context.flatMap(c => SSHDUsers.find(c, "android")) getOrElse { log.fatal("unable to find 'android' user"); null }
-
   @Loggable
-  def onCheckboxClick(view: CheckBox, lastState: Boolean) = TabActivity.activity.foreach {
-    activity =>
-      if (SSHDPreferences.AuthentificationMode.get(activity) == AuthentificationMode.AuthType.SingleUser)
+  def onCheckboxClick(view: CheckBox, lastState: Boolean) = TabContent.fragment.map {
+    fragment =>
+      val context = fragment.getActivity
+      if (SSHDPreferences.AuthentificationMode.get(context) == AuthentificationMode.AuthType.SingleUser)
         AnyBase.runOnUiThread {
           updateCheckbox(view)
           Toast.makeText(view.getContext, "\"android\" is always enabled in single user mode", Toast.LENGTH_SHORT).show()
         }
       else
-        AppComponent.Inner.showDialogSafe(activity, "android_user_state", () => {
-          val dialog = if (android.enabled)
-            SSHDUsers.Dialog.createDialogUserDisable(activity, android, (user) => {
-              android = user
-              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-            })
-          else
-            SSHDUsers.Dialog.createDialogUserEnable(activity, android, (user) => {
-              android = user
-              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-            })
-          dialog.show
-          dialog
+        AppComponent.Inner.showDialogSafe(context, "android_user_state", () => {
+          //          val dialog = if (android.enabled)
+          //            SSHDUsers.Dialog.createDialogUserDisable(context, android, (user) => {
+          //              android = user
+          //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
+          //            })
+          //          else
+          //            SSHDUsers.Dialog.createDialogUserEnable(context, android, (user) => {
+          //              android = user
+          //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
+          //            })
+          //          dialog.show
+          //          dialog
+          null
         })
   }
   // fucking android 2.x :-/, shitty puzzles
@@ -94,10 +77,11 @@ object DefaultUser extends CheckBoxItem with Logging {
   }
   @Loggable
   override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
-    TabActivity.activity.foreach {
-      activity =>
-        AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_password", () => {
-          SSHDUsers.Dialog.createDialogUserChangePassword(activity, android, (user) => {
+    TabContent.fragment.map {
+      fragment =>
+        val context = fragment.getActivity
+        AppComponent.Inner.showDialogSafe[AlertDialog](context, "dialog_password", () => {
+          /*          SSHDUsers.Dialog.createDialogUserChangePassword(context, android, (user) => {
             android = user
             if (SSHDPreferences.AuthentificationMode.get(activity) == AuthentificationMode.AuthType.SingleUser &&
               AppComponent.Inner.state.get.value == DState.Active)
@@ -139,10 +123,16 @@ object DefaultUser extends CheckBoxItem with Logging {
                   dialog
                 })
               }
-          })
+          })*/
+          null
         })
     }
   }
+  /*  
+  @volatile var android: UserInfo = AppComponent.Context.flatMap(c => UserAdapter.find(c, "android")) getOrElse { log.fatal("unable to find 'android' user"); null }
+
+
+
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {
     val context = v.getContext
@@ -158,37 +148,38 @@ object DefaultUser extends CheckBoxItem with Logging {
       Android.getString(context, "generate_user_key").getOrElse("Generate user key"))
     menu.add(Menu.NONE, Android.getId(context, "import_user_key"), 2,
       Android.getString(context, "import_user_key").getOrElse("Import public key"))
-    Futures.future { SSHDUsers.Key.getDropbearKeyFile(context, android) }() match {
+    Futures.future { UserKeys.getDropbearKeyFile(context, android) }() match {
       case Some(file) if file.exists =>
         menu.add(Menu.NONE, Android.getId(context, "export_user_key_dropbear"), 2,
           Android.getString(context, "export_user_key_dropbear").getOrElse("Export private key (Dropbear)"))
       case _ =>
     }
-    Futures.future { SSHDUsers.Key.getOpenSSHKeyFile(context, android) }() match {
+    Futures.future { UserKeys.getOpenSSHKeyFile(context, android) }() match {
       case Some(file) if file.exists =>
         menu.add(Menu.NONE, Android.getId(context, "export_user_key_openssh"), 2,
           Android.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))
       case _ =>
     }
   }
-  override def onContextItemSelected(menuItem: MenuItem): Boolean = TabActivity.activity.map {
-    activity =>
+  override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
+    fragment =>
+      val context = fragment.getActivity
       menuItem.getItemId match {
-        case id if id == Android.getId(activity, "generate_user_key") =>
+        case id if id == Android.getId(context, "generate_user_key") =>
           Futures.future {
-            SSHDUsers.Key.getDropbearKeyFile(activity, android).foreach(file =>
-              OptionBlock.checkKeyAlreadyExists(activity, "User", file,
+            UserKeys.getDropbearKeyFile(context, android).foreach(file =>
+              OptionBlock.checkKeyAlreadyExists(context, "User", file,
                 (activity) => generateUserKey(activity)))
           }
           true
-        case id if id == Android.getId(activity, "import_user_key") =>
-          Futures.future { SSHDUsers.Key.importKey(activity, android) }
+        case id if id == Android.getId(context, "import_user_key") =>
+          Futures.future { UserKeys.importKey(context, android) }
           true
-        case id if id == Android.getId(activity, "export_user_key_dropbear") =>
-          Futures.future { SSHDUsers.Key.exportDropbearKey(activity, android) }
+        case id if id == Android.getId(context, "export_user_key_dropbear") =>
+          Futures.future { UserKeys.exportDropbearKey(context, android) }
           true
-        case id if id == Android.getId(activity, "export_user_key_openssh") =>
-          Futures.future { SSHDUsers.Key.exportOpenSSHKey(activity, android) }
+        case id if id == Android.getId(context, "export_user_key_openssh") =>
+          Futures.future { UserKeys.exportOpenSSHKey(context, android) }
           true
         case item =>
           log.fatal("skip unknown menu! item " + item)
@@ -204,9 +195,10 @@ object DefaultUser extends CheckBoxItem with Logging {
   }
   private def generateUserKey(activity: Activity) {
     AppComponent.Inner.showDialogSafe(activity, "android_user_gen_key", () => {
-      val dialog = SSHDUsers.Dialog.createDialogGenerateUserKey(activity, android)
-      dialog.show
-      dialog
+      //      val dialog = SSHDUsers.Dialog.createDialogGenerateUserKey(activity, android)
+      //      dialog.show
+      //      dialog
+      null
     })
   }
   override def getView(context: Context, inflater: LayoutInflater): View = {
@@ -221,5 +213,5 @@ object DefaultUser extends CheckBoxItem with Logging {
       }
     })
     view
-  }
+  }*/
 }

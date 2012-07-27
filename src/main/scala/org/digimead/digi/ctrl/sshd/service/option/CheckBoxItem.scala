@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -34,7 +34,7 @@ import android.widget
 trait CheckBoxItem extends Item {
   def onCheckboxClick(view: widget.CheckBox, lastState: Boolean)
   def getView(context: Context, inflater: LayoutInflater): View = {
-    val view = inflater.inflate(Android.getId(context, "option_list_item_multiple_choice", "layout"), null)
+    val view = inflater.inflate(Android.getId(context, "element_option_list_item_multiple_choice", "layout"), null)
     val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[widget.CheckBox]
     checkbox.setClickable(false)
     checkbox.setFocusable(false)

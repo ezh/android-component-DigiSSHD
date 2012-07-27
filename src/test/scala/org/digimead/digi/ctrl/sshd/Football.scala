@@ -24,6 +24,7 @@ package org.digimead.digi.ctrl.sshd
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.log.LoggingEvent
@@ -36,7 +37,7 @@ import com.jayway.android.robotium.solo.Solo
 import android.test.ActivityInstrumentationTestCase2
 
 class Football
-  extends ActivityInstrumentationTestCase2[SSHDActivity]("org.digimead.digi.ctrl.sshd", classOf[SSHDActivity])
+  extends ActivityInstrumentationTestCase2[SSHDActivity](classOf[SSHDActivity])
   with JUnitSuite with ShouldMatchersForJUnit with Logging {
   implicit val dispatcher = org.digimead.digi.ctrl.sshd.TestDispatcher.dispatcher
   @volatile private var solo: Solo = null
@@ -57,6 +58,9 @@ class Football
     log.warn("current startup time is " + startupTime + "s")
 
     startupTime.toInt should be < (5)
+    Thread.sleep(10000)
+    AnyBase.ppGroup.names.toSeq.sorted.foreach(name => log.debug(AnyBase.ppGroup.snapshot(name).toShortString))
+    SSHDActivity.ppGroup.names.toSeq.sorted.foreach(name => log.debug(AnyBase.ppGroup.snapshot(name).toShortString))
 
     log.warn("testFootball END")
   }

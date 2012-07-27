@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -52,7 +52,7 @@ import android.widget.TextView
 import android.widget.Toast
 
 class FilterActivity extends ListActivity with Logging {
-  private lazy val inflater = getLayoutInflater()
+  /*private lazy val inflater = getLayoutInflater()
   private lazy val headerListNonEmpty = inflater.inflate(R.layout.session_filter_header, null)
   private lazy val headerListEmpty = findViewById(R.id.nodata_header)
   private lazy val footerListNonEmpty = inflater.inflate(R.layout.session_filter_footer, null)
@@ -287,5 +287,5 @@ class FilterActivity extends ListActivity with Logging {
   private def getIP(v: TextView): Any = v.getText.toString match {
     case "" => "*"
     case ip => ip.toInt
-  }
+  }*/
 }

@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -25,7 +25,7 @@ import java.util.ArrayList
 
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
-import scala.actors.Futures.future
+import scala.actors.Futures
 import scala.collection.JavaConversions._
 import scala.collection.mutable.HashMap
 
@@ -42,13 +42,16 @@ import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.service.FilterBlock
 
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Context
+import android.os.Bundle
+import android.support.v4.app.DialogFragment
+import android.support.v4.app.Fragment
 import android.text.Html
 import android.view.ContextMenu
 import android.view.ContextThemeWrapper
@@ -60,61 +63,64 @@ import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.TextView
 
-class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[InterfaceBlock.Item] with Logging {
-  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  private lazy val adapter = new InterfaceBlock.Adapter(context)
-  @volatile private var activeInterfaces: Option[Seq[String]] = None
-  future { updateActiveInteraces(false) }
-  def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
+class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher)
+  extends Block[InterfaceBlock.Item] with Logging {
+  Futures.future { InterfaceBlock.updateActiveInteraces(context, true) }
+
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
-    header.setText(Html.fromHtml(Android.getString(context, "block_interface_title").getOrElse("interfaces")))
-    mergeAdapter.addView(header)
-    mergeAdapter.addAdapter(adapter)
+    Option(InterfaceBlock.header).foreach(mergeAdapter.addView)
+    Option(InterfaceBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
+  def items = for (i <- 0 to InterfaceBlock.adapter.getCount) yield InterfaceBlock.adapter.getItem(i)
   @Loggable
-  def onListItemClick(l: ListView, v: View, item: InterfaceBlock.Item) = { // leave UI thread
-    future {
-      SSHDActivity.activity.foreach {
-        activity =>
-          AppComponent.Inner.showDialogSafe[AlertDialog](activity, "info_interfaces_dialog", () => {
-            val inflater = activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-            val layout = inflater.inflate(R.layout.info_interfaces_dialog, null).asInstanceOf[ViewGroup]
-            val dialog = new AlertDialog.Builder(new ContextThemeWrapper(activity, R.style.InterfacesLegendDialog)).
-              setTitle(R.string.dialog_interfaces_legend_title).
-              setIcon(R.drawable.ic_info).
-              setView(layout).
-              setPositiveButton(android.R.string.ok, null).
-              create
-            layout.setOnClickListener(new View.OnClickListener() {
-              override def onClick(v: View) = dialog.dismiss()
-            })
-            dialog.setCanceledOnTouchOutside(true)
-            dialog.show()
-            dialog
-          })
-      }
-    }
-  }
-  @Loggable
-  def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SupportBlock.Item) {
+  def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SupportBlock.Item) =
     log.debug("create context menu for " + item.name)
-  }
   @Loggable
-  def onContextItemSelected(menuItem: MenuItem, item: SupportBlock.Item): Boolean = {
-    false
+  def onContextItemSelected(menuItem: MenuItem, item: SupportBlock.Item): Boolean = false
+  @Loggable
+  def onListItemClick(l: ListView, v: View, item: InterfaceBlock.Item) = for {
+    fragment <- TabContent.fragment
+    dialog <- InterfaceBlock.Dialog.legend
+  } {
+    if (fragment.isTopPanelAvailable) {
+      val ft = fragment.getActivity.getSupportFragmentManager.beginTransaction
+      ft.replace(R.id.main_topPanel, dialog)
+      ft.commit()
+    } else
+      dialog.show(fragment.getActivity.getSupportFragmentManager, "dialog_info_interfaces")
   }
-  @Loggable // Seq(InterfaceBlock.Item(null, null))
-  def updateAdapter() = synchronized {
-    for {
-      activity <- TabActivity.activity
-      madapter <- TabActivity.adapter
-    } {
-      AnyBase.runOnUiThread {
-        adapter.setNotifyOnChange(false)
-        adapter.clear
+}
+
+object InterfaceBlock extends Logging {
+  /** InterfaceBlock adapter */
+  private[info] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new InterfaceBlock.Adapter(context.getApplicationContext)
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** InterfaceBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Android.getString(context, "block_interface_title").getOrElse("interfaces")))
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** List of active interfaces */
+  @volatile private var activeInterfaces: Option[Seq[String]] = None
+
+  @Loggable
+  private def updateAdapter() = synchronized {
+    TabContent.fragment.foreach {
+      fragment =>
+        val context = fragment.getActivity
         val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
         val acl = pref.getAll
         val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
@@ -147,18 +153,24 @@ class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: D
           case active =>
             interfaces.foreach(i => if (active.exists(_ == i._1)) interfaces(i._1) = Some(true))
         })
-        interfaces.keys.toSeq.sorted.foreach {
-          interface =>
-            adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
-        }
         log.trace("active interfaces updated")
-        adapter.setNotifyOnChange(true)
-        adapter.notifyDataSetChanged
-        log.trace("exit from updateAdapter()")
-      }
+        // update adapter
+        AnyBase.runOnUiThread {
+          adapter.setNotifyOnChange(false)
+          adapter.clear
+          interfaces.keys.toSeq.sorted.foreach {
+            interface =>
+              adapter.add(InterfaceBlock.Item(interface, interfaces(interface)))
+          }
+          adapter.setNotifyOnChange(true)
+          adapter.notifyDataSetChanged
+        }
     }
   }
-  def updateActiveInteraces(allInterfacesArePassive: Boolean) = synchronized {
+  /**
+   * query list of active interfaces from DigiControl
+   */
+  def updateActiveInteraces(context: Context, allInterfacesArePassive: Boolean) = synchronized {
     if (allInterfacesArePassive) {
       activeInterfaces = None
       updateAdapter
@@ -167,9 +179,6 @@ class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: D
       updateAdapter
     }
   }
-}
-
-object InterfaceBlock extends Logging {
   /*
    * status:
    * None - unused
@@ -193,7 +202,7 @@ object InterfaceBlock extends Logging {
       text.setCompoundDrawablePadding(10)
       item match {
         case InterfaceBlock.Item(null, null) =>
-          text.setText(context.getString(R.string.pending))
+          text.setText(Android.getString(context, "loading").getOrElse("loading..."))
         case InterfaceBlock.Item(_, Some(true)) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icActive, null, null, null)
         case InterfaceBlock.Item(_, Some(false)) =>
@@ -203,6 +212,28 @@ object InterfaceBlock extends Logging {
       }
       Level.novice(view)
       view
+    }
+  }
+  object Dialog {
+    private[InterfaceBlock] lazy val legend = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[Legend].getName, null).asInstanceOf[DialogFragment])
+    class Legend extends DialogFragment {
+      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) =
+        inflater.inflate(R.layout.dialog_info_interfaces, null)
+      override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
+        val layout = onCreateView(getActivity.getLayoutInflater, null, null)
+        val dialog = new AlertDialog.Builder(new ContextThemeWrapper(getActivity, R.style.InterfacesLegendDialog)).
+          setTitle(R.string.dialog_interfaces_legend_title).
+          setIcon(R.drawable.ic_info).
+          setView(layout).
+          setPositiveButton(android.R.string.ok, null).
+          create
+        layout.setOnClickListener(new View.OnClickListener() {
+          override def onClick(v: View) = dialog.dismiss()
+        })
+        dialog.setCanceledOnTouchOutside(true)
+        dialog
+      }
     }
   }
 }

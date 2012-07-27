@@ -19,113 +19,134 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical" >
+    android:layout_height="match_parent" >
+
+    <ProgressBar
+        android:id="@+id/loadingProgressBar"
+        android:layout_width="200dip"
+        android:layout_height="200dip"
+        android:layout_centerInParent="true"
+        android:indeterminateDrawable="@drawable/spinner_ring" />
+
+    <TextView
+        android:id="@+id/main_textStatusSmallDevices"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:gravity="center"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center" >
-
-        <ImageButton
-            android:id="@+id/imageButton1"
-            android:layout_width="40dip"
-            android:layout_height="40dip"
-            android:layout_gravity="right"
-            android:background="@android:color/transparent"
-            android:src="@android:drawable/arrow_down_float" />
-
-        <LinearLayout
-            android:layout_width="0dip"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center" >
-
-            <HorizontalScrollView
-                android:id="@+id/horizontalScrollView1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:maxWidth="50dip" >
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" >
-
-                    <TextView
-                        android:id="@+id/textView1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Start"
-                        android:textAppearance="?android:attr/textAppearanceLarge" />
-
-                    <TextView
-                        android:id="@+id/textView3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="---"
-                        android:textAppearance="?android:attr/textAppearanceLarge" />
-
-                    <TextView
-                        android:id="@+id/textView2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Stop"
-                        android:textAppearance="?android:attr/textAppearanceLarge" />
-                </LinearLayout>
-            </HorizontalScrollView>
-        </LinearLayout>
-
-        <ImageButton
-            android:id="@+id/imageButton2"
-            android:layout_width="40dip"
-            android:layout_height="40dip"
-            android:layout_gravity="left"
-            android:background="@android:color/transparent"
-            android:src="@drawable/ic_assistant" />
-    </LinearLayout>
-
-    <RelativeLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" >
-
-        <TextView
-            android:id="@+id/textView4"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:gravity="center"
-            android:text="Small Text"
-            android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:layout_height="match_parent"
+        android:layout_above="@+id/main_textStatusSmallDevices"
+        android:orientation="horizontal" >
 
         <android.support.v4.view.ViewPager
             android:id="@+id/main_viewpager"
-            android:layout_width="match_parent"
+            android:layout_width="0dip"
             android:layout_height="match_parent"
-            android:layout_above="@id/textView4" />
+            android:layout_weight="2" />
 
-        <ImageButton
-            android:id="@+id/buttonGrowShrink"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentLeft="true"
-            android:background="@drawable/ic_grow"
-            android:onClick="onClickGrowShrink" />
+        <ImageView
+            android:id="@+id/main_verticalSplitter"
+            android:layout_width="7dip"
+            android:layout_height="match_parent"
+            android:contentDescription="@android:string/untitled"
+            android:paddingBottom="10dip"
+            android:paddingLeft="3dip"
+            android:paddingRight="3dip"
+            android:paddingTop="10dip"
+            android:src="@drawable/divider_v" />
 
-        <ImageButton
-            android:id="@+id/buttonDigiControl"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentRight="true"
-            android:background="@drawable/ic_control"
-            android:onClick="onClickDigiControl" />
-    </RelativeLayout>
+        <RelativeLayout
+            android:id="@+id/main_extPanel"
+            android:layout_width="0dip"
+            android:layout_height="match_parent"
+            android:layout_weight="3" >
 
-</LinearLayout>
+            <ImageView
+                android:id="@+id/main_horizontalSplitter3"
+                android:layout_width="match_parent"
+                android:layout_height="7dip"
+                android:layout_alignParentTop="true"
+                android:contentDescription="@android:string/untitled"
+                android:paddingBottom="3dip"
+                android:paddingLeft="10dip"
+                android:paddingRight="10dip"
+                android:paddingTop="3dip"
+                android:src="@drawable/divider_h" />
+
+            <TextView
+                android:id="@+id/main_textStatusLargeDevices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:gravity="center"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
+            <ImageView
+                android:id="@+id/main_horizontalSplitter1"
+                android:layout_width="match_parent"
+                android:layout_height="7dip"
+                android:layout_above="@+id/main_textStatusLargeDevices"
+                android:contentDescription="@android:string/untitled"
+                android:paddingBottom="3dip"
+                android:paddingLeft="10dip"
+                android:paddingRight="10dip"
+                android:paddingTop="3dip"
+                android:src="@drawable/divider_h" />
+
+            <LinearLayout
+                android:id="@+id/main_bottomPanel"
+                android:layout_width="match_parent"
+                android:layout_height="100dip"
+                android:layout_above="@+id/main_horizontalSplitter1" >
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/main_horizontalSplitter2"
+                android:layout_width="match_parent"
+                android:layout_height="7dip"
+                android:layout_above="@+id/main_bottomPanel"
+                android:contentDescription="@android:string/untitled"
+                android:paddingBottom="3dip"
+                android:paddingLeft="10dip"
+                android:paddingRight="10dip"
+                android:paddingTop="3dip"
+                android:src="@drawable/divider_h" />
+
+            <LinearLayout
+                android:id="@+id/main_topPanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_above="@+id/main_horizontalSplitter2"
+                android:layout_below="@+id/main_horizontalSplitter3"
+                android:padding="10dip" >
+            </LinearLayout>
+        </RelativeLayout>
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/main_buttonGrowShrink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:background="@drawable/ic_grow"
+        android:contentDescription="@android:string/untitled"
+        android:onClick="onClickGrowShrink" />
+
+    <ImageButton
+        android:id="@+id/main_buttonDigiControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:background="@drawable/ic_control"
+        android:contentDescription="@android:string/untitled"
+        android:onClick="onClickDigiControl" />
+
+</RelativeLayout>

@@ -19,16 +19,31 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service.option
+package org.digimead.digi.ctrl.sshd.service
 
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.sshd.SSHDActivity
 
-import android.content.Context
+import android.os.Bundle
+import android.support.v4.app.Fragment
 import android.view.LayoutInflater
-import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 
-trait TextViewItem extends Item {
-  def getView(context: Context, inflater: LayoutInflater): View =
-    inflater.inflate(Android.getId(context, "element_option_list_item_value", "layout"), null)
+class TabDescription extends Fragment {
+  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
+    val view = new TextView(getActivity)
+    view.setText("This is an instance of MyDialogFragment SERVICE")
+    view
+  }
+}
+
+object TabDescription {
+  /** profiling support */
+  private val ppLoading = SSHDActivity.ppGroup.start("service.TabDescription$")
+  private lazy val description = AppComponent.Context.map(context =>
+    Fragment.instantiate(context.getApplicationContext, classOf[TabDescription].getName, null))
+  ppLoading.stop
+
+  def apply() = description
 }

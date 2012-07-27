@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,10 +24,12 @@ package org.digimead.digi.ctrl.sshd.service
 import java.net.URL
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
 
@@ -49,32 +51,12 @@ import android.widget.TextView
 // buy or not
 
 class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[EnvironmentBlock.Item] with Logging {
-  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-    inflate(R.layout.service_environment_header, null).asInstanceOf[LinearLayout]
-  private lazy val adapter = new EnvironmentBlock.Adapter(context, android.R.layout.simple_list_item_1, Seq())
-  def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
+  def items = for (i <- 0 to EnvironmentBlock.adapter.getCount) yield EnvironmentBlock.adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
-    val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
-    headerTitle.setText(Html.fromHtml(Android.getString(context, "block_environment_title").getOrElse("environment")))
-    val onClickUsersButton = header.findViewById(R.id.service_environment_users_button).asInstanceOf[Button]
-    onClickUsersButton.setOnClickListener(new View.OnClickListener() {
-      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickUsers(v))
-    })
-    Level.intermediate(onClickUsersButton)
-    val onClickServiceReinstallButton = header.findViewById(R.id.service_environment_reinstall_button)
-    onClickServiceReinstallButton.setOnClickListener(new View.OnClickListener() {
-      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickServiceReinstall(v))
-    })
-    Level.professional(onClickServiceReinstallButton)
-    val onClickServiceResetButton = header.findViewById(R.id.service_environment_reset_button)
-    onClickServiceResetButton.setOnClickListener(new View.OnClickListener() {
-      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickServiceReset(v))
-    })
-    Level.professional(onClickServiceResetButton)
-    mergeAdapter.addView(header)
-    mergeAdapter.addAdapter(adapter)
+    Option(EnvironmentBlock.header).foreach(mergeAdapter.addView)
+    Option(EnvironmentBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
   @Loggable
   def onListItemClick(l: ListView, v: View, item: EnvironmentBlock.Item) = {
@@ -86,10 +68,69 @@ class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher:
   override def onContextItemSelected(menuItem: MenuItem, item: EnvironmentBlock.Item): Boolean = {
     false
   }
+  @Loggable
+  def onClickServiceReinstall(v: View) = {
+    IAmMumble("reinstall files/force prepare evironment")
+    //Toast.makeText(this, Android.getString(getActivity, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
+    /*    AppComponent.Inner ! AppComponent.Message.PrepareEnvironment(this, false, true, (success) =>
+      runOnUiThread(new Runnable() {
+        def run = if (success)
+          Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
+            "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
+      }))*/
+  }
+  @Loggable
+  def onClickServiceReset(v: View) = {
+    IAmMumble("reset settings")
+  }
+  @Loggable
+  def onClickUsers(v: View) = {
+    /*    try {
+      startActivity(new Intent(this, classOf[SSHDUsers]))
+    } catch {
+      case e =>
+        IAmYell("Unable to open activity for " + classOf[SSHDUsers].getName, e)
+    }*/
+  }
 }
 
-object EnvironmentBlock {
+object EnvironmentBlock extends Logging {
   @volatile private var block: Option[EnvironmentBlock] = None
+  /** OptionBlock adapter */
+  private[service] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new EnvironmentBlock.Adapter(context, android.R.layout.simple_list_item_1, Seq())
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** OptionBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "element_service_environment_header", "layout"), null).asInstanceOf[LinearLayout]
+      val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
+      headerTitle.setText(Html.fromHtml(Android.getString(context, "block_environment_title").getOrElse("environment")))
+      val onClickUsersButton = view.findViewById(R.id.service_environment_users_button).asInstanceOf[Button]
+      onClickUsersButton.setOnClickListener(new View.OnClickListener() {
+        override def onClick(v: View) = EnvironmentBlock.block.foreach(_.onClickUsers(v))
+      })
+      Level.intermediate(onClickUsersButton)
+      val onClickServiceReinstallButton = view.findViewById(R.id.service_environment_reinstall_button)
+      onClickServiceReinstallButton.setOnClickListener(new View.OnClickListener() {
+        override def onClick(v: View) = EnvironmentBlock.block.foreach(_.onClickServiceReinstall(v))
+      })
+      Level.professional(onClickServiceReinstallButton)
+      val onClickServiceResetButton = view.findViewById(R.id.service_environment_reset_button)
+      onClickServiceResetButton.setOnClickListener(new View.OnClickListener() {
+        override def onClick(v: View) = EnvironmentBlock.block.foreach(_.onClickServiceReset(v))
+      })
+      Level.professional(onClickServiceResetButton)
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
   case class Item(value: String, version: String, description: String, link: URL) extends Block.Item {
     override def toString() = value
   }

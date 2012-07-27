@@ -25,6 +25,7 @@ import java.util.Locale
 
 import scala.actors.Actor
 import scala.actors.threadpool.AtomicInteger
+import scala.collection.immutable.HashMap
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DActivity
@@ -32,18 +33,30 @@ import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.info.TabActivity
+import org.digimead.digi.ctrl.sshd.info.TabContent
+import org.digimead.digi.ctrl.sshd.service.TabContent
+import org.digimead.digi.ctrl.sshd.session.TabContent
 
 import com.actionbarsherlock.app.ActionBar
 import com.actionbarsherlock.app.SherlockFragmentActivity
 
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.os.Handler
-import android.support.v4.view.ViewPager
+import android.support.v4.app.Fragment
+import android.view.View
+import android.widget.LinearLayout
+import android.graphics.Point
+import android.view.Gravity
 
 class SSHDActivity extends SherlockFragmentActivity with DActivity {
   /** profiling support */
@@ -66,8 +79,41 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     setContentView(R.layout.main)
     val bar = getSupportActionBar()
     bar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
-    bar.setDisplayShowTitleEnabled(false)
-    bar.setDisplayShowHomeEnabled(false)
+    val barState = getLayoutInflater().inflate(R.layout.menubar_state, null)
+    getSupportActionBar().setCustomView(barState)
+    getSupportActionBar().setDisplayShowCustomEnabled(true)
+    //bar.setDisplayShowTitleEnabled(false)
+    //bar.setDisplayShowHomeEnabled(false)
+    val display = getWindowManager.getDefaultDisplay()
+    val variant = getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK match {
+      case Configuration.SCREENLAYOUT_SIZE_XLARGE =>
+        if (Android.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+          log.debug("adjust to SIZE_XLARGE, layout Largest, landscape")
+          SSHDActivity.layoutVariant = SSHDActivity.Layout.Largest
+        } else {
+          log.debug("adjust to SIZE_XLARGE, layout Normal")
+          SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
+        }
+      case Configuration.SCREENLAYOUT_SIZE_LARGE =>
+        if (Android.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+          log.debug("adjust to SIZE_LARGE, layout Large, landscape")
+          SSHDActivity.layoutVariant = SSHDActivity.Layout.Large
+        } else {
+          log.debug("adjust to SIZE_LARGE, layout Normal")
+          SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
+        }
+      case _ =>
+        if (Android.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+          log.debug("adjust to SIZE_NORMAL and bellow, layout Small, landscape"); 1
+          SSHDActivity.layoutVariant = SSHDActivity.Layout.Small
+        } else {
+          log.debug("adjust to SIZE_NORMAL and bellow, layout Small")
+          SSHDActivity.layoutVariant = SSHDActivity.Layout.Small
+        }
+    }
+    SSHDActivity.layoutAdjusted = false
+    SSHDActivity.adjustHiddenLayout(this)
+
     SSHDActivity.State.actor ! SSHDActivity.State.Event.OnCreate(this, savedInstanceState)
   }
   /**
@@ -119,6 +165,12 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     super.onDestroy()
     SSHDActivity.activity = None
   }
+  @Loggable
+  override def onWindowFocusChanged(hasFocus: Boolean) = {
+    super.onWindowFocusChanged(hasFocus)
+    if (!SSHDActivity.layoutAdjusted && hasFocus)
+      SSHDActivity.adjustVisibleLayout(this)
+  }
 }
 
 object SSHDActivity extends Logging {
@@ -130,6 +182,8 @@ object SSHDActivity extends Logging {
     (group, group.start("SSHDActivity$"))
   }
   @volatile private[sshd] var activity: Option[SSHDActivity] = None
+  @volatile private var layoutVariant = Layout.Normal
+  @volatile private var layoutAdjusted = false
   lazy val locale = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry()
   lazy val localeLanguage = Locale.getDefault().getLanguage()
   lazy val info = AppComponent.Inner.getCachedComponentInfo(locale, localeLanguage).get
@@ -146,18 +200,129 @@ object SSHDActivity extends Logging {
     actor.start
     actor
   }
+  lazy val fragments: HashMap[String, () => Option[Fragment]] = AppComponent.Context.map {
+    appContext =>
+      val context = appContext.getApplicationContext
+      HashMap[String, () => Option[Fragment]](
+        classOf[org.digimead.digi.ctrl.sshd.service.TabContent].getName -> org.digimead.digi.ctrl.sshd.service.TabContent.accumulator,
+        classOf[org.digimead.digi.ctrl.sshd.session.TabContent].getName -> org.digimead.digi.ctrl.sshd.session.TabContent.accumulator,
+        classOf[org.digimead.digi.ctrl.sshd.info.TabContent].getName -> org.digimead.digi.ctrl.sshd.info.TabContent.accumulator)
+  } getOrElse {
+    log.fatal("lost application context")
+    HashMap[String, () => Option[Fragment]]()
+  }
   ppLoading.stop()
   Logging.addLogger(AndroidLogger)
 
+  def getLayoutVariant() =
+    layoutVariant
+  def adjustHiddenLayout(activity: SherlockFragmentActivity): Unit = Layout.synchronized {
+    ppGroup("SSHDActivity.adjustHiddenLayout") {
+      val size = new Point
+      val display = activity.getWindowManager.getDefaultDisplay()
+      try {
+        val newGetSize = display.getClass.getMethod("getSize", Array[Class[_]](size.getClass): _*)
+        newGetSize.invoke(display, size)
+      } catch {
+        case e: NoSuchMethodException =>
+          size.x = display.getWidth
+          size.y = display.getHeight
+      }
+      layoutVariant match {
+        case Layout.Large =>
+          // adjust main_bottomPanel
+          val main_bottomPanel = activity.findViewById(R.id.main_bottomPanel)
+          val lp = main_bottomPanel.getLayoutParams
+          lp.height = size.y / 3
+          main_bottomPanel.setLayoutParams(lp)
+          // adjust main_viewpager and main_extPanel
+          val main_extPanel = activity.findViewById(R.id.main_extPanel)
+          val main_extPanel_lp = main_extPanel.getLayoutParams.asInstanceOf[LinearLayout.LayoutParams]
+          main_extPanel_lp.weight = 5
+          main_extPanel.setLayoutParams(main_extPanel_lp)
+          val main_viewpager = activity.findViewById(R.id.main_viewpager)
+          val main_viewpager_lp = main_viewpager.getLayoutParams.asInstanceOf[LinearLayout.LayoutParams]
+          main_viewpager_lp.weight = 4
+          main_viewpager.setLayoutParams(main_viewpager_lp)
+          // hide Grow/Shrink and jump to DigiControl
+          activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
+          activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
+          // hide small status
+          activity.findViewById(R.id.main_textStatusSmallDevices).setVisibility(View.GONE)
+        case Layout.Largest =>
+          val main_bottomPanel = activity.findViewById(R.id.main_bottomPanel)
+          val lp = main_bottomPanel.getLayoutParams
+          lp.height = size.y / 4
+          main_bottomPanel.setLayoutParams(lp)
+          // hide Grow/Shrink and jump to DigiControl
+          activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
+          activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
+          // hide small status
+          activity.findViewById(R.id.main_textStatusSmallDevices).setVisibility(View.GONE)
+        case Layout.Normal =>
+          activity.findViewById(R.id.main_extPanel).setVisibility(View.GONE)
+          // hide Grow/Shrink and jump to DigiControl
+          activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
+          activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
+        case Layout.Small =>
+          activity.findViewById(R.id.main_extPanel).setVisibility(View.GONE)
+          if (activity.getSupportActionBar().isShowing) {
+            activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
+            activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
+          } else {
+            activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.VISIBLE)
+            activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.VISIBLE)
+          }
+      }
+    }
+  }
+  def adjustVisibleLayout(activity: SherlockFragmentActivity): Unit = Layout.synchronized {
+    ppGroup("SSHDActivity.adjustVisibleLayout") {
+      layoutAdjusted = true
+      val alpha = 200
+      val background = BitmapFactory.decodeResource(activity.getResources(), R.drawable.ic_background_logo_big)
+      // set background for main_viewpager
+      val main_viewpager = activity.findViewById(R.id.main_viewpager)
+      val main_viewpager_bgsize = scala.math.min(main_viewpager.getWidth, main_viewpager.getHeight) - 10
+      if (main_viewpager_bgsize > 0) {
+        val bitmap = new BitmapDrawable(activity.getResources(), Bitmap.createScaledBitmap(background,
+          main_viewpager_bgsize, main_viewpager_bgsize, true))
+        bitmap.setAlpha(alpha)
+        bitmap.setGravity(Gravity.CENTER)
+        main_viewpager.setBackgroundDrawable(bitmap)
+      }
+      if (layoutVariant == Layout.Normal || layoutVariant == Layout.Small) return
+      // set background for main_topPanel
+      val main_topPanel = activity.findViewById(R.id.main_topPanel)
+      val main_topPanel_bgsize = scala.math.min(main_topPanel.getWidth, main_topPanel.getHeight) - 10
+      if (main_topPanel_bgsize > 0) {
+        val bitmap = new BitmapDrawable(activity.getResources(), Bitmap.createScaledBitmap(background,
+          main_topPanel_bgsize, main_topPanel_bgsize, true))
+        bitmap.setAlpha(alpha)
+        bitmap.setGravity(Gravity.CENTER)
+        main_topPanel.setBackgroundDrawable(bitmap)
+      }
+      // set background for main_bottomPanel
+      val main_bottomPanel = activity.findViewById(R.id.main_bottomPanel)
+      val main_bottomPanel_bgsize = scala.math.min(main_bottomPanel.getWidth, main_bottomPanel.getHeight) - 10
+      if (main_bottomPanel_bgsize > 0) {
+        val bitmap = new BitmapDrawable(activity.getResources(), Bitmap.createScaledBitmap(background,
+          main_bottomPanel_bgsize, main_bottomPanel_bgsize, true))
+        bitmap.setAlpha(alpha)
+        bitmap.setGravity(Gravity.CENTER)
+        main_bottomPanel.setBackgroundDrawable(bitmap)
+      }
+    }
+  }
   /**
    * called only once, at Initializing state
    */
   @Loggable
   def onInit(activity: SSHDActivity) = ppGroup("SSHDActivity.onInit") {
     val bar = activity.getSupportActionBar()
-    SSHDTabAdapter.addTab(R.string.tab_name_service, classOf[org.digimead.digi.ctrl.sshd.service.TabActivity], null)
-    SSHDTabAdapter.addTab(R.string.tab_name_sessions, classOf[org.digimead.digi.ctrl.sshd.sessions.TabActivity], null)
-    SSHDTabAdapter.addTab(R.string.tab_name_information, classOf[org.digimead.digi.ctrl.sshd.info.TabActivity], null)
+    SSHDTabAdapter.addTab(R.string.tab_name_service, classOf[org.digimead.digi.ctrl.sshd.service.TabContent], null)
+    SSHDTabAdapter.addTab(R.string.tab_name_sessions, classOf[org.digimead.digi.ctrl.sshd.session.TabContent], null)
+    SSHDTabAdapter.addTab(R.string.tab_name_information, classOf[org.digimead.digi.ctrl.sshd.info.TabContent], null)
   }
   /**
    * called after every Suspended state
@@ -255,8 +420,10 @@ object SSHDActivity extends Logging {
       override def toString = "State.Initializing"
       override def event(e: Event) = e match {
         case Event.OnCreate(activity, savedInstanceState) =>
+          Thread.sleep(1000) // wait before load 
           onInit(activity)
           onCreate(activity)
+          AnyBase.runOnUiThread { activity.findViewById(R.id.loadingProgressBar).setVisibility(View.GONE) }
           super.event(e)
         case event =>
           log.fatal("illegal event " + event)
@@ -270,6 +437,7 @@ object SSHDActivity extends Logging {
       override def event(e: Event) = e match {
         case Event.OnCreate(activity, savedInstanceState) =>
           onCreate(activity)
+          AnyBase.runOnUiThread { activity.findViewById(R.id.loadingProgressBar).setVisibility(View.GONE) }
           super.event(e)
         case event =>
           log.fatal("illegal event " + event)
@@ -311,7 +479,7 @@ object SSHDActivity extends Logging {
         Event.OnStopID -> State.OnStop,
         Event.OnDestroyID -> State.Suspended)
       override def event(e: Event) = e match {
-        case e: Event.OnSaveInstanceState =>
+        case Event.OnSaveInstanceState(activity, outState) =>
           super.event(e)
         case Event.OnPause(activity) =>
           activity.onPauseExt(activity)
@@ -358,8 +526,15 @@ object SSHDActivity extends Logging {
       override def toString = "State.OnPause"
       lazy val m = Map[Int, State](
         Event.OnStopID -> State.OnStop,
-        Event.OnDestroyID -> State.Suspended)
+        Event.OnDestroyID -> State.Suspended,
+        /*
+         * fucking android, OnSaveInstanceState AFTER OnPause! LOL. WTF with documentation about lifecycle?
+         */
+        Event.OnSaveInstanceStateID -> State.OnPause)
       override def event(e: Event) = e match {
+        case Event.OnSaveInstanceState(activity, outState) =>
+          log.warn("another bug in 4.x, OnSaveInstanceState after OnPause")
+          super.event(e)
         case Event.OnStop(activity) =>
           activity.onStopExt(activity, false, activity.origUnregisterReceiver)
           super.event(e)
@@ -382,6 +557,7 @@ object SSHDActivity extends Logging {
           activity.onStartExt(activity, activity.origRegisterReceiver)
           super.event(e)
         case Event.OnDestroy(activity) =>
+          AnyBase.runOnUiThread { activity.findViewById(R.id.loadingProgressBar).setVisibility(View.VISIBLE) }
           activity.onDestroyExt(activity)
           super.event(e)
         case event =>
@@ -389,5 +565,8 @@ object SSHDActivity extends Logging {
           None
       }
     }
+  }
+  object Layout extends Enumeration {
+    val Small, Normal, Large, Largest = Value
   }
 }

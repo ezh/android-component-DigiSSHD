@@ -103,15 +103,17 @@ import android.widget.Toast
 
 class SSHDUsers extends ListActivity with Logging {
   private lazy val inflater = getLayoutInflater()
-  private lazy val buttonGrowShrink = new WeakReference(findViewById(R.id.buttonGrowShrink).asInstanceOf[ImageButton])
+  private lazy val buttonGrowShrink = new WeakReference(findViewById(R.id.main_buttonGrowShrink).asInstanceOf[ImageButton])
   private lazy val dynamicHeader = new WeakReference({
-    findViewById(R.id.users_header).asInstanceOf[LinearLayout]
+    null
+ //   findViewById(R.id.users_header).asInstanceOf[LinearLayout]
   })
   private lazy val dynamicFooter = new WeakReference({
-    findViewById(R.id.users_footer).asInstanceOf[LinearLayout].
-      findViewById(R.id.users_footer_dynamic).asInstanceOf[LinearLayout]
+    null
+ //   findViewById(R.id.users_footer).asInstanceOf[LinearLayout].
+   //   findViewById(R.id.users_footer_dynamic).asInstanceOf[LinearLayout]
   })
-  private lazy val apply = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_apply).asInstanceOf[TextView])
+ /* private lazy val apply = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_apply).asInstanceOf[TextView])
   private lazy val blockAll = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_footer_toggle_all).asInstanceOf[TextView])
   private lazy val deleteAll = new WeakReference(findViewById(R.id.users_footer).findViewById(R.id.users_footer_delete_all).asInstanceOf[TextView])
   private lazy val userName = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_name).asInstanceOf[TextView]).getOrElse(null))
@@ -688,7 +690,7 @@ class SSHDUsers extends ListActivity with Logging {
       deleteAll.setEnabled(true)
     else
       deleteAll.setEnabled(false)
-  }
+  }*/
 }
 
 object SSHDUsers extends Logging with Passwords {
@@ -709,7 +711,7 @@ object SSHDUsers extends Logging with Passwords {
             None
         }
       }).flatten.toList
-      Some(new ArrayAdapter[UserInfo](context, R.layout.users_row, android.R.id.text1,
+/*      Some(new ArrayAdapter[UserInfo](context, R.layout.users_row, android.R.id.text1,
         new ArrayList[UserInfo](checkAndroidUserInfo(users).sortBy(_.name))) {
         override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
           val item = getItem(position)
@@ -722,7 +724,8 @@ object SSHDUsers extends Logging with Passwords {
           checkbox.setChecked(item.enabled)
           view
         }
-      })
+      })*/
+      None
   } getOrElse { log.fatal("unable to create SSHDUsers adapter"); None }
   val userNameFilter = new InputFilter {
     /*
@@ -767,384 +770,12 @@ object SSHDUsers extends Logging with Passwords {
   }
   log.debug("alive")
 
-  def list(): List[UserInfo] = adapter.map(adapter =>
-    (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())
-  @Loggable
-  def find(context: Context, name: String): Option[UserInfo] = {
-    context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE).getString(name, null) match {
-      case data: String =>
-        Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT), UserInfo.getClass.getClassLoader)
-      case null if name == "android" =>
-        checkAndroidUserInfo(List()).find(_.name == "android")
-      case null =>
-        None
-    }
-  }
-  @Loggable
-  def save(context: Context, user: UserInfo) {
-    val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
-    val editor = userPref.edit
-    editor.putString(user.name, Base64.encodeToString(Common.parcelToArray(user), Base64.DEFAULT))
-    editor.commit
-  }
-  @Loggable
-  def remove(context: Context, user: UserInfo) {
-    val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
-    val editor = userPref.edit
-    editor.remove(user.name)
-    editor.commit
-  }
-  @Loggable
-  def getUserUID(context: Context, user: UserInfo): Option[Int] = synchronized {
-    None
-  }
-  @Loggable
-  def setUserUID(context: Context, user: UserInfo, uid: Option[Int]): Unit = synchronized {
-    None
-  }
-  @Loggable
-  def getUserGID(context: Context, user: UserInfo): Option[Int] = synchronized {
-    None
-  }
-  @Loggable
-  def setUserGID(context: Context, user: UserInfo, gid: Option[Int]): Unit = synchronized {
-    None
-  }
-  @Loggable
-  def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) = synchronized {
-    val userPEnabledPref = context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE)
-    val editor = userPEnabledPref.edit
-    if (enabled)
-      editor.putBoolean(user.name, true)
-    else
-      editor.putBoolean(user.name, false)
-    editor.commit
-  }
-  @Loggable
-  def isPasswordEnabled(context: Context, user: UserInfo): Boolean = synchronized {
-    context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE).
-      getBoolean(user.name, true)
-  }
-  @Loggable
-  def homeDirectory(context: Context, user: UserInfo): File =
-    AppControl.Inner.getExternalDirectory(DTimeout.long) getOrElse new File("/")
-  @Loggable
-  private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
-    log.debug("add default system user \"android\"")
-    in :+ UserInfo("android", "123", "variable location", true)
-  } else
-    in
+
+
+
   object Key {
-    @Loggable
-    def getDropbearKeyFile(context: Context, user: UserInfo): Option[File] = AppComponent.Inner.appNativePath flatMap {
-      appNativePath =>
-        if (user.name != "android") {
-          val homeDir = new File(user.home)
-          val sshDir = new File(homeDir, ".ssh")
-          Some(new File(sshDir, "dropbear_user_key." + Uri.encode(user.name)))
-        } else {
-          AppControl.Inner.getExternalDirectory(DTimeout.long).flatMap {
-            androidHome =>
-              val sshDir = new File(androidHome, ".ssh")
-              Some(new File(sshDir, "dropbear_user_key." + Uri.encode(user.name)))
-          }
-        }
-    }
-    @Loggable def getPublicKeyFile(context: Context, user: UserInfo): Option[File] =
-      getDropbearKeyFile(context, user).map(file => new File(file.getParentFile, "public_user_key." + Uri.encode(user.name)))
-    @Loggable def getAuthorizedKeysFile(context: Context, user: UserInfo): Option[File] =
-      getDropbearKeyFile(context, user).map(file => new File(file.getParentFile, "authorized_keys"))
-    @Loggable def getOpenSSHKeyFile(context: Context, user: UserInfo): Option[File] =
-      getDropbearKeyFile(context, user).map(file => new File(file.getParentFile, "openssh_user_key." + Uri.encode(user.name)))
-    @Loggable
-    def importKey(activity: Activity, user: UserInfo) {
-      AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
-        val dialog = FileChooser.createDialog(activity,
-          Android.getString(activity, "dialog_import_key").getOrElse("Import public key"),
-          new File("/"),
-          importKeyOnResult,
-          new FileFilter { override def accept(file: File) = true },
-          importKeyOnClick,
-          false,
-          user)
-        dialog.show()
-        dialog
-      })
-    }
-    def importKeyOnClick(context: Context, file: File): Boolean = try {
-      if (scala.io.Source.fromFile(file).getLines.filter(_.startsWith("ssh-")).isEmpty) {
-        Toast.makeText(context, "public key \"" + file.getName + "\" is broken", Toast.LENGTH_LONG).show
-        false
-      } else
-        true
-    } catch {
-      case e =>
-        Toast.makeText(context, "public key \"" + file.getName + "\" is broken", Toast.LENGTH_LONG).show
-        false
-    }
-    @Loggable
-    def importKeyOnResult(context: Context, path: File, files: Seq[File], stash: Any) = try {
-      val user = stash.asInstanceOf[UserInfo]
-      (for {
-        importFileFrom <- files.headOption
-        importFileTo <- getPublicKeyFile(context, user)
-      } yield {
-        IAmWarn("import " + importFileFrom.getName + " as " + importFileTo)
-        if (importFileTo.exists())
-          importFileTo.delete()
-        if (!importFileTo.getParentFile.exists)
-          importFileTo.getParentFile.mkdirs
-        if (Common.copyFile(importFileFrom, importFileTo)) {
-          updateAuthorizedKeys(context, user)
-          Toast.makeText(context, Android.getString(context, "import_public_key_successful").
-            getOrElse("import \"%s\" key succesful").format(importFileFrom.getName), Toast.LENGTH_SHORT).show
-        } else
-          Toast.makeText(context, Android.getString(context, "import_public_key_failed").
-            getOrElse("import \"%s\" key failed").format(importFileFrom.getName), Toast.LENGTH_LONG).show
-      }) getOrElse {
-        Toast.makeText(context, Android.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
-      }
-    } catch {
-      case e =>
-        Toast.makeText(context, Android.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
-        log.error(e.getMessage, e)
-    }
-    @Loggable
-    def exportDropbearKey(context: Context, user: UserInfo) = try {
-      getDropbearKeyFile(context, user) match {
-        case Some(file) if file.exists && file.length > 0 =>
-          IAmMumble("export Dropbear private key")
-          val intent = new Intent(Intent.ACTION_SEND)
-          intent.setType("application/octet-stream")
-          intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-          context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
-        case _ =>
-          val message = "unable to export unexists/broken Dropbear private key"
-          AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
-          IAmWarn(message)
-      }
-    } catch {
-      case e =>
-        val message = "unable to export Dropbear key: " + e.getMessage
-        AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
-        IAmWarn(message)
-        log.error(e.getMessage(), e)
-    }
-    @Loggable
-    def exportOpenSSHKey(context: Context, user: UserInfo) = try {
-      getOpenSSHKeyFile(context, user) match {
-        case Some(file) if file.exists && file.length > 0 =>
-          IAmMumble("export OpenSSH private key")
-          val intent = new Intent(Intent.ACTION_SEND)
-          intent.setType("application/octet-stream")
-          intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-          context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
-        case _ =>
-          val message = "unable to export unexists/broken OpenSSH private key"
-          AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
-          IAmWarn(message)
-      }
-    } catch {
-      case e =>
-        val message = "unable to export OpenSSH key: " + e.getMessage
-        AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
-        IAmWarn(message)
-        log.error(e.getMessage(), e)
-    }
-    @Loggable
-    def generateDSAKey(context: Context, user: UserInfo): Boolean = try {
-      IAmBusy(this, "1024-bit DSA user key generation")
-      generatePrivateKey(context, user, "-t", "dss") &&
-        writePublicKey(context, user) &&
-        writeOpenSSHKey(context, user) &&
-        updateAuthorizedKeys(context, user)
-    } catch {
-      case e =>
-        log.error(e.getMessage(), e)
-        false
-    } finally {
-      IAmReady(this, "DSA key generated")
-    }
-    @Loggable
-    def generateRSAKey(context: Context, user: UserInfo, length: Int): Boolean = try {
-      IAmBusy(this, length + "-bit RSA user key generation")
-      generatePrivateKey(context, user, "-t", "rsa", "-s", length.toString) &&
-        writePublicKey(context, user) &&
-        writeOpenSSHKey(context, user) &&
-        updateAuthorizedKeys(context, user)
-    } catch {
-      case e =>
-        log.error(e.getMessage(), e)
-        false
-    } finally {
-      IAmReady(this, "RSA key generated")
-    }
-    @Loggable
-    def updateAuthorizedKeys(context: Context, user: UserInfo): Boolean = {
-      for {
-        fileAuthorizedKeys <- getAuthorizedKeysFile(context, user)
-      } yield {
-        IAmMumble("update authorized_keys file at " + fileAuthorizedKeys.getAbsolutePath())
-        var fw: FileWriter = null
-        try {
-          if (fileAuthorizedKeys.exists())
-            fileAuthorizedKeys.delete()
-          if (!fileAuthorizedKeys.getParentFile.exists)
-            fileAuthorizedKeys.getParentFile.mkdirs
-          fw = new FileWriter(fileAuthorizedKeys, false)
-          val pathAuthorizedKeys = fileAuthorizedKeys.getParentFile
-          val publicKeys = pathAuthorizedKeys.listFiles(new FilenameFilter {
-            def accept(dir: File, name: String) = name.startsWith("public_user_key.")
-          })
-          log.debug("accumulate public keys from: " + publicKeys.map(_.getName.substring(16)).mkString(", "))
-          publicKeys.foreach(f => fw.write(scala.io.Source.fromFile(f).getLines.
-            filter(_.startsWith("ssh-")).mkString("\n") + "\n"))
-          fw.flush
-          true
-        } catch {
-          case e =>
-            IAmYell(e.getMessage, e)
-            false
-        } finally {
-          if (fw != null)
-            fw.close
-        }
-      }
-    } getOrElse false
-    private def generatePrivateKey(context: Context, user: UserInfo, args: String*): Boolean = try {
-      (for {
-        keyDropbear <- getDropbearKeyFile(context, user)
-        path <- AppControl.Inner.getInternalDirectory(DTimeout.long)
-      } yield {
-        IAmMumble("generate Dropbear key " + keyDropbear.getAbsolutePath())
-        val dropbearkey = new File(path, "dropbearkey").getAbsolutePath()
-        if (keyDropbear.exists())
-          keyDropbear.delete()
-        if (!keyDropbear.getParentFile.exists)
-          keyDropbear.getParentFile.mkdirs
-        val result = {
-          val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyDropbear.getAbsolutePath()) ++ args)
-          val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
-          p.waitFor()
-          val retcode = p.exitValue()
-          if (retcode != 0) {
-            var error = err.readLine()
-            while (error != null) {
-              log.error(dropbearkey + " error: " + error)
-              IAmYell("dropbearkey: " + error)
-              error = err.readLine()
-            }
-            false
-          } else
-            true
-        }
-        if (result)
-          keyDropbear.setReadable(true, false)
-        result
-      }) getOrElse false
-    } catch {
-      case e =>
-        log.error(e.getMessage, e)
-        false
-    }
-    private def writePublicKey(context: Context, user: UserInfo): Boolean = try {
-      (for {
-        keyDropbear <- getDropbearKeyFile(context, user)
-        keyPublic <- getPublicKeyFile(context, user)
-        path <- AppControl.Inner.getInternalDirectory(DTimeout.long)
-      } yield {
-        IAmMumble("write public key to " + keyPublic.getAbsolutePath())
-        if (keyDropbear.exists) {
-          val dropbearkey = new File(path, "dropbearkey").getAbsolutePath()
-          if (keyPublic.exists())
-            keyPublic.delete()
-          if (!keyPublic.getParentFile.exists)
-            keyPublic.getParentFile.mkdirs
-          val p = Runtime.getRuntime().exec(Array(dropbearkey, "-f", keyDropbear.getAbsolutePath(), "-y"))
-          val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
-          Futures.future {
-            var bufferedOutput: OutputStream = null
-            try {
-              val lines = scala.io.Source.fromInputStream(p.getInputStream()).getLines.filter(_.startsWith("ssh-"))
-              Common.writeToFile(keyPublic, lines.mkString("\n") + "\n")
-              keyPublic.setReadable(true, false)
-            } catch {
-              case e =>
-                log.error(e.getMessage, e)
-            } finally {
-              if (bufferedOutput != null)
-                bufferedOutput.close
-            }
-          }
-          p.waitFor()
-          val retcode = p.exitValue()
-          val result = if (retcode != 0) {
-            var error = err.readLine()
-            while (error != null) {
-              log.error(dropbearkey + " error: " + error)
-              IAmYell("dropbearkey: " + error)
-              error = err.readLine()
-            }
-            false
-          } else
-            true
-          if (result)
-            keyPublic.setReadable(true, false)
-          result
-        } else {
-          IAmYell("private key " + keyDropbear.getAbsolutePath() + " not found")
-          false
-        }
-      }) getOrElse false
-    } catch {
-      case e =>
-        log.error(e.getMessage, e)
-        false
-    }
-    @Loggable
-    private def writeOpenSSHKey(context: Context, user: UserInfo): Boolean = try {
-      (for {
-        keyDropbear <- getDropbearKeyFile(context, user)
-        keyOpenSSH <- getOpenSSHKeyFile(context, user)
-        path <- AppControl.Inner.getInternalDirectory(DTimeout.long)
-      } yield {
-        IAmMumble("write OpenSSH key to " + keyOpenSSH.getAbsolutePath())
-        if (keyDropbear.exists) {
-          val dropbearconvert = new File(path, "dropbearconvert").getAbsolutePath()
-          if (keyOpenSSH.exists())
-            keyOpenSSH.delete()
-          if (!keyOpenSSH.getParentFile.exists)
-            keyOpenSSH.getParentFile.mkdirs
-          val p = Runtime.getRuntime().exec(Array(dropbearconvert, "dropbear", "openssh",
-            keyDropbear.getAbsolutePath(), keyOpenSSH.getAbsolutePath()))
-          val err = new BufferedReader(new InputStreamReader(p.getErrorStream()))
-          p.waitFor()
-          val retcode = p.exitValue()
-          val result = if (retcode != 0) {
-            var error = err.readLine()
-            while (error != null) {
-              log.error(dropbearconvert + " error: " + error)
-              IAmYell("dropbearconvert: " + error)
-              error = err.readLine()
-            }
-            false
-          } else
-            true
-          if (result)
-            keyOpenSSH.setReadable(true, false)
-          result
-        } else {
-          IAmYell("private key " + keyDropbear.getAbsolutePath() + " not found")
-          false
-        }
-      }) getOrElse false
-    } catch {
-      case e =>
-        log.error(e.getMessage, e)
-        false
-    }
   }
-  object Dialog {
+/*  object Dialog {
     @Loggable
     def createDialogUserDetails(context: Context, user: UserInfo): AlertDialog = {
       val title = Android.getString(context, "users_details_title").getOrElse("user \"%s\"").format(user.name)
@@ -1253,7 +884,7 @@ object SSHDUsers extends Logging with Passwords {
     @Loggable
     def createDialogUserChangePassword(context: Context, user: UserInfo, callback: (UserInfo) => Any): AlertDialog = {
       val maxLengthFilter = new InputFilter.LengthFilter(5)
-      val passwordLayout = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+/*      val passwordLayout = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
         inflate(R.layout.alertdialog_text, null).asInstanceOf[LinearLayout]
       val isUserPasswordEnabled = isPasswordEnabled(context, user)
       val enablePasswordButton = new CheckBox(context)
@@ -1363,7 +994,8 @@ object SSHDUsers extends Logging with Passwords {
         override def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
         override def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
-      dialog
+      dialog*/
+      null
     }
     @Loggable
     private def createDialogUserChangeState(context: Context, title: String, message: String, notification: String, newState: Boolean, user: UserInfo, callback: (UserInfo) => Any): AlertDialog =
@@ -1384,12 +1016,12 @@ object SSHDUsers extends Logging with Passwords {
                   adapter.insert(newUser, position)
                 }
             }
-            activity.foreach {
+/*            activity.foreach {
               activity =>
                 activity.updateFieldsState()
                 if (activity.lastActiveUserInfo.get.exists(_ == user))
                   activity.lastActiveUserInfo.set(Some(newUser))
-            }
+            }*/
             callback(newUser)
           }
         }).
@@ -1399,5 +1031,5 @@ object SSHDUsers extends Logging with Passwords {
         }).
         setIcon(android.R.drawable.ic_dialog_alert).
         create()
-  }
+  }*/
 }

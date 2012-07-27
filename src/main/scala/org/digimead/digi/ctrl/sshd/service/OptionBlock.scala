@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -35,12 +35,12 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 import org.digimead.digi.ctrl.sshd.service.option.DSAPublicKeyEncription
 import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
 import org.digimead.digi.ctrl.sshd.service.option.GrantSuperuserPermission
 import org.digimead.digi.ctrl.sshd.service.option.NetworkPort
 import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
-import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -59,19 +59,16 @@ import android.widget.ListView
 import android.widget.TextView
 
 class OptionBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
-  val items: Seq[OptionBlock.Item] = Seq(DefaultUser, GrantSuperuserPermission, NetworkPort,
-    RSAPublicKeyEncription, DSAPublicKeyEncription, AuthentificationMode)
-  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-    inflate(Android.getId(context, "header", "layout"), null).asInstanceOf[TextView]
-  private lazy val adapter = new OptionBlock.Adapter(context, items.toArray)
   OptionBlock.block = Some(this)
+
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
-    header.setText(Html.fromHtml(Android.getString(context, "block_option_title").getOrElse("options")))
-    mergeAdapter.addView(header)
-    mergeAdapter.addAdapter(adapter)
+    Option(OptionBlock.header).foreach(mergeAdapter.addView)
+    Option(OptionBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
+  @Loggable
+  def items = OptionBlock.items
   @Loggable
   def onListItemClick(l: ListView, v: View, item: OptionBlock.Item) =
     item.onListItemClick(l, v)
@@ -84,6 +81,27 @@ class OptionBlock(val context: Context)(implicit @transient val dispatcher: Disp
 
 object OptionBlock extends Logging {
   @volatile private var block: Option[OptionBlock] = None
+  /** OptionBlock adapter */
+  private[service] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new OptionBlock.Adapter(context, items.toArray)
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** OptionBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Android.getString(context, "block_option_title").getOrElse("options")))
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  private lazy val items: Seq[OptionBlock.Item] = Seq(DefaultUser, GrantSuperuserPermission, NetworkPort,
+    RSAPublicKeyEncription, DSAPublicKeyEncription, AuthentificationMode)
 
   def checkKeyAlreadyExists(activity: Activity, keyName: String, key: File, callback: (Activity) => Any) {
     if (!key.exists || key.length == 0)

@@ -19,16 +19,19 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service.option
+package org.digimead.digi.ctrl.sshd
 
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.log.Logging
 
-import android.content.Context
-import android.view.LayoutInflater
-import android.view.View
+import android.app.Activity
+import android.view.Menu
 
-trait TextViewItem extends Item {
-  def getView(context: Context, inflater: LayoutInflater): View =
-    inflater.inflate(Android.getId(context, "element_option_list_item_value", "layout"), null)
+object SSHDActivityMenu extends Logging {
+  @Loggable
+  def onCreateOptionsMenu(activity: Activity, menu: Menu): Boolean = {
+    val inflater = activity.getMenuInflater()
+    inflater.inflate(R.menu.menu, menu);
+    true
+  }
 }

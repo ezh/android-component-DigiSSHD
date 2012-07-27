@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -23,8 +23,6 @@ package org.digimead.digi.ctrl.sshd.session
 
 import java.net.InetAddress
 
-import scala.actors.Futures.future
-import scala.actors.threadpool.AtomicInteger
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -32,87 +30,52 @@ import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConnection
-import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DControlProvider
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
-import android.net.Uri
+import android.content.Context
 import android.os.Bundle
 import android.text.Html
-import android.view.ContextMenu
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
-import android.view.MotionEvent
 import android.view.View
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
-import android.widget.Toast
 
-class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with Logging {
-  implicit def weakActivity2Activity(a: WeakReference[Activity]): Activity = a.get.get
-  private val header = context.getLayoutInflater.inflate(R.layout.session_header, null).asInstanceOf[LinearLayout]
-  private[session] lazy val adapter = {
-    val result: SyncVar[SessionAdapter] = new SyncVar
-    context.runOnUiThread(new Runnable { def run = result.set(new SessionAdapter(context, R.layout.session_item)) })
-    result.get(DTimeout.long).getOrElse({ log.fatal("unable to create SessionAdapter"); null })
+class SessionBlock(val context: Context) extends Block[SessionBlock.Item] with Logging {
+  def items = SessionBlock.adapter.item.values.toSeq
+  def appendTo(adapter: MergeAdapter) {
+    log.debug("append " + getClass.getName + " to MergeAdapter")
+    Option(SessionBlock.header).foreach(adapter.addView)
+    Option(SessionBlock.adapter).foreach(adapter.addAdapter)
   }
+  @Loggable
+  override def onListItemClick(l: ListView, v: View, item: SessionBlock.Item) = TabContent.fragment.foreach {
+    fragment =>
+      IAmMumble("disconnect session " + item)
+      val bundle = new Bundle
+      bundle.putString("componentPackage", item.component.componentPackage)
+      bundle.putInt("processID", item.processID)
+      bundle.putInt("connectionID", item.connection.connectionID)
+    //      AppComponent.Inner.showDialogSafe(fragment.getActivity, "TabActivity.Dialog.SessionDisconnect", TabContent.Dialog.SessionDisconnect, bundle)
+  }
+  /*  
+
   private lazy val inflater = LayoutInflater.from(context)
   private var disconnectButton = new WeakReference[Button](null)
   private val updateInProgressLock = new AtomicInteger(0)
   SessionBlock.block = new WeakReference(this)
 
   def items = adapter.item.values.toSeq
-  def appendTo(adapter: MergeAdapter) {
-    val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
-    headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
-    Level.intermediate(header.findViewById(android.R.id.custom))
-    adapter.addView(header)
-    adapter.addAdapter(this.adapter)
-    val footer = inflater.inflate(Android.getId(context, "session_footer", "layout"), null)
-    adapter.addView(footer)
-    disconnectButton = new WeakReference(footer.findViewById(Android.getId(context, "session_footer_disconnect_all")).asInstanceOf[Button])
-    disconnectButton.get.foreach(_.setOnTouchListener(new View.OnTouchListener {
-      def onTouch(v: View, event: MotionEvent): Boolean = {
-        if (event.getAction() == MotionEvent.ACTION_DOWN)
-          future {
-            TabActivity.activity.foreach {
-              activity =>
-                IAmMumble("disconnect all sessions")
-                AppComponent.Inner.showDialogSafe(activity, "TabActivity.Dialog.SessionDisconnectAll", TabActivity.Dialog.SessionDisconnectAll)
-            }
-          }
-        false
-      }
-    }))
-    header.findViewById(android.R.id.custom).setVisibility(View.VISIBLE)
-    disconnectButton.get.foreach(_.setEnabled(false))
-  }
-  @Loggable
-  override def onListItemClick(l: ListView, v: View, item: SessionBlock.Item) = TabActivity.activity.foreach {
-    activity =>
-      IAmMumble("disconnect session " + item)
-      val bundle = new Bundle
-      bundle.putString("componentPackage", item.component.componentPackage)
-      bundle.putInt("processID", item.processID)
-      bundle.putInt("connectionID", item.connection.connectionID)
-      AppComponent.Inner.showDialogSafe(activity, "TabActivity.Dialog.SessionDisconnect", TabActivity.Dialog.SessionDisconnect, bundle)
-  }
+
+
   @Loggable
   private def updateCursor(): Unit = {
     if (updateInProgressLock.getAndIncrement() == 0) {
@@ -244,15 +207,36 @@ class SessionBlock(val context: Activity) extends Block[SessionBlock.Item] with 
         log.fatal("unknown item " + item)
         false
     }
-  }
+  }*/
 }
 
 object SessionBlock extends Logging {
   @volatile protected var block = new WeakReference[SessionBlock](null)
-
-  @Loggable
-  def updateCursor(): Unit =
-    future { block.get.foreach(_.updateCursor()) }
+  /** InterfaceBlock adapter */
+  private[session] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new SessionAdapter(context.getApplicationContext, Android.getId(context, "element_session_item", "layout"))
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** InterfaceBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "element_session_header", "layout"), null).asInstanceOf[LinearLayout]
+      val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
+      headerTitle.setText(Html.fromHtml(Android.getString(context, "block_session_title").getOrElse("sessions")))
+      Level.intermediate(view.findViewById(android.R.id.custom))
+      view.findViewById(android.R.id.custom).setVisibility(View.VISIBLE)
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  //  @Loggable
+  //  def updateCursor(): Unit =
+  //    future { block.get.foreach(_.updateCursor()) }
 
   class Item(val id: Int,
     val processID: Int,

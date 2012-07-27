@@ -19,16 +19,7 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service.option
+package org.digimead.digi.ctrl
 
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
-
-import android.content.Context
-import android.view.LayoutInflater
-import android.view.View
-
-trait TextViewItem extends Item {
-  def getView(context: Context, inflater: LayoutInflater): View =
-    inflater.inflate(Android.getId(context, "element_option_list_item_value", "layout"), null)
-}
+/** Base package for DigiSSHD component */
+package object sshd {}

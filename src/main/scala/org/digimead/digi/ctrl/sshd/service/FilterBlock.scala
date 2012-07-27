@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,11 +24,11 @@ package org.digimead.digi.ctrl.sshd.service
 import java.util.ArrayList
 
 import scala.Array.canBuildFrom
-import scala.actors.Futures.future
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConstant
@@ -57,27 +57,14 @@ import android.widget.TextView
 import android.widget.Toast
 
 class FilterBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[FilterBlock.Item] with Logging {
-  private lazy val header = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-    inflate(R.layout.service_interface_filters_header, null).asInstanceOf[LinearLayout]
-  private lazy val adapter = new FilterBlock.Adapter(context)
-  future { updateAdapter }
-  def items = for (i <- 0 to adapter.getCount) yield adapter.getItem(i)
+  FilterBlock.block = Some(this)
+
+  def items = for (i <- 0 to FilterBlock.adapter.getCount) yield FilterBlock.adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = synchronized {
     log.debug("append " + getClass.getName + " to MergeAdapter")
-    val headerTitle = header.findViewById(android.R.id.title).asInstanceOf[TextView]
-    headerTitle.setText(Html.fromHtml(Android.getString(context, "block_filter_title").getOrElse("interface filters")))
-    Level.professional(header.findViewById(android.R.id.custom))
-    val onClickServiceFilterAddButton = header.findViewById(R.id.service_interface_filters_add_button).asInstanceOf[Button]
-    onClickServiceFilterAddButton.setOnClickListener(new View.OnClickListener() {
-      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickServiceFilterAdd(v))
-    })
-    val onClickServiceFilterRemoveButton = header.findViewById(R.id.service_interface_filters_remove_button).asInstanceOf[Button]
-    onClickServiceFilterRemoveButton.setOnClickListener(new View.OnClickListener() {
-      override def onClick(v: View) = TabActivity.activity.foreach(_.onClickServiceFilterRemove(v))
-    })
-    mergeAdapter.addView(header)
-    mergeAdapter.addAdapter(adapter)
+    Option(FilterBlock.header).foreach(mergeAdapter.addView)
+    Option(FilterBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {
@@ -101,31 +88,73 @@ class FilterBlock(val context: Context)(implicit @transient val dispatcher: Disp
   }
   @Loggable
   def updateAdapter() = synchronized {
-    for {
-      activity <- TabActivity.activity
-      madapter <- TabActivity.adapter
-    } AnyBase.runOnUiThread {
-      adapter.setNotifyOnChange(false)
-      adapter.clear
-      val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
-      val acl = pref.getAll
-      if (acl.isEmpty)
-        adapter.add(FilterBlock.Item(FilterBlock.ALL, None, new WeakReference(context)))
-      else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL))
-        adapter.add(FilterBlock.Item(FilterBlock.ALL, Some(pref.getBoolean(FilterBlock.ALL, false)), new WeakReference(context)))
-      else
-        acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
-          aclMask =>
-            adapter.add(FilterBlock.Item(aclMask, Some(pref.getBoolean(aclMask, false)), new WeakReference(context)))
+    TabContent.fragment.foreach {
+      fragment =>
+        AnyBase.runOnUiThread {
+          FilterBlock.adapter.setNotifyOnChange(false)
+          FilterBlock.adapter.clear
+          val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
+          val acl = pref.getAll
+          if (acl.isEmpty)
+            FilterBlock.adapter.add(FilterBlock.Item(FilterBlock.ALL, None, new WeakReference(context)))
+          else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL))
+            FilterBlock.adapter.add(FilterBlock.Item(FilterBlock.ALL, Some(pref.getBoolean(FilterBlock.ALL, false)), new WeakReference(context)))
+          else
+            acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.foreach {
+              aclMask =>
+                FilterBlock.adapter.add(FilterBlock.Item(aclMask, Some(pref.getBoolean(aclMask, false)), new WeakReference(context)))
+            }
+          FilterBlock.adapter.setNotifyOnChange(true)
+          FilterBlock.adapter.notifyDataSetChanged
         }
-      adapter.setNotifyOnChange(true)
-      adapter.notifyDataSetChanged
     }
   }
-  def isEmpty() = synchronized { adapter.getCount == 1 && adapter.getItem(0).value == FilterBlock.ALL }
+  def isEmpty() = synchronized { FilterBlock.adapter.getCount == 1 && FilterBlock.adapter.getItem(0).value == FilterBlock.ALL }
+  @Loggable
+  def onClickServiceFilterAdd(v: View) = {}
+  //    startActivityForResult(new Intent(this, classOf[FilterAddActivity]), TabActivity.FILTER_REQUEST)
+  @Loggable
+  def onClickServiceFilterRemove(v: View) = {}
+  /*TabActivity.filterBlock.foreach {
+    filterBlock =>
+      if (filterBlock.isEmpty)
+        Toast.makeText(this, getString(R.string.service_filter_unable_remove), DConstant.toastTimeout).show()
+      else
+        startActivityForResult(new Intent(this, classOf[FilterRemoveActivity]), TabActivity.FILTER_REQUEST)
+  }*/
 }
 
 object FilterBlock extends Logging {
+  @volatile private var block: Option[FilterBlock] = None
+  /** FilterBlock adapter */
+  private[service] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new FilterBlock.Adapter(context)
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** FilterBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "element_service_filter_header", "layout"), null).asInstanceOf[LinearLayout]
+      val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
+      headerTitle.setText(Html.fromHtml(Android.getString(context, "block_filter_title").getOrElse("interface filters")))
+      Level.professional(view.findViewById(android.R.id.custom))
+      val onClickServiceFilterAddButton = view.findViewById(R.id.service_filter_add_button).asInstanceOf[Button]
+      onClickServiceFilterAddButton.setOnClickListener(new View.OnClickListener() {
+        override def onClick(v: View) = FilterBlock.block.foreach(_.onClickServiceFilterAdd(v))
+      })
+      val onClickServiceFilterRemoveButton = view.findViewById(R.id.service_filter_remove_button).asInstanceOf[Button]
+      onClickServiceFilterRemoveButton.setOnClickListener(new View.OnClickListener() {
+        override def onClick(v: View) = FilterBlock.block.foreach(_.onClickServiceFilterRemove(v))
+      })
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
   val ALL = "*:*.*.*.*"
   case class Item(val value: String, var _state: Option[Boolean], context: WeakReference[Context]) extends Block.Item {
     override def toString() =

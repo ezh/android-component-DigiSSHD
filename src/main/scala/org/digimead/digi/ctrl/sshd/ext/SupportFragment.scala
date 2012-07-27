@@ -19,16 +19,17 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service.option
+package org.digimead.digi.ctrl.sshd.ext
 
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
+import com.actionbarsherlock.app.SherlockFragment
 
-import android.content.Context
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 
-trait TextViewItem extends Item {
-  def getView(context: Context, inflater: LayoutInflater): View =
-    inflater.inflate(Android.getId(context, "element_option_list_item_value", "layout"), null)
+class SupportFragment extends SherlockFragment with TabInterface {
+  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = new View(getActivity())
+  def getTabDescriptionFragment() = None
+  def onTabSelected() {}
 }

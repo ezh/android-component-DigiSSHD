@@ -41,7 +41,7 @@ privileged public final aspect AspectLogging {
 
 	after(final Logging obj, final Loggable loggable) returning(final Object result) : loggingNonVoid(obj, loggable) {
 		SourceLocation location = thisJoinPointStaticPart.getSourceLocation();
-		if (loggable.result())
+		if (loggable != null && loggable.result())
 			org.digimead.digi.ctrl.lib.aop.Logging$.MODULE$.leavingMethod(
 					location.getFileName(), location.getLine(),
 					thisJoinPointStaticPart.getSignature(), obj, result);

@@ -35,6 +35,7 @@ target/*
 specs/bin/*
 specs/saved reports/*
 lift/*
+test/*
 */.idea/*
 *ErrorLogs/
 *RecentChanges/

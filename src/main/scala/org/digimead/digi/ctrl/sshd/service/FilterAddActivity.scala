@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -54,7 +54,7 @@ import android.widget.Toast
 
 class FilterAddActivity extends ListActivity with Logging {
   // lazy for workaround of System services not available to Activities before onCreate()
-  private lazy val adapter = new FilterAddAdapter(this, () => {
+  /*  private lazy val adapter = new FilterAddAdapter(this, () => {
     val alreadyInUse = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE).getAll().map(t => t._1).toSeq
     predefinedFilters().diff(alreadyInUse) // drop "already in use" values
   })
@@ -238,7 +238,7 @@ class FilterAddActivity extends ListActivity with Logging {
       else
         Seq(entry, interface + ":*.*.*.*", "*:" + ip)
     }).flatten
-  }
+  }*/
 }
 
 object FilterAddActivity {

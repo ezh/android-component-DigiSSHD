@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,7 +24,9 @@ package org.digimead.digi.ctrl.sshd.session
 import scala.actors.Futures.future
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DIntent
@@ -32,13 +34,9 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDCommon
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -51,24 +49,18 @@ import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.TextView
 
-class OptionBlock(context: Activity) extends Logging {
-  private val header = context.getLayoutInflater.inflate(R.layout.header, null).asInstanceOf[TextView]
-  private val items = Seq(
-    OptionBlock.Item(DOption.ConfirmConn.tag, DOption.ConfirmConn))
-  //OptionBlock.Item(DOption.WriteConnLog, DOption.WriteConnLog))
-  private lazy val adapter = new OptionBlock.Adapter(context, Android.getId(context, "option_list_item_multiple_choice", "layout"), items)
-  OptionBlock.block = Some(this)
+class OptionBlock(context: Context) extends Logging {
   def appendTo(adapter: MergeAdapter) {
-    header.setText(context.getString(R.string.comm_option_block))
-    adapter.addView(header)
-    adapter.addAdapter(this.adapter)
+    log.debug("append " + getClass.getName + " to MergeAdapter")
+    Option(OptionBlock.header).foreach(adapter.addView)
+    Option(OptionBlock.adapter).foreach(adapter.addAdapter)
   }
   @Loggable
   def onListItemClick(item: OptionBlock.Item) = item.view.get.foreach {
     view =>
       val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]
       val lastState = checkbox.isChecked
-      context.runOnUiThread(new Runnable { def run = checkbox.setChecked(!lastState) })
+      AnyBase.runOnUiThread { checkbox.setChecked(!lastState) }
       onOptionClick(item, lastState)
   }
   @Loggable
@@ -79,12 +71,35 @@ class OptionBlock(context: Activity) extends Logging {
       editor.putBoolean(item.option.tag, !lastState)
       editor.commit()
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-      SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
+    //      SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
   }
 }
 
 object OptionBlock extends Logging {
+  /** OptionBlock instance */
   @volatile private var block: Option[OptionBlock] = None
+  /** InterfaceBlock adapter */
+  private[session] lazy val adapter = AppComponent.Context match {
+    case Some(context) =>
+      new OptionBlock.Adapter(context.getApplicationContext,
+        Android.getId(context, "element_option_list_item_multiple_choice", "layout"), items)
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  /** InterfaceBlock header view */
+  private lazy val header = AppComponent.Context match {
+    case Some(context) =>
+      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Android.getString(context, "block_option_title").getOrElse("options")))
+      view
+    case None =>
+      log.fatal("lost ApplicationContext")
+      null
+  }
+  private val items = Seq(Item(DOption.ConfirmConn.tag, DOption.ConfirmConn))
+  //Item(DOption.WriteConnLog, DOption.WriteConnLog))
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState(context: Context): Boolean = {
@@ -92,14 +107,13 @@ object OptionBlock extends Logging {
       pref.getBoolean(option.tag, option.default.asInstanceOf[Boolean])
     }
   }
-  class Adapter(context: Activity, textViewResourceId: Int, data: Seq[Item])
+  class Adapter(context: Context, textViewResourceId: Int, data: Seq[Item])
     extends ArrayAdapter[Item](context, textViewResourceId, android.R.id.text1, data.toArray) {
-    private var inflater: LayoutInflater = context.getLayoutInflater
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = data(position)
       item.view.get match {
         case None =>
-          val view = inflater.inflate(textViewResourceId, null)
+          val view = super.getView(position, convertView, parent)
           val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
           val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
           val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]

@@ -19,16 +19,29 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service.option
+package org.digimead.digi.ctrl.sshd.ext
 
-import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
+import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.sshd.R
 
-import android.content.Context
-import android.view.LayoutInflater
+import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentActivity
 import android.view.View
 
-trait TextViewItem extends Item {
-  def getView(context: Context, inflater: LayoutInflater): View =
-    inflater.inflate(Android.getId(context, "element_option_list_item_value", "layout"), null)
+trait TabInterface extends Logging {
+  this: Fragment =>
+  def onTabSelected()
+  def getTabDescriptionFragment(): Option[Fragment]
+  def showTabDescriptionFragment() = if (isTopPanelAvailable)
+    getTabDescriptionFragment.foreach {
+      case fragment if !fragment.isVisible =>
+        log.debug("show description fragment for " + this.getClass.getName)
+        val ft = getActivity.getSupportFragmentManager.beginTransaction()
+        ft.replace(R.id.main_topPanel, fragment)
+        ft.commit()
+      case _ =>
+        log.debug("skip show description fragment for " + this.getClass.getName)
+    }
+  def isTopPanelAvailable =
+    Option(getActivity.findViewById(R.id.main_topPanel)).exists(_.getVisibility == View.VISIBLE)
 }

@@ -22,7 +22,6 @@
 package org.digimead.digi.ctrl.sshd
 
 import scala.collection.JavaConversions._
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DIntent
@@ -35,13 +34,17 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.service.option.{ AuthentificationMode => OAuthentificationMode }
-
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.preference.ListPreference
 import android.preference.{ Preference => APreference }
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.declaration.DState
+import android.widget.Toast
+import org.digimead.digi.ctrl.lib.util.PublicPreferences
+import org.digimead.digi.ctrl.sshd.service.option.{ AuthentificationMode => OAuthentificationMode }
 
 class SSHDPreferences extends Preferences {
   implicit val logger = log
@@ -74,6 +77,15 @@ object SSHDPreferences {
     Preferences.DebugLogLevel.set(context)(logger, dispatcher)
     Preferences.DebugAndroidLogger.set(context)(logger, dispatcher)
   }
+  def applyOnRestartNotify(context: Context, option: DOption#OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
+    if (AppComponent.Inner.state.get.value == DState.Passive) {
+      val message = Android.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)
+      AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+    } else {
+      val message = Android.getString(context, "option_changed_on_restart").getOrElse("%1$s set to %2$s, it will be applied on the next run").format(option.name(context), state)
+      AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+    }
+  }
   object ControlsHighlight extends Preferences.StringPreference[String](DOption.ControlsHighlight, (s) => s,
     "set_experience_highlights_notify", "set experience highlights to \"%s\"") {
     override def set(value: String, context: Context, notify: Boolean = false)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit = {
@@ -87,14 +99,14 @@ object SSHDPreferences {
       super.set(value, context, notify)(logger, dispatcher)
     }
     def activate(context: Context) = {
-      val publicEditor = Common.getPublicPreferences(context).edit
+      val publicEditor = PublicPreferences(context).edit
       publicEditor.putBoolean(DOption.ControlsHighlightActive.tag, true)
       publicEditor.commit
       Level.setEnable(true)
       Level.hlOn(context)
     }
     def deactivate(context: Context) {
-      val publicEditor = Common.getPublicPreferences(context).edit
+      val publicEditor = PublicPreferences(context).edit
       publicEditor.putBoolean(DOption.ControlsHighlightActive.tag, false)
       publicEditor.commit
       Level.setEnable(false)
@@ -175,7 +187,7 @@ object SSHDPreferences {
       editor.commit
       val message = Android.getString(context, "set_network_port_notify").getOrElse("set network port to %d").format(value)
       if (notify)
-        SSHDCommon.optionChangedOnRestartNotify(context, option, value.toString)
+        applyOnRestartNotify(context, option, value.toString)
       IAmMumble(message)(logger, dispatcher)
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
     }
@@ -195,7 +207,7 @@ object SSHDPreferences {
       else
         Android.getString(context, "disable_as_root_notify").getOrElse("revoke superuser permission").format(value)
       if (notify)
-        SSHDCommon.optionChangedOnRestartNotify(context, option, value.toString)
+        applyOnRestartNotify(context, option, value.toString)
       IAmMumble(message)(logger, dispatcher)
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
     }
@@ -212,7 +224,7 @@ object SSHDPreferences {
       editor.commit
       val message = Android.getString(context, "set_authentification_mode_notify").getOrElse("set authentification mode to %s").format(value)
       if (notify)
-        SSHDCommon.optionChangedOnRestartNotify(context, option, value.toString)
+        applyOnRestartNotify(context, option, value.toString)
       IAmMumble(message)(logger, dispatcher)
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
     }

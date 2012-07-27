@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -19,9 +19,9 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd
+package org.digimead.digi.ctrl.sshd.user
 
-object SSHDUserProfile {
+object UserProfile {
   val content = """
 #!/bin/sh
 

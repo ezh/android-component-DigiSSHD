@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -32,7 +32,6 @@ import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.service.TabActivity
 
 import android.app.AlertDialog
 import android.content.Context
@@ -48,7 +47,7 @@ object AuthentificationMode extends TextViewItem with Logging {
 
   @Loggable
   override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
-    TabActivity.activity.foreach {
+ /*   TabActivity.activity.foreach {
       activity =>
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_auth", () => {
           val authTypeValue = new AtomicInteger(getState[Int](activity))
@@ -82,7 +81,7 @@ object AuthentificationMode extends TextViewItem with Logging {
           dialog.show()
           dialog
         })
-    }
+    }*/
   }
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)

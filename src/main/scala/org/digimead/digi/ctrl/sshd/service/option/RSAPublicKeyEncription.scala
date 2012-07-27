@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -29,10 +29,8 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Android
-import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.SSHDCommon
 import org.digimead.digi.ctrl.sshd.service.OptionBlock
-import org.digimead.digi.ctrl.sshd.service.TabActivity
+import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import android.content.Context
 import android.content.Intent
@@ -62,7 +60,7 @@ object RSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
       editor.commit()
       view.setChecked(!lastState)
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
-      SSHDCommon.optionChangedOnRestartNotify(context, option, getState[Boolean](context).toString)
+      //      SSHDCommon.optionChangedOnRestartNotify(context, option, getState[Boolean](context).toString)
     } else {
       val message = Android.getString(context, "option_rsa_dss_at_least_one").getOrElse("at least one of the encription type must be selected from either RSA or DSA")
       view.setChecked(getState[Boolean](context))
@@ -93,25 +91,26 @@ object RSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
     menu.add(Menu.NONE, Android.getId(context, "export_host_key"), 2,
       Android.getString(context, "export_host_key").getOrElse("Export host key"))
   }
-  override def onContextItemSelected(menuItem: MenuItem): Boolean = TabActivity.activity.map {
-    activity =>
+  override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
+    fragment =>
+      val context = fragment.getActivity
       menuItem.getItemId match {
-        case id if id == Android.getId(activity, "generate_host_key") =>
+        case id if id == Android.getId(context, "generate_host_key") =>
           Futures.future {
             getSourceKeyFile().foreach(file =>
-              OptionBlock.checkKeyAlreadyExists(activity, "RSA host", file,
+              OptionBlock.checkKeyAlreadyExists(context, "RSA host", file,
                 (activity) => generateHostKey(activity)))
           }
           true
-        case id if id == Android.getId(activity, "import_host_key") =>
+        case id if id == Android.getId(context, "import_host_key") =>
           Futures.future {
             getSourceKeyFile().foreach(file =>
-              OptionBlock.checkKeyAlreadyExists(activity, "RSA host", file,
+              OptionBlock.checkKeyAlreadyExists(context, "RSA host", file,
                 (activity) => importHostKey(activity)))
           }
           true
-        case id if id == Android.getId(activity, "export_host_key") =>
-          Futures.future { exportHostKey(activity) }
+        case id if id == Android.getId(context, "export_host_key") =>
+          Futures.future { exportHostKey(context) }
           true
         case item =>
           log.fatal("skip unknown menu! item " + item)

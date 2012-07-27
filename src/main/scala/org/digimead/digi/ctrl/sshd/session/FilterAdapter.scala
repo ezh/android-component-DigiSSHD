@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -38,7 +38,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
 
-class FilterAdapter(context: FilterActivity, values: () => Seq[FilterAdapter.Item],
+/*class FilterAdapter(context: FilterActivity, values: () => Seq[FilterAdapter.Item],
   private val resource: Int = android.R.layout.simple_list_item_checked,
   private val fieldId: Int = android.R.id.text1)
   extends ArrayAdapter[FilterAdapter.Item](context, resource, fieldId) with Logging {
@@ -150,7 +150,7 @@ class FilterAdapter(context: FilterActivity, values: () => Seq[FilterAdapter.Ite
     case _ =>
       super.isEnabled(position)
   }
-}
+}*/
 
 object FilterAdapter extends Logging {
   val separatorToInclude = Item(null, Some(true))(false, false)
