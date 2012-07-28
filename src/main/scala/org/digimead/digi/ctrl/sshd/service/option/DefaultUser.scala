@@ -22,7 +22,6 @@
 package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
-
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DOption
@@ -30,11 +29,27 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.service.TabContent
-
 import android.view.View
 import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.Toast
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import android.support.v4.app.Fragment
+import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
+import scala.ref.WeakReference
+import android.widget.TextView
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import android.app.Dialog
+import android.app.AlertDialog
+import org.digimead.digi.ctrl.lib.info.UserInfo
+import org.digimead.digi.ctrl.lib.androidext.Util
+import android.content.DialogInterface
+import org.digimead.digi.ctrl.lib.message.IAmBusy
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.user.UserDialog
 
 object DefaultUser extends CheckBoxItem with Logging {
   val option: DOption.OptVal = DOption.Value("android_user", classOf[Boolean], true: java.lang.Boolean)
@@ -75,59 +90,28 @@ object DefaultUser extends CheckBoxItem with Logging {
     view.setFocusableInTouchMode(false)
   }
   @Loggable
-  override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
-    TabContent.fragment.map {
-      fragment =>
-        val context = fragment.getSherlockActivity
-      //SafeDialog.show(fragment.getActivity, Some(R.id.main_topPanel), "dialog_info_interfaces", () => new ComponentBlock.Dialog.Info, bundle)
-
-      //AppComponent.Inner.showDialogSafe[AlertDialog](context, "dialog_password", () => {
-      /*          SSHDUsers.Dialog.createDialogUserChangePassword(context, android, (user) => {
-            android = user
-            if (SSHDPreferences.AuthentificationMode.get(activity) == AuthentificationMode.AuthType.SingleUser &&
-              AppComponent.Inner.state.get.value == DState.Active)
-              Futures.future {
-                AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_restart", () => {
-                  val dialog = new AlertDialog.Builder(activity).
-                    setIcon(_root_.android.R.drawable.ic_dialog_alert).
-                    setTitle(Android.getString(activity, "warning_singleusermode_restart_title").getOrElse("Apply new settings")).
-                    setMessage(Android.getString(activity, "session_singleusermode_restart_content").
-                      getOrElse("Single user/basic mode provide only restricted abilities of session control.\n\n" +
-                        "You must restart SSH before the new settings will take effect. Do you want to restart service now?")).
-                    setPositiveButton(_root_.android.R.string.ok, new DialogInterface.OnClickListener() {
-                      def onClick(dialog: DialogInterface, whichButton: Int) = {
-                        val context = dialog.asInstanceOf[AlertDialog].getContext
-                        IAmBusy(DefaultUser, Android.getString(context, "state_stopping_service").getOrElse("stopping service"))
-                        Futures.future {
-                          AppControl.Inner.callStop(context.getPackageName)() match {
-                            case true =>
-                              IAmMumble(Android.getString(context, "state_stopped_service").getOrElse("stopped service"))
-                              IAmMumble(Android.getString(context, "state_starting_service").getOrElse("starting service"))
-                              Futures.future {
-                                AppControl.Inner.callStart(context.getPackageName)() match {
-                                  case true =>
-                                    log.info(context.getPackageName + " started")
-                                    IAmReady(DefaultUser, Android.getString(context, "state_started_service").getOrElse("started service"))
-                                  case false =>
-                                    log.warn(context.getPackageName + " start failed")
-                                    IAmReady(DefaultUser, Android.getString(context, "state_started_service").getOrElse("started service"))
-                                }
-                              } case false =>
-                              IAmReady(DefaultUser, Android.getString(context, "state_stopped_service").getOrElse("stopped service"))
-                          }
-                        }
-                      }
-                    }).
-                    setNegativeButton(_root_.android.R.string.cancel, null).
-                    create()
-                  dialog.show()
-                  dialog
-                })
-              }
-          })*/
-      // null
-      ///})
-    }
+  override def onListItemClick(l: ListView, v: View) = for {
+    fragment <- TabContent.fragment
+    dialog <- UserDialog.changePassword
+  } if (dialog.isVisible) {
+    dialog.setOnUserUpdateListener(Some(onUserUpdate))
+    //AnyBase.runOnUiThread { dialog.updateContent(info) }
+  } else {
+    val bundle = new Bundle
+    bundle.putString("username", "android")
+    val context = fragment.getSherlockActivity
+    dialog.setOnUserUpdateListener(Some(onUserUpdate))
+    SafeDialog.show(fragment.getActivity, Some(R.id.main_topPanel), dialog.toString, () => dialog, bundle)
+  }
+  @Loggable
+  def onUserUpdate(dialog: UserDialog.ChangePassword, newUser: UserInfo) {
+    /*activity.foreach {
+                  activity =>
+                    activity.updateFieldsState()
+                    if (activity.lastActiveUserInfo.get.exists(_ == user))
+                      activity.lastActiveUserInfo.set(Some(newUser))
+                }*/
+    //callback(newUser)
   }
   /*  
   @volatile var android: UserInfo = AppComponent.Context.flatMap(c => UserAdapter.find(c, "android")) getOrElse { log.fatal("unable to find 'android' user"); null }
@@ -214,5 +198,102 @@ object DefaultUser extends CheckBoxItem with Logging {
       }
     })
     view
+  }*/
+  /* object Dialog {
+    private[DefaultUser] lazy val password = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[Password].getName, null).asInstanceOf[Password])
+    class Password extends SherlockSafeDialogFragment with Logging {
+      @volatile private var content = new WeakReference[TextView](null)
+      @volatile private var dirtyHackForDirtyFramework = false
+
+      @Loggable
+      override def onCreate(savedInstanceState: Bundle) {
+        super.onCreate(savedInstanceState)
+      }
+      @Loggable
+      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
+        if (dirtyHackForDirtyFramework && inflater != null) {
+          log.warn("workaround for \"requestFeature() must be called before adding content\"")
+          dirtyHackForDirtyFramework = false
+          return super.onCreateView(inflater, container, savedInstanceState)
+        } else if (inflater == null)
+          dirtyHackForDirtyFramework = true
+        val context = getSherlockActivity
+        val view = new TextView(context)
+        view
+      }
+      @Loggable
+      override def onCreateDialog(savedInstanceState: Bundle): Dialog =
+        SSHDUsers.Dialog.createDialogUserChangePassword(context, android, (user) => onUserUpdate(user))
+      def onUserUpdate(user: UserInfo) {
+        android = user
+        if (SSHDPreferences.AuthentificationMode.get(activity) == AuthentificationMode.AuthType.SingleUser &&
+          AppComponent.Inner.state.get.value == DState.Active)
+          Futures.future {
+            AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_restart", () => {
+              val dialog =
+                dialog.show()
+              dialog
+            })
+          }
+      }
+    }
+    class Restart extends SherlockSafeDialogFragment with Logging {
+      @volatile private var content = new WeakReference[TextView](null)
+      @volatile private var dirtyHackForDirtyFramework = false
+
+      @Loggable
+      override def onCreate(savedInstanceState: Bundle) {
+        super.onCreate(savedInstanceState)
+      }
+      @Loggable
+      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
+        if (dirtyHackForDirtyFramework && inflater != null) {
+          log.warn("workaround for \"requestFeature() must be called before adding content\"")
+          dirtyHackForDirtyFramework = false
+          return super.onCreateView(inflater, container, savedInstanceState)
+        } else if (inflater == null)
+          dirtyHackForDirtyFramework = true
+        val context = getSherlockActivity
+        val view = new TextView(context)
+        view
+      }
+      @Loggable
+      override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
+        val context= getSherlockActivity
+        new AlertDialog.Builder(context).
+          setIcon(android.R.drawable.ic_dialog_alert).
+          setTitle(Util.getString(context, "warning_singleusermode_restart_title").getOrElse("Apply new settings")).
+          setMessage(Util.getString(context, "session_singleusermode_restart_content").
+            getOrElse("Single user/basic mode provide only restricted abilities of session control.\n\n" +
+              "You must restart SSH before the new settings will take effect. Do you want to restart service now?")).
+          setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+            def onClick(dialog: DialogInterface, whichButton: Int) = {
+              val context = dialog.asInstanceOf[AlertDialog].getContext
+              IAmBusy(DefaultUser, Util.getString(context, "state_stopping_service").getOrElse("stopping service"))
+              Futures.future {
+                AppControl.Inner.callStop(context.getPackageName)() match {
+                  case true =>
+                    IAmMumble(Android.getString(context, "state_stopped_service").getOrElse("stopped service"))
+                    IAmMumble(Android.getString(context, "state_starting_service").getOrElse("starting service"))
+                    Futures.future {
+                      AppControl.Inner.callStart(context.getPackageName)() match {
+                        case true =>
+                          log.info(context.getPackageName + " started")
+                          IAmReady(DefaultUser, Android.getString(context, "state_started_service").getOrElse("started service"))
+                        case false =>
+                          log.warn(context.getPackageName + " start failed")
+                          IAmReady(DefaultUser, Android.getString(context, "state_started_service").getOrElse("started service"))
+                      }
+                    } case false =>
+                    IAmReady(DefaultUser, Android.getString(context, "state_stopped_service").getOrElse("stopped service"))
+                }
+              }
+            }
+          }).
+          setNegativeButton(_root_.android.R.string.cancel, null).
+          create()
+      }
+    }
   }*/
 }

@@ -100,7 +100,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
       else {
         val bundle = new Bundle
         bundle.putParcelable("info", info)
-        SafeDialog.show(fragment.getSherlockActivity, Some(R.id.main_topPanel), "dialog_info_interfaces", () => dialog, bundle)
+        SafeDialog.show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog.toString, () => dialog, bundle)
       }
   }
   @Loggable
@@ -374,12 +374,13 @@ object ComponentBlock extends Logging {
     }
   }
   object Dialog {
-    private[ComponentBlock] lazy val info = AppComponent.Context.map(context =>
+    lazy val info = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[Info].getName, null).asInstanceOf[Info])
     class Info extends SherlockSafeDialogFragment with Logging {
       @volatile private var content = new WeakReference[TextView](null)
       @volatile private var dirtyHackForDirtyFramework = false
 
+      override def toString = "dialog_service_components"
       @Loggable
       override def onCreate(savedInstanceState: Bundle) {
         super.onCreate(savedInstanceState)

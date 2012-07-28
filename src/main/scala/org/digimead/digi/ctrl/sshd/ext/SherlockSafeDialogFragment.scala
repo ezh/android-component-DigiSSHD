@@ -24,8 +24,25 @@ package org.digimead.digi.ctrl.sshd.ext
 import com.actionbarsherlock.app.SherlockDialogFragment
 import android.content.DialogInterface
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import android.support.v4.app.FragmentManager
+import org.digimead.digi.ctrl.lib.log.Logging
 
-class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog {
+class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog with Logging {
+/*  override def show(manager: FragmentManager, tag: String) {
+    // DialogFragment.show() will take care of adding the fragment
+    // in a transaction.  We also want to remove any currently showing
+    // dialog, so make our own transaction and take care of that here.
+    val ft = manager.beginTransaction()
+    val prev = manager.findFragmentByTag(tag)
+    if (prev != null) {
+      ft.remove(prev)
+    }
+    ft.addToBackStack(null)
+    ft.commitAllowingStateLoss
+    log.g_a_s_e("!!!")
+    super.show(manager, tag)
+  }*/
+  // http://stackoverflow.com/questions/10579545/dialogfragment-using-alertdialog-with-custom-layout
   override def onDismiss(dialog: DialogInterface) {
     super.onDismiss(dialog)
     notifySafeDialogDismissed(dialog)

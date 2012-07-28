@@ -48,7 +48,7 @@ import android.widget.TextView
 
 object UserAdapter extends Logging {
   private val nameMaximumLength = 16
-  private lazy val adapter: Option[ArrayAdapter[UserInfo]] = AppComponent.Context map {
+  private[user] lazy val adapter: Option[ArrayAdapter[UserInfo]] = AppComponent.Context map {
     context =>
       val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
       val users = userPref.getAll.map({
