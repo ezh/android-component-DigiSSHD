@@ -23,12 +23,12 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
 
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
@@ -62,7 +62,7 @@ object DSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
       //     SSHDCommon.optionChangedOnRestartNotify(context, option, getState[Boolean](context).toString)
     } else {
-      val message = Android.getString(context, "option_rsa_dss_at_least_one").getOrElse("at least one of the encription type must be selected from either RSA or DSA")
+      val message = Util.getString(context, "option_rsa_dss_at_least_one").getOrElse("at least one of the encription type must be selected from either RSA or DSA")
       view.setChecked(getState[Boolean](context))
       Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
@@ -79,37 +79,37 @@ object DSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
     log.debug("create context menu for " + option.tag)
     menu.setHeaderTitle(option.tag.toUpperCase)
     /*if (item.icon.nonEmpty)
-      Android.getId(context, item.icon, "drawable") match {
+      Util.getId(context, item.icon, "drawable") match {
         case i if i != 0 =>
           menu.setHeaderIcon(i)
         case _ =>
       }*/
-    menu.add(Menu.NONE, Android.getId(context, "generate_host_key"), 1,
-      Android.getString(context, "generate_host_key").getOrElse("Generate host key"))
-    menu.add(Menu.NONE, Android.getId(context, "import_host_key"), 2,
-      Android.getString(context, "import_host_key").getOrElse("Import host key"))
-    menu.add(Menu.NONE, Android.getId(context, "export_host_key"), 2,
-      Android.getString(context, "export_host_key").getOrElse("Export host key"))
+    menu.add(Menu.NONE, Util.getId(context, "generate_host_key"), 1,
+      Util.getString(context, "generate_host_key").getOrElse("Generate host key"))
+    menu.add(Menu.NONE, Util.getId(context, "import_host_key"), 2,
+      Util.getString(context, "import_host_key").getOrElse("Import host key"))
+    menu.add(Menu.NONE, Util.getId(context, "export_host_key"), 2,
+      Util.getString(context, "export_host_key").getOrElse("Export host key"))
   }
   override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
     fragment =>
       val context = fragment.getActivity
       menuItem.getItemId match {
-        case id if id == Android.getId(context, "generate_host_key") =>
+        case id if id == Util.getId(context, "generate_host_key") =>
           Futures.future {
             getSourceKeyFile().foreach(file =>
               OptionBlock.checkKeyAlreadyExists(context, "DSA host", file,
                 (activity) => generateHostKey(activity)))
           }
           true
-        case id if id == Android.getId(context, "import_host_key") =>
+        case id if id == Util.getId(context, "import_host_key") =>
           Futures.future {
             getSourceKeyFile().foreach(file =>
               OptionBlock.checkKeyAlreadyExists(context, "DSA host", file,
                 (activity) => importHostKey(activity)))
           }
           true
-        case id if id == Android.getId(context, "export_host_key") =>
+        case id if id == Util.getId(context, "export_host_key") =>
           Futures.future { exportHostKey(context) }
           true
         case item =>

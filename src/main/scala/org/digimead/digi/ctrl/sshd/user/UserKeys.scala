@@ -23,7 +23,6 @@ package org.digimead.digi.ctrl.sshd.user
 
 import java.io.BufferedReader
 import java.io.File
-import java.io.FileFilter
 import java.io.FileWriter
 import java.io.FilenameFilter
 import java.io.InputStreamReader
@@ -32,26 +31,24 @@ import java.io.OutputStream
 import scala.Array.canBuildFrom
 import scala.actors.Futures
 
+import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.dialog.FileChooser
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.message.IAmYell
-import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
 import android.app.Activity
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -83,7 +80,7 @@ object UserKeys extends Logging {
   def importKey(activity: Activity, user: UserInfo) {
     /*AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
       val dialog = FileChooser.createDialog(activity,
-        Android.getString(activity, "dialog_import_key").getOrElse("Import public key"),
+        Util.getString(activity, "dialog_import_key").getOrElse("Import public key"),
         new File("/"),
         importKeyOnResult,
         new FileFilter { override def accept(file: File) = true },
@@ -119,17 +116,17 @@ object UserKeys extends Logging {
         importFileTo.getParentFile.mkdirs
       if (Common.copyFile(importFileFrom, importFileTo)) {
         updateAuthorizedKeys(context, user)
-        Toast.makeText(context, Android.getString(context, "import_public_key_successful").
+        Toast.makeText(context, Util.getString(context, "import_public_key_successful").
           getOrElse("import \"%s\" key succesful").format(importFileFrom.getName), Toast.LENGTH_SHORT).show
       } else
-        Toast.makeText(context, Android.getString(context, "import_public_key_failed").
+        Toast.makeText(context, Util.getString(context, "import_public_key_failed").
           getOrElse("import \"%s\" key failed").format(importFileFrom.getName), Toast.LENGTH_LONG).show
     }) getOrElse {
-      Toast.makeText(context, Android.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
+      Toast.makeText(context, Util.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
     }
   } catch {
     case e =>
-      Toast.makeText(context, Android.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
+      Toast.makeText(context, Util.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
       log.error(e.getMessage, e)
   }
   @Loggable
@@ -140,7 +137,7 @@ object UserKeys extends Logging {
         val intent = new Intent(Intent.ACTION_SEND)
         intent.setType("application/octet-stream")
         intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-        context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
+        context.startActivity(Intent.createChooser(intent, Util.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
       case _ =>
         val message = "unable to export unexists/broken Dropbear private key"
         AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
@@ -161,7 +158,7 @@ object UserKeys extends Logging {
         val intent = new Intent(Intent.ACTION_SEND)
         intent.setType("application/octet-stream")
         intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-        context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
+        context.startActivity(Intent.createChooser(intent, Util.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
       case _ =>
         val message = "unable to export unexists/broken OpenSSH private key"
         AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }

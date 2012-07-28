@@ -25,14 +25,12 @@ import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
-import android.app.AlertDialog
 import android.view.View
 import android.widget.CheckBox
 import android.widget.ListView
@@ -40,10 +38,11 @@ import android.widget.Toast
 
 object DefaultUser extends CheckBoxItem with Logging {
   val option: DOption.OptVal = DOption.Value("android_user", classOf[Boolean], true: java.lang.Boolean)
+
   @Loggable
   def onCheckboxClick(view: CheckBox, lastState: Boolean) = TabContent.fragment.map {
     fragment =>
-      val context = fragment.getActivity
+      val context = fragment.getSherlockActivity
       if (SSHDPreferences.AuthentificationMode.get(context) == AuthentificationMode.AuthType.SingleUser)
         AnyBase.runOnUiThread {
           updateCheckbox(view)
@@ -51,20 +50,20 @@ object DefaultUser extends CheckBoxItem with Logging {
         }
       else
         //AppComponent.Inner.showDialogSafe(context, "android_user_state", () => {
-          //          val dialog = if (android.enabled)
-          //            SSHDUsers.Dialog.createDialogUserDisable(context, android, (user) => {
-          //              android = user
-          //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-          //            })
-          //          else
-          //            SSHDUsers.Dialog.createDialogUserEnable(context, android, (user) => {
-          //              android = user
-          //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-          //            })
-          //          dialog.show
-          //          dialog
-          null
-        //})
+        //          val dialog = if (android.enabled)
+        //            SSHDUsers.Dialog.createDialogUserDisable(context, android, (user) => {
+        //              android = user
+        //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
+        //            })
+        //          else
+        //            SSHDUsers.Dialog.createDialogUserEnable(context, android, (user) => {
+        //              android = user
+        //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
+        //            })
+        //          dialog.show
+        //          dialog
+        null
+    //})
   }
   // fucking android 2.x :-/, shitty puzzles
   def updateCheckbox(view: CheckBox) = {
@@ -79,9 +78,11 @@ object DefaultUser extends CheckBoxItem with Logging {
   override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
     TabContent.fragment.map {
       fragment =>
-        val context = fragment.getActivity
-        //AppComponent.Inner.showDialogSafe[AlertDialog](context, "dialog_password", () => {
-          /*          SSHDUsers.Dialog.createDialogUserChangePassword(context, android, (user) => {
+        val context = fragment.getSherlockActivity
+      //SafeDialog.show(fragment.getActivity, Some(R.id.main_topPanel), "dialog_info_interfaces", () => new ComponentBlock.Dialog.Info, bundle)
+
+      //AppComponent.Inner.showDialogSafe[AlertDialog](context, "dialog_password", () => {
+      /*          SSHDUsers.Dialog.createDialogUserChangePassword(context, android, (user) => {
             android = user
             if (SSHDPreferences.AuthentificationMode.get(activity) == AuthentificationMode.AuthType.SingleUser &&
               AppComponent.Inner.state.get.value == DState.Active)
@@ -124,8 +125,8 @@ object DefaultUser extends CheckBoxItem with Logging {
                 })
               }
           })*/
-         // null
-        ///})
+      // null
+      ///})
     }
   }
   /*  

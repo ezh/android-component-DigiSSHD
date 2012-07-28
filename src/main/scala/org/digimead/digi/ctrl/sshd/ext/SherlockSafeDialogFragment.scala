@@ -19,16 +19,15 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service.option
+package org.digimead.digi.ctrl.sshd.ext
 
-import org.digimead.digi.ctrl.lib.androidext.Util
-import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
+import com.actionbarsherlock.app.SherlockDialogFragment
+import android.content.DialogInterface
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 
-import android.content.Context
-import android.view.LayoutInflater
-import android.view.View
-
-trait TextViewItem extends Item {
-  def getView(context: Context, inflater: LayoutInflater): View =
-    inflater.inflate(Util.getId(context, "element_option_list_item_value", "layout"), null)
+class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog {
+  override def onDismiss(dialog: DialogInterface) {
+    super.onDismiss(dialog)
+    notifySafeDialogDismissed(dialog)
+  }
 }

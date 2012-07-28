@@ -23,6 +23,7 @@ package org.digimead.digi.ctrl.sshd.info
 
 import scala.actors.Futures
 
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.CommunityBlock
@@ -31,7 +32,6 @@ import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.block.ThanksBlock
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmYell
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
@@ -41,6 +41,7 @@ import org.digimead.digi.ctrl.sshd.ext.TabInterface
 import com.actionbarsherlock.app.SherlockListFragment
 import com.actionbarsherlock.view.Menu
 import com.actionbarsherlock.view.MenuInflater
+import com.actionbarsherlock.view.MenuItem
 import com.commonsware.cwac.merge.MergeAdapter
 
 import android.app.Activity
@@ -69,20 +70,20 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
   @Loggable
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = SSHDActivity.ppGroup("info.TabContent.onCreateView") {
     val view = inflater.inflate(R.layout.tab_info, null)
-    val context = getActivity
+    val context = getSherlockActivity
     // prepare empty view
     // interfaces
-    val interfacesHeader = view.findViewById(Android.getId(context, "nodata_header_interface")).asInstanceOf[TextView]
-    interfacesHeader.setText(Html.fromHtml(Android.getString(context, "block_interface_title").getOrElse("interfaces")))
+    val interfacesHeader = view.findViewById(Util.getId(context, "nodata_header_interface")).asInstanceOf[TextView]
+    interfacesHeader.setText(Html.fromHtml(Util.getString(context, "block_interface_title").getOrElse("interfaces")))
     // community
-    val communityHeader = view.findViewById(Android.getId(context, "nodata_header_community")).asInstanceOf[TextView]
-    communityHeader.setText(Html.fromHtml(Android.getString(context, "block_community_title").getOrElse("community")))
+    val communityHeader = view.findViewById(Util.getId(context, "nodata_header_community")).asInstanceOf[TextView]
+    communityHeader.setText(Html.fromHtml(Util.getString(context, "block_community_title").getOrElse("community")))
     // support
-    val supportHeader = view.findViewById(Android.getId(context, "nodata_header_support")).asInstanceOf[TextView]
-    supportHeader.setText(Html.fromHtml(Android.getString(context, "block_support_title").getOrElse("support")))
+    val supportHeader = view.findViewById(Util.getId(context, "nodata_header_support")).asInstanceOf[TextView]
+    supportHeader.setText(Html.fromHtml(Util.getString(context, "block_support_title").getOrElse("support")))
     // legal
-    val legalHeader = view.findViewById(Android.getId(context, "nodata_header_legal")).asInstanceOf[TextView]
-    legalHeader.setText(Html.fromHtml(Android.getString(context, "block_legal_title").getOrElse("legal")))
+    val legalHeader = view.findViewById(Util.getId(context, "nodata_header_legal")).asInstanceOf[TextView]
+    legalHeader.setText(Html.fromHtml(Util.getString(context, "block_legal_title").getOrElse("legal")))
     view
   }
   @Loggable
@@ -99,7 +100,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       showTabDescriptionFragment()
   }
   @Loggable
-  def onTabSelected() = if (TabContent.fragment == Some(this) && getActivity != null)
+  def onTabSelected() = if (TabContent.fragment == Some(this) && getSherlockActivity != null)
     showTabDescriptionFragment()
   @Loggable
   override def onDetach() {
@@ -161,10 +162,10 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item: LegalBlock.Item =>
             legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
-            menu.add(Menu.NONE, Android.getId(getActivity, "block_legal_coreutils"), 1,
-              Android.getString(getActivity, "block_legal_coreutils").getOrElse("GNU Coreutils"))
-            menu.add(Menu.NONE, Android.getId(getActivity, "block_legal_grep"), 1,
-              Android.getString(getActivity, "block_legal_grep").getOrElse("GNU Grep"))
+            menu.add(Menu.NONE, Util.getId(getSherlockActivity, "block_legal_coreutils"), 1,
+              Util.getString(getSherlockActivity, "block_legal_coreutils").getOrElse("GNU Coreutils"))
+            menu.add(Menu.NONE, Util.getId(getSherlockActivity, "block_legal_grep"), 1,
+              Util.getString(getSherlockActivity, "block_legal_grep").getOrElse("GNU Grep"))
           case item: InterfaceBlock.Item =>
             interfaceBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item =>
@@ -193,7 +194,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
           thanksBlock.onContextItemSelected(menuItem, item)
         case item: LegalBlock.Item =>
           menuItem.getItemId match {
-            case id if id == Android.getId(getActivity, "block_legal_coreutils") =>
+            case id if id == Util.getId(getSherlockActivity, "block_legal_coreutils") =>
               log.debug("open link from " + TabContent.CoreutilsURL)
               try {
                 val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.CoreutilsURL))
@@ -205,7 +206,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
                   IAmYell("Unable to open license link " + TabContent.CoreutilsURL, e)
                   false
               }
-            case id if id == Android.getId(getActivity, "block_legal_grep") =>
+            case id if id == Util.getId(getSherlockActivity, "block_legal_grep") =>
               log.debug("open link from " + TabContent.GrepURL)
               try {
                 val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.GrepURL))

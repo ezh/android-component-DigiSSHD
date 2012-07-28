@@ -29,7 +29,7 @@ import android.view.View
 import android.view.ViewGroup
 
 class SupportFragment extends SherlockFragment with TabInterface {
-  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = new View(getActivity())
+  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = new View(getSherlockActivity())
   def getTabDescriptionFragment() = None
   def onTabSelected() {}
 }

@@ -26,15 +26,20 @@ import java.util.ArrayList
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.actors.Futures
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
+import org.digimead.digi.ctrl.lib.declaration.DOption
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 import org.digimead.digi.ctrl.sshd.service.option.DSAPublicKeyEncription
 import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
@@ -44,8 +49,8 @@ import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.Activity
 import android.content.Context
+import android.support.v4.app.FragmentActivity
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -58,6 +63,7 @@ import android.widget.TextView
 
 class OptionBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[OptionBlock.Item] with Logging {
   OptionBlock.block = Some(this)
+  Futures.future { OptionBlock.updateItems }
 
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
@@ -66,7 +72,7 @@ class OptionBlock(val context: Context)(implicit @transient val dispatcher: Disp
     Option(OptionBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
   @Loggable
-  def items = OptionBlock.items
+  def items = for (i <- 0 until OptionBlock.adapter.getCount) yield OptionBlock.adapter.getItem(i)
   @Loggable
   def onListItemClick(l: ListView, v: View, item: OptionBlock.Item) =
     item.onListItemClick(l, v)
@@ -77,8 +83,8 @@ class OptionBlock(val context: Context)(implicit @transient val dispatcher: Disp
     item.onContextItemSelected(menuItem)
 }
 
-//, items.toArray
 object OptionBlock extends Logging {
+  /** OptionBlock instance */
   @volatile private var block: Option[OptionBlock] = None
   /** OptionBlock adapter */
   private[service] lazy val adapter = AppComponent.Context match {
@@ -92,8 +98,8 @@ object OptionBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Android.getString(context, "block_option_title").getOrElse("options")))
+        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Util.getString(context, "block_option_title").getOrElse("options")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -102,15 +108,15 @@ object OptionBlock extends Logging {
   private lazy val items: Seq[OptionBlock.Item] = Seq(DefaultUser, GrantSuperuserPermission, NetworkPort,
     RSAPublicKeyEncription, DSAPublicKeyEncription, AuthentificationMode)
 
-  def checkKeyAlreadyExists(activity: Activity, keyName: String, key: File, callback: (Activity) => Any) {
+  private[service] def checkKeyAlreadyExists(activity: FragmentActivity, keyName: String, key: File, callback: (FragmentActivity) => Any) {
     if (!key.exists || key.length == 0)
       callback(activity)
     else {
       val affirmative = new AtomicBoolean(false)
-      /*   AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
+      /*      AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
         val dialog = new AlertDialog.Builder(activity).
-          setTitle(Android.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
-          setMessage(Android.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
+          setTitle(Util.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
+          setMessage(Util.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
           setIcon(android.R.drawable.ic_dialog_alert).
           setPositiveButton(_root_.android.R.string.ok, new DialogInterface.OnClickListener() {
             def onClick(dialog: DialogInterface, whichButton: Int) = affirmative.set(true)
@@ -121,6 +127,19 @@ object OptionBlock extends Logging {
         dialog
       }, () => Futures.future { if (affirmative.get) callback(activity) })*/
     }
+  }
+  private def updateItems = if (adapter.getItem(0) == null) {
+    val newItems = SyncVar(items)
+    AnyBase.runOnUiThread {
+      adapter.setNotifyOnChange(false)
+      adapter.clear
+      newItems.get.foreach(adapter.add)
+      adapter.setNotifyOnChange(true)
+      adapter.notifyDataSetChanged
+      newItems.unset()
+    }
+    if (!newItems.waitUnset(DTimeout.normal))
+      log.fatal("UI thread hang")
   }
 
   trait Item extends Block.Item {
@@ -138,7 +157,7 @@ object OptionBlock extends Logging {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {
@@ -170,7 +189,7 @@ object OptionBlock extends Logging {
                   Level.intermediate(view)
                   view
                 case _ =>
-                  inflater.inflate(Android.getId(context, "option_list_item_multiple_choice", "layout"), null)
+                  inflater.inflate(Util.getId(context, "option_list_item_multiple_choice", "layout"), null)
               }
             val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
             val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]

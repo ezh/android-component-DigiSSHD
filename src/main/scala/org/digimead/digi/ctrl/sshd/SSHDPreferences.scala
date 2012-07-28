@@ -31,7 +31,6 @@ import org.digimead.digi.ctrl.lib.dialog.Preferences
 import org.digimead.digi.ctrl.lib.log.RichLogger
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import android.content.Context
@@ -45,6 +44,7 @@ import org.digimead.digi.ctrl.lib.declaration.DState
 import android.widget.Toast
 import org.digimead.digi.ctrl.lib.util.PublicPreferences
 import org.digimead.digi.ctrl.sshd.service.option.{ AuthentificationMode => OAuthentificationMode }
+import org.digimead.digi.ctrl.lib.androidext.Util
 
 class SSHDPreferences extends Preferences {
   implicit val logger = log
@@ -79,10 +79,10 @@ object SSHDPreferences {
   }
   def applyOnRestartNotify(context: Context, option: DOption#OptVal, state: String)(implicit logger: RichLogger, dispatcher: Dispatcher) {
     if (AppComponent.Inner.state.get.value == DState.Passive) {
-      val message = Android.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)
+      val message = Util.getString(context, "option_changed").getOrElse("%1$s set to %2$s").format(option.name(context), state)
       AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     } else {
-      val message = Android.getString(context, "option_changed_on_restart").getOrElse("%1$s set to %2$s, it will be applied on the next run").format(option.name(context), state)
+      val message = Util.getString(context, "option_changed_on_restart").getOrElse("%1$s set to %2$s, it will be applied on the next run").format(option.name(context), state)
       AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     }
   }
@@ -185,7 +185,7 @@ object SSHDPreferences {
       val editor = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).edit
       editor.putInt(option.tag, value)
       editor.commit
-      val message = Android.getString(context, "set_network_port_notify").getOrElse("set network port to %d").format(value)
+      val message = Util.getString(context, "set_network_port_notify").getOrElse("set network port to %d").format(value)
       if (notify)
         applyOnRestartNotify(context, option, value.toString)
       IAmMumble(message)(logger, dispatcher)
@@ -203,9 +203,9 @@ object SSHDPreferences {
       editor.putBoolean(option.tag, value)
       editor.commit
       val message = if (value)
-        Android.getString(context, "enable_as_root_notify").getOrElse("grant superuser permission").format(value)
+        Util.getString(context, "enable_as_root_notify").getOrElse("grant superuser permission").format(value)
       else
-        Android.getString(context, "disable_as_root_notify").getOrElse("revoke superuser permission").format(value)
+        Util.getString(context, "disable_as_root_notify").getOrElse("revoke superuser permission").format(value)
       if (notify)
         applyOnRestartNotify(context, option, value.toString)
       IAmMumble(message)(logger, dispatcher)
@@ -222,7 +222,7 @@ object SSHDPreferences {
       val editor = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).edit
       editor.putInt(option.tag, value.id)
       editor.commit
-      val message = Android.getString(context, "set_authentification_mode_notify").getOrElse("set authentification mode to %s").format(value)
+      val message = Util.getString(context, "set_authentification_mode_notify").getOrElse("set authentification mode to %s").format(value)
       if (notify)
         applyOnRestartNotify(context, option, value.toString)
       IAmMumble(message)(logger, dispatcher)

@@ -39,7 +39,6 @@ import org.digimead.digi.ctrl.lib.info.ComponentInfo
 import org.digimead.digi.ctrl.lib.info.ExecutableInfo
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
 import android.app.Activity
@@ -75,11 +74,11 @@ class SessionAdapter(context: Context, layout: Int)
             val kind = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]
             val state = view.findViewById(android.R.id.button1).asInstanceOf[ImageButton]
             kind.setBackgroundDrawable(context.getResources.getDrawable(R.drawable.ic_launcher))
-            description.setText(Android.getString(context, "session_description").getOrElse("%1$s").
+            description.setText(Util.getString(context, "session_description").getOrElse("%1$s").
               format(item.component.name))
             state.setFocusable(false)
             state.setFocusableInTouchMode(false)
-            subinfo.setText(Android.getString(context, "time_minutes").getOrElse("%02dm %02ds").format(0, 0))
+            subinfo.setText(Util.getString(context, "time_minutes").getOrElse("%02dm %02ds").format(0, 0))
             val processID = cursor.getInt(DControlProvider.Field.ProcessID.id)
             item.durationField = new WeakReference(subinfo)
             item.view = new WeakReference(view)
@@ -224,9 +223,9 @@ object SessionAdapter extends Logging {
         val minutes = ((time / (1000 * 60)) % 60).toInt
         val hours = ((time / (1000 * 60 * 60))).toInt
         val text = if (time < 1000 * 60 * 60)
-          Android.getString(durationField.getContext, "time_minutes").getOrElse("%02dm %02ds").format(minutes, seconds)
+          Util.getString(durationField.getContext, "time_minutes").getOrElse("%02dm %02ds").format(minutes, seconds)
         else
-          Android.getString(durationField.getContext, "time_hours").getOrElse("%dh %02dm %02ds").format(hours, minutes, seconds)
+          Util.getString(durationField.getContext, "time_hours").getOrElse("%dh %02dm %02ds").format(hours, minutes, seconds)
         Some((durationField, text))
       } else
         None

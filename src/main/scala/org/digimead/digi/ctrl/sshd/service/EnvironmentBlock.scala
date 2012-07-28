@@ -23,6 +23,7 @@ package org.digimead.digi.ctrl.sshd.service
 
 import java.net.URL
 
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -30,7 +31,6 @@ import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.R
 
 import com.commonsware.cwac.merge.MergeAdapter
@@ -51,7 +51,7 @@ import android.widget.TextView
 // buy or not
 
 class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[EnvironmentBlock.Item] with Logging {
-  def items = for (i <- 0 to EnvironmentBlock.adapter.getCount) yield EnvironmentBlock.adapter.getItem(i)
+  def items = for (i <- 0 until EnvironmentBlock.adapter.getCount) yield EnvironmentBlock.adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
@@ -71,11 +71,11 @@ class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher:
   @Loggable
   def onClickServiceReinstall(v: View) = {
     IAmMumble("reinstall files/force prepare evironment")
-    //Toast.makeText(this, Android.getString(getActivity, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
+    //Toast.makeText(this, Util.getString(getActivity, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
     /*    AppComponent.Inner ! AppComponent.Message.PrepareEnvironment(this, false, true, (success) =>
       runOnUiThread(new Runnable() {
         def run = if (success)
-          Toast.makeText(TabActivity.this, Android.getString(TabActivity.this,
+          Toast.makeText(TabActivity.this, Util.getString(TabActivity.this,
             "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
       }))*/
   }
@@ -108,9 +108,9 @@ object EnvironmentBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Android.getId(context.getApplicationContext, "element_service_environment_header", "layout"), null).asInstanceOf[LinearLayout]
+        inflate(Util.getId(context.getApplicationContext, "element_service_environment_header", "layout"), null).asInstanceOf[LinearLayout]
       val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-      headerTitle.setText(Html.fromHtml(Android.getString(context, "block_environment_title").getOrElse("environment")))
+      headerTitle.setText(Html.fromHtml(Util.getString(context, "block_environment_title").getOrElse("environment")))
       val onClickUsersButton = view.findViewById(R.id.service_environment_users_button).asInstanceOf[Button]
       onClickUsersButton.setOnClickListener(new View.OnClickListener() {
         override def onClick(v: View) = EnvironmentBlock.block.foreach(_.onClickUsers(v))

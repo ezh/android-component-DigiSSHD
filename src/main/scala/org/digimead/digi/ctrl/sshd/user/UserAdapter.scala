@@ -27,6 +27,7 @@ import java.util.ArrayList
 import scala.Option.option2Iterable
 import scala.collection.JavaConversions._
 
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -34,7 +35,6 @@ import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
 
@@ -70,7 +70,7 @@ object UserAdapter extends Logging {
           val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
           val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckedTextView]
           text1.setText(item.name)
-          text2.setText(Android.getString(view.getContext, "users_home_at").getOrElse("Home at '%s'").format(item.home))
+          text2.setText(Util.getString(view.getContext, "users_home_at").getOrElse("Home at '%s'").format(item.home))
           checkbox.setChecked(item.enabled)
           view
         }

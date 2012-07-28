@@ -27,14 +27,17 @@ import java.util.Arrays
 import scala.actors.Futures
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
@@ -53,13 +56,17 @@ import android.widget.ListView
 import android.widget.TextView
 
 class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Logging {
-  val items = FilterBlock.items
+  FilterBlock.block = Some(this)
+  Futures.future { FilterBlock.updateItems }
+
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = synchronized {
     log.debug("append " + getClass.getName + " to MergeAdapter")
     Option(FilterBlock.header).foreach(mergeAdapter.addView)
     Option(FilterBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
+  @Loggable
+  def items = for (i <- 0 until FilterBlock.adapter.getCount) yield FilterBlock.adapter.getItem(i)
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {}
   @Loggable
@@ -70,7 +77,7 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
           val item = items.head
           val dialog = new AlertDialog.Builder(activity).
             setTitle(R.string.dialog_acl_order_title).
-            setMessage(Html.fromHtml(Android.getString(activity, if (item.isFilterADA)
+            setMessage(Html.fromHtml(Util.getString(activity, if (item.isFilterADA)
               "dialog_acl_order_ada_message"
             else
               "dialog_acl_order_dad_message").getOrElse("Do you want change ACL rules order?"))).
@@ -140,10 +147,10 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
     items.head.updateUI
 }
 
-// items
 object FilterBlock extends Logging {
+  /** FilterBlock instance */
   @volatile private var block: Option[FilterBlock] = None
-  /** InterfaceBlock adapter */
+  /** FilterBlock adapter */
   private[session] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
       new FilterBlock.Adapter(context.getApplicationContext)
@@ -151,12 +158,12 @@ object FilterBlock extends Logging {
       log.fatal("lost ApplicationContext")
       null
   }
-  /** InterfaceBlock header view */
+  /** FilterBlock header view */
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Android.getString(context, "block_filter_title").getOrElse("connection filters")))
+        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Util.getString(context, "block_filter_title").getOrElse("connection filters")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -165,8 +172,8 @@ object FilterBlock extends Logging {
   private lazy val items = Seq(FilterBlock.Item())
   lazy val iconADA = AppComponent.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_ada))
   lazy val iconDAD = AppComponent.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_dad))
-  lazy val FILTER_REQUEST_ALLOW = AppComponent.Context.map(Android.getId(_, "filter_request_allow")).getOrElse(0)
-  lazy val FILTER_REQUEST_DENY = AppComponent.Context.map(Android.getId(_, "filter_request_deny")).getOrElse(0)
+  lazy val FILTER_REQUEST_ALLOW = AppComponent.Context.map(Util.getId(_, "filter_request_allow")).getOrElse(0)
+  lazy val FILTER_REQUEST_DENY = AppComponent.Context.map(Util.getId(_, "filter_request_deny")).getOrElse(0)
 
   @Loggable
   def updateFilterItem() =
@@ -174,6 +181,20 @@ object FilterBlock extends Logging {
   @Loggable
   def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) =
     block.foreach(_.onActivityResult(requestCode, resultCode, data))
+  private def updateItems = if (adapter.getItem(0) == null) {
+    val newItems = SyncVar(items)
+    AnyBase.runOnUiThread {
+      adapter.setNotifyOnChange(false)
+      adapter.clear
+      newItems.get.foreach(adapter.add)
+      adapter.setNotifyOnChange(true)
+      adapter.notifyDataSetChanged
+      newItems.unset()
+    }
+    if (!newItems.waitUnset(DTimeout.normal))
+      log.fatal("UI thread hang")
+  }
+
   case class Item() extends Block.Item {
     var leftPart = new WeakReference[TextView](null)
     var rightPart = new WeakReference[TextView](null)
@@ -187,38 +208,41 @@ object FilterBlock extends Logging {
       view <- view.get
       leftPart <- leftPart.get
       rightPart <- rightPart.get
-    } {
+    } Futures.future {
       val allowAll = SSHDPreferences.FilterConnection.Allow.get(view.getContext)
       val activeAllow = allowAll.filter(_._2).size
       val totalAllow = allowAll.size
       val denyAll = SSHDPreferences.FilterConnection.Deny.get(view.getContext)
       val activeDeny = denyAll.filter(_._2).size
       val totalDeny = denyAll.size
-      if (isFilterADA) {
-        leftPart.setText(Html.fromHtml(Android.getString(leftPart.getContext, "session_filter_allow_text").
-          getOrElse("%1$d<font color='green'> : </font>%2$d").format(activeAllow, totalAllow)))
-        rightPart.setText(Html.fromHtml(Android.getString(leftPart.getContext, "session_filter_deny_text").
-          getOrElse("%1$d<font color='red'> : </font>%2$d").format(activeDeny, totalDeny)))
-      } else {
-        leftPart.setText(Html.fromHtml(Android.getString(leftPart.getContext, "session_filter_deny_text").
-          getOrElse("%1$d<font color='red'> : </font>%2$d").format(activeDeny, totalDeny)))
-        rightPart.setText(Html.fromHtml(Android.getString(leftPart.getContext, "session_filter_allow_text").
-          getOrElse("%1$d<font color='green'> : </font>%2$d").format(activeAllow, totalAllow)))
+      AnyBase.runOnUiThread {
+        if (isFilterADA) {
+          leftPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_allow_text").
+            getOrElse("%1$d<font color='green'> : </font>%2$d").format(activeAllow, totalAllow)))
+          rightPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_deny_text").
+            getOrElse("%1$d<font color='red'> : </font>%2$d").format(activeDeny, totalDeny)))
+        } else {
+          leftPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_deny_text").
+            getOrElse("%1$d<font color='red'> : </font>%2$d").format(activeDeny, totalDeny)))
+          rightPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_allow_text").
+            getOrElse("%1$d<font color='green'> : </font>%2$d").format(activeAllow, totalAllow)))
+        }
       }
     }
   }
   class Adapter(context: Context)
     extends ArrayAdapter[Item](context, R.layout.element_session_filter_item, android.R.id.text1, new ArrayList[Item](Arrays.asList(null))) {
+    private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {
           case None =>
-            val view = super.getView(position, convertView, parent)
+            val view = inflater.inflate(R.layout.element_session_filter_item, null)
             val leftPart = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
             val rightPart = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
             val button = view.findViewById(android.R.id.icon1).asInstanceOf[ImageView]

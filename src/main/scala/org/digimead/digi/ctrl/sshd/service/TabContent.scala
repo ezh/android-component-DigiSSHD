@@ -21,10 +21,15 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
+import scala.annotation.target.beanGetter
+import scala.annotation.target.beanSetter
+import scala.annotation.target.getter
+import scala.annotation.target.setter
+
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
@@ -39,6 +44,7 @@ import com.commonsware.cwac.merge.MergeAdapter
 import android.app.Activity
 import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentActivity
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -62,20 +68,20 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View =
     SSHDActivity.ppGroup("service.TabContent.onCreateView") {
       val view = inflater.inflate(R.layout.tab_service, null)
-      val context = getActivity
+      val context = getSherlockActivity
       // prepare empty view
       // interfaceFilters
-      val interfaceFiltersHeader = view.findViewById(Android.getId(context, "nodata_header_interfacefilter")).asInstanceOf[TextView]
-      interfaceFiltersHeader.setText(Html.fromHtml(Android.getString(context, "block_interfacefilter_title").getOrElse("interface filters")))
+      val interfaceFiltersHeader = view.findViewById(Util.getId(context, "nodata_header_interfacefilter")).asInstanceOf[TextView]
+      interfaceFiltersHeader.setText(Html.fromHtml(Util.getString(context, "block_interfacefilter_title").getOrElse("interface filters")))
       // options
-      val optionsHeader = view.findViewById(Android.getId(context, "nodata_header_option")).asInstanceOf[TextView]
-      optionsHeader.setText(Html.fromHtml(Android.getString(context, "block_option_title").getOrElse("options")))
+      val optionsHeader = view.findViewById(Util.getId(context, "nodata_header_option")).asInstanceOf[TextView]
+      optionsHeader.setText(Html.fromHtml(Util.getString(context, "block_option_title").getOrElse("options")))
       // serviceEnvironment
-      val serviceEnvironmentHeader = view.findViewById(Android.getId(context, "nodata_header_serviceenvironment")).asInstanceOf[TextView]
-      serviceEnvironmentHeader.setText(Html.fromHtml(Android.getString(context, "block_serviceenvironment_title").getOrElse("environment")))
+      val serviceEnvironmentHeader = view.findViewById(Util.getId(context, "nodata_header_serviceenvironment")).asInstanceOf[TextView]
+      serviceEnvironmentHeader.setText(Html.fromHtml(Util.getString(context, "block_serviceenvironment_title").getOrElse("environment")))
       // serviceSoftware
-      val serviceSoftwareHeader = view.findViewById(Android.getId(context, "nodata_header_servicesoftware")).asInstanceOf[TextView]
-      serviceSoftwareHeader.setText(Html.fromHtml(Android.getString(context, "block_components_title").getOrElse("components")))
+      val serviceSoftwareHeader = view.findViewById(Util.getId(context, "nodata_header_servicesoftware")).asInstanceOf[TextView]
+      serviceSoftwareHeader.setText(Html.fromHtml(Util.getString(context, "block_components_title").getOrElse("components")))
       view
     }
   @Loggable
@@ -92,7 +98,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       showTabDescriptionFragment()
   }
   @Loggable
-  def onTabSelected() = if (TabContent.fragment == Some(this) && getActivity != null)
+  def onTabSelected() = if (TabContent.fragment == Some(this) && getSherlockActivity != null)
     showTabDescriptionFragment()
   @Loggable
   override def onDetach() {
@@ -127,7 +133,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
           case item: ComponentBlock.Item =>
             componentBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case null =>
-            // loading...
+          // loading...
           case item =>
             log.fatal("unknown item " + item)
         }
@@ -174,7 +180,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       case componentItem: ComponentBlock.Item =>
         TabContent.componentBlock.foreach(_.onListItemClick(l, v, componentItem))
       case null =>
-        // loading...
+      // loading...
       case item =>
       // skip clicks on splitter, footer, etc...
     }

@@ -22,10 +22,8 @@
 package org.digimead.digi.ctrl.sshd
 
 import java.util.concurrent.ConcurrentLinkedQueue
-
 import scala.Array.canBuildFrom
 import scala.annotation.tailrec
-
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider
 import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider.value2uri
@@ -35,12 +33,11 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.util.Android
-
 import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
+import org.digimead.digi.ctrl.lib.androidext.Util
 
 object Message extends Logging {
   private val flushLimit = 1000
@@ -98,7 +95,7 @@ object Message extends Logging {
         // push in history
         try {
           val values = new ContentValues()
-          values.put(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
+          values.put(DIntent.DroneName, Util.getString(context, "app_name").getOrElse("DigiSSHD"))
           values.put(DIntent.DronePackage, context.getPackageName)
           /*
            * [error] both method put in class ContentValues of type (x$1: java.lang.String,x$2: java.lang.Double)Unit
@@ -121,7 +118,7 @@ object Message extends Logging {
         // send broadcast
         val intent = new Intent(DIntent.Message, Uri.parse("code://" + context.getPackageName))
         intent.putExtra(DIntent.Message, messages.asInstanceOf[Array[Parcelable]])
-        intent.putExtra(DIntent.DroneName, Android.getString(context, "app_name").getOrElse("DigiSSHD"))
+        intent.putExtra(DIntent.DroneName, Util.getString(context, "app_name").getOrElse("DigiSSHD"))
         intent.putExtra(DIntent.DronePackage, context.getPackageName)
         try {
           AppComponent.Inner.sendPrivateBroadcast(intent)

@@ -21,24 +21,17 @@
 
 package org.digimead.digi.ctrl.sshd.service.option
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import scala.actors.Futures
 
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
-import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.TextView
 
@@ -47,7 +40,7 @@ object AuthentificationMode extends TextViewItem with Logging {
 
   @Loggable
   override def onListItemClick(l: ListView, v: View) = Futures.future { // leave UI thread
- /*   TabActivity.activity.foreach {
+    /*   TabActivity.activity.foreach {
       activity =>
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_auth", () => {
           val authTypeValue = new AtomicInteger(getState[Int](activity))
@@ -64,7 +57,7 @@ object AuthentificationMode extends TextViewItem with Logging {
                 SSHDPreferences.AuthentificationMode.set(authType, context, true)
                 AuthentificationMode.view.get.foreach(view => {
                   val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                  Android.getString(activity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
+                  Util.getString(activity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
                     case Some(string) =>
                       text.setText(string)
                     case None =>
@@ -98,7 +91,7 @@ object AuthentificationMode extends TextViewItem with Logging {
     val view = super.getView(context, inflater)
     val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
     val authType = SSHDPreferences.AuthentificationMode.get(context).toString
-    Android.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
+    Util.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
       case Some(string) =>
         value.setText(string)
       case None =>

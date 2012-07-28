@@ -23,30 +23,26 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import java.io.BufferedReader
 import java.io.File
-import java.io.FileFilter
 import java.io.InputStreamReader
 
 import scala.Array.canBuildFrom
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.dialog.FileChooser
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 
 import android.app.Activity
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -88,7 +84,7 @@ trait PublicKey extends Logging {
       val filter = new FileFilter { override def accept(file: File) = file.isDirectory || file.getName == importTemplateName }
       val userHomeFile = new File("/")
       val dialog = FileChooser.createDialog(activity,
-        Android.getString(activity, "dialog_import_key").getOrElse("Import \"" + importTemplateName + "\""),
+        Util.getString(activity, "dialog_import_key").getOrElse("Import \"" + importTemplateName + "\""),
         userHomeFile,
         importHostKeyOnResult,
         filter,
@@ -107,13 +103,13 @@ trait PublicKey extends Logging {
       val importTemplateName = "dropbear_" + kindOpt + "_host_key"
       val importFileTo = new File(appNativePath, importTemplateName)
       if (Common.copyFile(importFileFrom, importFileTo))
-        Toast.makeText(context, Android.getString(context, "import_public_key_successful").
+        Toast.makeText(context, Util.getString(context, "import_public_key_successful").
           getOrElse("import %s key succesful").format(option.tag.toUpperCase), Toast.LENGTH_SHORT).show
       else
-        Toast.makeText(context, Android.getString(context, "import_public_key_failed").
+        Toast.makeText(context, Util.getString(context, "import_public_key_failed").
           getOrElse("import %s key failed").format(option.tag.toUpperCase), Toast.LENGTH_LONG).show
     }) getOrElse {
-      AppComponent.Context.foreach(context => Toast.makeText(context, Android.getString(context, "import_public_key_canceled").
+      AppComponent.Context.foreach(context => Toast.makeText(context, Util.getString(context, "import_public_key_canceled").
         getOrElse("import %s key canceled").format(option.tag.toUpperCase), Toast.LENGTH_LONG).show)
     }
   }
@@ -131,7 +127,7 @@ trait PublicKey extends Logging {
         intent.setAction(Intent.ACTION_SEND)
         intent.setType("application/octet-stream")
         intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-        context.startActivity(Intent.createChooser(intent, Android.getString(context, "export_host_key").
+        context.startActivity(Intent.createChooser(intent, Util.getString(context, "export_host_key").
           getOrElse("Export %s key").format(option.tag.toUpperCase)))
       case _ =>
         val message = "unable to export unexists " + option.tag.toUpperCase + " key"

@@ -24,10 +24,12 @@ package org.digimead.digi.ctrl.sshd.session
 import java.util.ArrayList
 import java.util.Arrays
 
+import scala.actors.Futures
 import scala.actors.Futures.future
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -35,8 +37,9 @@ import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.SyncVar
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -53,11 +56,17 @@ import android.widget.CheckBox
 import android.widget.TextView
 
 class OptionBlock(context: Context) extends Logging {
+  OptionBlock.block = Some(this)
+  Futures.future { OptionBlock.updateItems }
+
+  @Loggable
   def appendTo(adapter: MergeAdapter) {
     log.debug("append " + getClass.getName + " to MergeAdapter")
     Option(OptionBlock.header).foreach(adapter.addView)
     Option(OptionBlock.adapter).foreach(adapter.addAdapter)
   }
+  @Loggable
+  def items = for (i <- 0 until OptionBlock.adapter.getCount) yield OptionBlock.adapter.getItem(i)
   @Loggable
   def onListItemClick(item: OptionBlock.Item) = item.view.get.foreach {
     view =>
@@ -78,25 +87,24 @@ class OptionBlock(context: Context) extends Logging {
   }
 }
 
-//, items
 object OptionBlock extends Logging {
   /** OptionBlock instance */
   @volatile private var block: Option[OptionBlock] = None
-  /** InterfaceBlock adapter */
+  /** OptionBlock adapter */
   private[session] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
       new OptionBlock.Adapter(context.getApplicationContext,
-        Android.getId(context, "element_option_list_item_multiple_choice", "layout"))
+        Util.getId(context, "element_option_list_item_multiple_choice", "layout"))
     case None =>
       log.fatal("lost ApplicationContext")
       null
   }
-  /** InterfaceBlock header view */
+  /** OptionBlock header view */
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Android.getString(context, "block_option_title").getOrElse("options")))
+        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Util.getString(context, "block_option_title").getOrElse("options")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -104,6 +112,21 @@ object OptionBlock extends Logging {
   }
   private val items = Seq(Item(DOption.ConfirmConn.tag, DOption.ConfirmConn))
   //Item(DOption.WriteConnLog, DOption.WriteConnLog))
+
+  private def updateItems = if (adapter.getItem(0) == null) {
+    val newItems = SyncVar(items)
+    AnyBase.runOnUiThread {
+      adapter.setNotifyOnChange(false)
+      adapter.clear
+      newItems.get.foreach(adapter.add)
+      adapter.setNotifyOnChange(true)
+      adapter.notifyDataSetChanged
+      newItems.unset()
+    }
+    if (!newItems.waitUnset(DTimeout.normal))
+      log.fatal("UI thread hang")
+  }
+
   case class Item(val value: String, val option: DOption.OptVal) extends Block.Item {
     override def toString() = value
     def getState(context: Context): Boolean = {
@@ -113,16 +136,17 @@ object OptionBlock extends Logging {
   }
   class Adapter(context: Context, textViewResourceId: Int)
     extends ArrayAdapter[Item](context, textViewResourceId, android.R.id.text1, new ArrayList[Item](Arrays.asList(null))) {
+    private val inflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
     override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {
           case None =>
-            val view = super.getView(position, convertView, parent)
+            val view = inflater.inflate(textViewResourceId, null)
             val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
             val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
             val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckBox]

@@ -30,6 +30,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.HashMap
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -39,7 +40,6 @@ import org.digimead.digi.ctrl.lib.block.SupportBlock
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.service.FilterBlock
@@ -73,7 +73,7 @@ class InterfaceBlock(val context: Context)(implicit @transient val dispatcher: D
     Option(InterfaceBlock.header).foreach(mergeAdapter.addView)
     Option(InterfaceBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
-  def items = for (i <- 0 to InterfaceBlock.adapter.getCount) yield InterfaceBlock.adapter.getItem(i)
+  def items = for (i <- 0 until InterfaceBlock.adapter.getCount) yield InterfaceBlock.adapter.getItem(i)
   @Loggable
   def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: SupportBlock.Item) =
     log.debug("create context menu for " + item.name)
@@ -106,8 +106,8 @@ object InterfaceBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Android.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Android.getString(context, "block_interface_title").getOrElse("interfaces")))
+        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(Util.getString(context, "block_interface_title").getOrElse("interfaces")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -202,7 +202,7 @@ object InterfaceBlock extends Logging {
       text.setCompoundDrawablePadding(10)
       item match {
         case InterfaceBlock.Item(null, null) =>
-          text.setText(Android.getString(context, "loading").getOrElse("loading..."))
+          text.setText(Util.getString(context, "loading").getOrElse("loading..."))
         case InterfaceBlock.Item(_, Some(true)) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icActive, null, null, null)
         case InterfaceBlock.Item(_, Some(false)) =>

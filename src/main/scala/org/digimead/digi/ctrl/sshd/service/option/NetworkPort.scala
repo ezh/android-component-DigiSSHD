@@ -24,25 +24,13 @@ package org.digimead.digi.ctrl.sshd.service.option
 import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
-import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
-import android.text.Editable
-import android.text.Html
-import android.text.InputFilter
-import android.text.InputType
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 
@@ -54,7 +42,7 @@ object NetworkPort extends TextViewItem with Logging {
     showDialog
   @Loggable
   def showDialog() = Futures.future { // leave UI thread
- /*   TabActivity.activity.foreach {
+    /*   TabActivity.activity.foreach {
       activity =>
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_port", () => {
           val currentValue = SSHDPreferences.NetworkPort.get(activity)
@@ -66,7 +54,7 @@ object NetworkPort extends TextViewItem with Logging {
           portField.setFilters(Array(maxLengthFilter))
           val dialog = new AlertDialog.Builder(activity).
             setTitle(R.string.dialog_port_title).
-            setMessage(Html.fromHtml(Android.getString(activity, "dialog_port_message").
+            setMessage(Html.fromHtml(Util.getString(activity, "dialog_port_message").
               getOrElse("Select new TCP port in range from 1 to 65535"))).
             setView(portLayout).
             setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {

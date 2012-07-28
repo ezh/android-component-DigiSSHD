@@ -21,18 +21,26 @@
 
 package org.digimead.digi.ctrl.sshd.session
 
+import scala.annotation.target.beanGetter
+import scala.annotation.target.beanSetter
+import scala.annotation.target.getter
+import scala.annotation.target.setter
+
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 
+import com.actionbarsherlock.app.SherlockFragment
+
 import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentActivity
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
 
-class TabDescription extends Fragment {
+class TabDescription extends SherlockFragment {
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) = {
-    val view = new TextView(getActivity)
+    val view = new TextView(getSherlockActivity)
     view.setText("This is an instance of MyDialogFragment SESSION")
     view
   }

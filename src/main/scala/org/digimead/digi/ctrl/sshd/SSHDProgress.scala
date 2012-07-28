@@ -27,17 +27,15 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.actors.Actor
 import scala.actors.Futures
 
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.lib.util.SyncVar
 
 import android.app.ProgressDialog
-import android.content.DialogInterface
 
 class SSHDProgress {
 
@@ -47,7 +45,7 @@ object SSHDProgress extends Logging {
 
   @Loggable
   private def onBusy(activity: SSHDActivity): Unit = if (!busyDialog.isSet) {
-/*    AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
+    /*    AppComponent.Inner.showDialogSafeWait[ProgressDialog](activity, "progress_dialog", () =>
       if (busyCounter.get > 0) {
         busyBuffer.lastOption.foreach(msg => busyBuffer = Seq(msg))
         val dialog = new ProgressDialog(activity)
@@ -93,8 +91,8 @@ object SSHDProgress extends Logging {
       })
   }
 
-  lazy val NewConnection = AppComponent.Context.map(a => Android.getId(a, "new_connection")).getOrElse(0)
-  lazy val ComponentInfo = AppComponent.Context.map(a => Android.getId(a, "component_info")).getOrElse(0)
+  lazy val NewConnection = AppComponent.Context.map(a => Util.getId(a, "new_connection")).getOrElse(0)
+  lazy val ComponentInfo = AppComponent.Context.map(a => Util.getId(a, "component_info")).getOrElse(0)
   private[sshd] val busyDialog = new SyncVar[ProgressDialog]()
   private[sshd] val busyCounter = new AtomicInteger()
   private[sshd] val busySize = 5

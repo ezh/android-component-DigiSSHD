@@ -25,9 +25,11 @@ import java.util.ArrayList
 import java.util.Arrays
 
 import scala.Array.canBuildFrom
+import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -35,9 +37,10 @@ import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.util.Android
+import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.R
 
 import com.commonsware.cwac.merge.MergeAdapter
@@ -59,14 +62,16 @@ import android.widget.Toast
 
 class FilterBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[FilterBlock.Item] with Logging {
   FilterBlock.block = Some(this)
+  Futures.future { FilterBlock.updateItems(context) }
 
-  def items = for (i <- 0 to FilterBlock.adapter.getCount) yield FilterBlock.adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = synchronized {
     log.debug("append " + getClass.getName + " to MergeAdapter")
     Option(FilterBlock.header).foreach(mergeAdapter.addView)
     Option(FilterBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
+  @Loggable
+  def items = for (i <- 0 until FilterBlock.adapter.getCount) yield FilterBlock.adapter.getItem(i)
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {
     item.state = !item.state
@@ -126,6 +131,7 @@ class FilterBlock(val context: Context)(implicit @transient val dispatcher: Disp
 }
 
 object FilterBlock extends Logging {
+  /** FilterBlock instance */
   @volatile private var block: Option[FilterBlock] = None
   /** FilterBlock adapter */
   private[service] lazy val adapter = AppComponent.Context match {
@@ -139,9 +145,9 @@ object FilterBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Android.getId(context.getApplicationContext, "element_service_filter_header", "layout"), null).asInstanceOf[LinearLayout]
+        inflate(Util.getId(context.getApplicationContext, "element_service_filter_header", "layout"), null).asInstanceOf[LinearLayout]
       val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-      headerTitle.setText(Html.fromHtml(Android.getString(context, "block_filter_title").getOrElse("interface filters")))
+      headerTitle.setText(Html.fromHtml(Util.getString(context, "block_filter_title").getOrElse("interface filters")))
       Level.professional(view.findViewById(android.R.id.custom))
       val onClickServiceFilterAddButton = view.findViewById(R.id.service_filter_add_button).asInstanceOf[Button]
       onClickServiceFilterAddButton.setOnClickListener(new View.OnClickListener() {
@@ -157,12 +163,35 @@ object FilterBlock extends Logging {
       null
   }
   val ALL = "*:*.*.*.*"
+
+  private def updateItems(context: Context) = {
+    val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
+    val acl = pref.getAll
+    val newItems = SyncVar(
+      if (acl.isEmpty)
+        Array(FilterBlock.Item(FilterBlock.ALL, None, new WeakReference(context)))
+      else if (acl.size == 1 && acl.containsKey(FilterBlock.ALL))
+        Array(FilterBlock.Item(FilterBlock.ALL, Some(pref.getBoolean(FilterBlock.ALL, false)), new WeakReference(context)))
+      else
+        acl.keySet.toArray.map(_.asInstanceOf[String]).filter(_ != FilterBlock.ALL).sorted.map(aclMask =>
+          FilterBlock.Item(aclMask, Some(pref.getBoolean(aclMask, false)), new WeakReference(context))))
+    AnyBase.runOnUiThread {
+      adapter.setNotifyOnChange(false)
+      adapter.clear
+      newItems.get.foreach(adapter.add)
+      adapter.setNotifyOnChange(true)
+      adapter.notifyDataSetChanged
+      newItems.unset()
+    }
+    if (!newItems.waitUnset(DTimeout.normal))
+      log.fatal("UI thread hang")
+  }
   case class Item(val value: String, var _state: Option[Boolean], context: WeakReference[Context]) extends Block.Item {
     override def toString() =
       if (value != ALL)
         value
       else
-        Android.getString(context, "allow_all").getOrElse("allow all")
+        Util.getString(context, "allow_all").getOrElse("allow all")
     def state: Boolean = synchronized {
       if (_state == None) {
         context.get.foreach {
@@ -193,7 +222,7 @@ object FilterBlock extends Logging {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Android.getString(context, "loading").getOrElse("loading..."))
+        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {

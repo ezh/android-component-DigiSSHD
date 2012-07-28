@@ -30,11 +30,11 @@ import scala.collection.immutable.HashMap
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DActivity
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.Util
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Android
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabContent
 import org.digimead.digi.ctrl.sshd.service.TabContent
@@ -90,7 +90,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     val display = getWindowManager.getDefaultDisplay()
     val variant = getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK match {
       case Configuration.SCREENLAYOUT_SIZE_XLARGE =>
-        if (Android.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+        if (Util.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_XLARGE, layout Largest, landscape")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Largest
         } else {
@@ -98,7 +98,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
         }
       case Configuration.SCREENLAYOUT_SIZE_LARGE =>
-        if (Android.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+        if (Util.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_LARGE, layout Large, landscape")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Large
         } else {
@@ -106,7 +106,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
         }
       case _ =>
-        if (Android.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+        if (Util.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_NORMAL and bellow, layout Small, landscape"); 1
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Small
         } else {
