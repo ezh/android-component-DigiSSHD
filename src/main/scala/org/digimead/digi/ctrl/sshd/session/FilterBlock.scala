@@ -28,7 +28,7 @@ import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -77,7 +77,7 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
           val item = items.head
           val dialog = new AlertDialog.Builder(activity).
             setTitle(R.string.dialog_acl_order_title).
-            setMessage(Html.fromHtml(Util.getString(activity, if (item.isFilterADA)
+            setMessage(Html.fromHtml(XResource.getString(activity, if (item.isFilterADA)
               "dialog_acl_order_ada_message"
             else
               "dialog_acl_order_dad_message").getOrElse("Do you want change ACL rules order?"))).
@@ -162,8 +162,8 @@ object FilterBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Util.getString(context, "block_filter_title").getOrElse("connection filters")))
+        inflate(XResource.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(XResource.getString(context, "block_filter_title").getOrElse("connection filters")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -172,8 +172,8 @@ object FilterBlock extends Logging {
   private lazy val items = Seq(FilterBlock.Item())
   lazy val iconADA = AppComponent.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_ada))
   lazy val iconDAD = AppComponent.Context.map(_.getResources.getDrawable(R.drawable.ic_session_acl_devider_dad))
-  lazy val FILTER_REQUEST_ALLOW = AppComponent.Context.map(Util.getId(_, "filter_request_allow")).getOrElse(0)
-  lazy val FILTER_REQUEST_DENY = AppComponent.Context.map(Util.getId(_, "filter_request_deny")).getOrElse(0)
+  lazy val FILTER_REQUEST_ALLOW = AppComponent.Context.map(XResource.getId(_, "filter_request_allow")).getOrElse(0)
+  lazy val FILTER_REQUEST_DENY = AppComponent.Context.map(XResource.getId(_, "filter_request_deny")).getOrElse(0)
 
   @Loggable
   def updateFilterItem() =
@@ -217,14 +217,14 @@ object FilterBlock extends Logging {
       val totalDeny = denyAll.size
       AnyBase.runOnUiThread {
         if (isFilterADA) {
-          leftPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_allow_text").
+          leftPart.setText(Html.fromHtml(XResource.getString(leftPart.getContext, "session_filter_allow_text").
             getOrElse("%1$d<font color='green'> : </font>%2$d").format(activeAllow, totalAllow)))
-          rightPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_deny_text").
+          rightPart.setText(Html.fromHtml(XResource.getString(leftPart.getContext, "session_filter_deny_text").
             getOrElse("%1$d<font color='red'> : </font>%2$d").format(activeDeny, totalDeny)))
         } else {
-          leftPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_deny_text").
+          leftPart.setText(Html.fromHtml(XResource.getString(leftPart.getContext, "session_filter_deny_text").
             getOrElse("%1$d<font color='red'> : </font>%2$d").format(activeDeny, totalDeny)))
-          rightPart.setText(Html.fromHtml(Util.getString(leftPart.getContext, "session_filter_allow_text").
+          rightPart.setText(Html.fromHtml(XResource.getString(leftPart.getContext, "session_filter_allow_text").
             getOrElse("%1$d<font color='green'> : </font>%2$d").format(activeAllow, totalAllow)))
         }
       }
@@ -237,7 +237,7 @@ object FilterBlock extends Logging {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
+        view.setText(XResource.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {

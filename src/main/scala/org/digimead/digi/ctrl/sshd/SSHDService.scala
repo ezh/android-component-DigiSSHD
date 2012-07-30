@@ -29,7 +29,7 @@ import scala.collection.JavaConversions._
 import org.digimead.digi.ctrl.ICtrlComponent
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DService
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -90,7 +90,7 @@ class SSHDService extends Service with DService {
             val version = new Version(pi.versionName)
             log.debug(DConstant.controlPackage + " minimum version '" + minVersion + "' and current version '" + version + "'")
             if (version.compareTo(minVersion) == -1) {
-              val message = Util.getString(this, "error_digicontrol_minimum_version").
+              val message = XResource.getString(this, "error_digicontrol_minimum_version").
                 getOrElse("Required minimum version of DigiControl: %s. Current version is %s").format(minVersion, version)
               IAmYell(message)
               AppControl.Inner.bindStub("error_digicontrol_minimum_version", minVersion.toString, version.toString)
@@ -147,6 +147,22 @@ object SSHDService extends Logging {
   }
 
   @Loggable
+  def getInternalDirectory() = Option(AppControl.Inner).flatMap {
+    inner =>
+      inner.getInternalDirectory(DTimeout.shortest) orElse {
+        Futures.future { inner.getInternalDirectory(DTimeout.long) }
+        None
+      }
+  }
+  @Loggable
+  def getExternalDirectory() = Option(AppControl.Inner).flatMap {
+    inner =>
+      inner.getExternalDirectory(DTimeout.shortest) orElse {
+        Futures.future { inner.getInternalDirectory(DTimeout.long) }
+        None
+      }
+  }
+  @Loggable
   def getExecutableInfo(workdir: String, onlyLocal: Boolean = false): Seq[ExecutableInfo] = try {
     val executables = Seq("dropbear", "openssh")
     (for {
@@ -193,7 +209,7 @@ object SSHDService extends Logging {
                   Seq[String]()
             }
             val digiIntegrationOption = if (masterPassword.isEmpty) Seq("-D") else Seq()
-            (if (onlyLocal) None else AppControl.Inner.getInternalDirectory(DTimeout.long)) match {
+            (if (onlyLocal) None else getInternalDirectory()) match {
               case Some(path) =>
                 val rsaKey = if (RSAPublicKeyEncription.getState[Boolean](context))
                   Seq("-r", new File(path, "dropbear_rsa_host_key").getAbsolutePath)

@@ -23,7 +23,7 @@ package org.digimead.digi.ctrl.sshd.service
 
 import java.net.URL
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -71,11 +71,11 @@ class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher:
   @Loggable
   def onClickServiceReinstall(v: View) = {
     IAmMumble("reinstall files/force prepare evironment")
-    //Toast.makeText(this, Util.getString(getActivity, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
+    //Toast.makeText(this, XResource.getString(getActivity, "reinstall").getOrElse("reinstall"), DConstant.toastTimeout).show()
     /*    AppComponent.Inner ! AppComponent.Message.PrepareEnvironment(this, false, true, (success) =>
       runOnUiThread(new Runnable() {
         def run = if (success)
-          Toast.makeText(TabActivity.this, Util.getString(TabActivity.this,
+          Toast.makeText(TabActivity.this, XResource.getString(TabActivity.this,
             "reinstall_complete").getOrElse("reinstall complete"), DConstant.toastTimeout).show()
       }))*/
   }
@@ -108,9 +108,9 @@ object EnvironmentBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "element_service_environment_header", "layout"), null).asInstanceOf[LinearLayout]
+        inflate(XResource.getId(context.getApplicationContext, "element_service_environment_header", "layout"), null).asInstanceOf[LinearLayout]
       val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-      headerTitle.setText(Html.fromHtml(Util.getString(context, "block_environment_title").getOrElse("environment")))
+      headerTitle.setText(Html.fromHtml(XResource.getString(context, "block_environment_title").getOrElse("environment")))
       val onClickUsersButton = view.findViewById(R.id.service_environment_users_button).asInstanceOf[Button]
       onClickUsersButton.setOnClickListener(new View.OnClickListener() {
         override def onClick(v: View) = EnvironmentBlock.block.foreach(_.onClickUsers(v))

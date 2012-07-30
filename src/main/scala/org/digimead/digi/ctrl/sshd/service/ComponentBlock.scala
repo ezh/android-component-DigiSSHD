@@ -31,7 +31,7 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -95,7 +95,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
     dialog <- ComponentBlock.Dialog.info
   } item.updatedExecutableInfo {
     info =>
-      if (dialog.isVisible)
+      if (dialog.isShowing)
         AnyBase.runOnUiThread { dialog.updateContent(info) }
       else {
         val bundle = new Bundle
@@ -107,18 +107,18 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
     log.debug("create context menu for " + item.value)
     menu.setHeaderTitle(item.value)
-    menu.setHeaderIcon(Util.getId(context, "ic_launcher", "drawable"))
-    menu.add(Menu.NONE, Util.getId(context, "block_component_jump_to_project"), 1,
-      Util.getString(context, "block_component_jump_to_project").getOrElse("Jump to project"))
-    menu.add(Menu.NONE, Util.getId(context, "block_component_copy_command_line"), 2,
-      Util.getString(context, "block_component_copy_command_line").getOrElse("Copy command line"))
-    menu.add(Menu.NONE, Util.getId(context, "block_component_copy_info"), 3,
-      Util.getString(context, "block_component_copy_info").getOrElse("Copy information"))
+    menu.setHeaderIcon(XResource.getId(context, "ic_launcher", "drawable"))
+    menu.add(Menu.NONE, XResource.getId(context, "block_component_jump_to_project"), 1,
+      XResource.getString(context, "block_component_jump_to_project").getOrElse("Jump to project"))
+    menu.add(Menu.NONE, XResource.getId(context, "block_component_copy_command_line"), 2,
+      XResource.getString(context, "block_component_copy_command_line").getOrElse("Copy command line"))
+    menu.add(Menu.NONE, XResource.getId(context, "block_component_copy_info"), 3,
+      XResource.getString(context, "block_component_copy_info").getOrElse("Copy information"))
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem, item: ComponentBlock.Item): Boolean = {
     menuItem.getItemId match {
-      case id if id == Util.getId(context, "block_component_jump_to_project") =>
+      case id if id == XResource.getId(context, "block_component_jump_to_project") =>
         try {
           val execInfo = item.executableInfo()
           val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(execInfo.project))
@@ -129,11 +129,11 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
             IAmYell("Unable to open link: " + item.value, e)
         }
         true
-      case id if id == Util.getId(context, "block_component_copy_command_line") =>
+      case id if id == XResource.getId(context, "block_component_copy_command_line") =>
         Futures.future {
           try {
             val execInfo = item.executableInfo()
-            val message = Util.getString(context, "block_component_copy_command_line").
+            val message = XResource.getString(context, "block_component_copy_command_line").
               getOrElse("Copy command line to clipboard")
             AnyBase.runOnUiThread {
               try {
@@ -151,12 +151,12 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
           }
         }
         true
-      case id if id == Util.getId(context, "block_component_copy_info") =>
+      case id if id == XResource.getId(context, "block_component_copy_info") =>
         Futures.future {
           try {
             val execInfo = item.executableInfo()
             val env = execInfo.env.mkString("""<br/>""")
-            val string = Util.getString(context, "dialog_component_info_message").get.format(execInfo.name,
+            val string = XResource.getString(context, "dialog_component_info_message").get.format(execInfo.name,
               execInfo.description,
               execInfo.project,
               execInfo.license,
@@ -165,7 +165,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
               execInfo.port.getOrElse("-"),
               execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"),
               if (env.nonEmpty) env else "-")
-            val message = Util.getString(context, "block_component_copy_info").
+            val message = XResource.getString(context, "block_component_copy_info").
               getOrElse("Copy information to clipboard")
             AnyBase.runOnUiThread {
               try {
@@ -207,7 +207,7 @@ object ComponentBlock extends Logging {
   /** ComponentBlock adapter */
   private[service] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
-      new ComponentBlock.Adapter(context.getApplicationContext, Util.getId(context, "component_list_item", "layout"))
+      new ComponentBlock.Adapter(context.getApplicationContext, XResource.getId(context, "component_list_item", "layout"))
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -216,8 +216,8 @@ object ComponentBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Util.getString(context, "block_components_title").getOrElse("components")))
+        inflate(XResource.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(XResource.getString(context, "block_components_title").getOrElse("components")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -269,9 +269,9 @@ object ComponentBlock extends Logging {
         icon = new WeakReference(_icon)
         context = new WeakReference(_context)
         if (activeDrawable.isEmpty)
-          activeDrawable = Some(_context.getResources.getDrawable(Util.getId(_context, "ic_executable_work", "anim")))
+          activeDrawable = Some(_context.getResources.getDrawable(XResource.getId(_context, "ic_executable_work", "anim")))
         if (passiveDrawable.isEmpty)
-          passiveDrawable = Some(_context.getResources.getDrawable(Util.getId(_context, "ic_executable_wait", "anim")))
+          passiveDrawable = Some(_context.getResources.getDrawable(XResource.getId(_context, "ic_executable_wait", "anim")))
         Futures.future { state(_active) }
       }) getOrElse {
         log.fatal("unable to init() for " + this)
@@ -347,7 +347,7 @@ object ComponentBlock extends Logging {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
+        view.setText(XResource.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {
@@ -364,7 +364,7 @@ object ComponentBlock extends Logging {
             description.setText(execInfo.description)
             subinfo.setText(execInfo.version + " / " + execInfo.license)
             item.view = new WeakReference(view)
-            icon.setBackgroundDrawable(context.getResources.getDrawable(Util.getId(context, "ic_executable_wait", "anim")))
+            icon.setBackgroundDrawable(context.getResources.getDrawable(XResource.getId(context, "ic_executable_wait", "anim")))
             item.init(context, icon, false)
             Level.novice(view)
             view
@@ -417,7 +417,7 @@ object ComponentBlock extends Logging {
           content =>
             val context = getSherlockActivity
             val env = info.env.mkString("""<br/>""")
-            val s = Util.getString(context, "dialog_component_info_message").get.format(info.name,
+            val s = XResource.getString(context, "dialog_component_info_message").get.format(info.name,
               info.description,
               info.project,
               info.license,

@@ -37,7 +37,7 @@ import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 
 object Message extends Logging {
   private val flushLimit = 1000
@@ -95,7 +95,7 @@ object Message extends Logging {
         // push in history
         try {
           val values = new ContentValues()
-          values.put(DIntent.DroneName, Util.getString(context, "app_name").getOrElse("DigiSSHD"))
+          values.put(DIntent.DroneName, XResource.getString(context, "app_name").getOrElse("DigiSSHD"))
           values.put(DIntent.DronePackage, context.getPackageName)
           /*
            * [error] both method put in class ContentValues of type (x$1: java.lang.String,x$2: java.lang.Double)Unit
@@ -118,7 +118,7 @@ object Message extends Logging {
         // send broadcast
         val intent = new Intent(DIntent.Message, Uri.parse("code://" + context.getPackageName))
         intent.putExtra(DIntent.Message, messages.asInstanceOf[Array[Parcelable]])
-        intent.putExtra(DIntent.DroneName, Util.getString(context, "app_name").getOrElse("DigiSSHD"))
+        intent.putExtra(DIntent.DroneName, XResource.getString(context, "app_name").getOrElse("DigiSSHD"))
         intent.putExtra(DIntent.DronePackage, context.getPackageName)
         try {
           AppComponent.Inner.sendPrivateBroadcast(intent)

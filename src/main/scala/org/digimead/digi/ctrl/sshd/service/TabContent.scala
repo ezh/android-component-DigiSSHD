@@ -26,7 +26,7 @@ import scala.annotation.target.beanSetter
 import scala.annotation.target.getter
 import scala.annotation.target.setter
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -71,17 +71,17 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       val context = getSherlockActivity
       // prepare empty view
       // interfaceFilters
-      val interfaceFiltersHeader = view.findViewById(Util.getId(context, "nodata_header_interfacefilter")).asInstanceOf[TextView]
-      interfaceFiltersHeader.setText(Html.fromHtml(Util.getString(context, "block_interfacefilter_title").getOrElse("interface filters")))
+      val interfaceFiltersHeader = view.findViewById(XResource.getId(context, "nodata_header_interfacefilter")).asInstanceOf[TextView]
+      interfaceFiltersHeader.setText(Html.fromHtml(XResource.getString(context, "block_interfacefilter_title").getOrElse("interface filters")))
       // options
-      val optionsHeader = view.findViewById(Util.getId(context, "nodata_header_option")).asInstanceOf[TextView]
-      optionsHeader.setText(Html.fromHtml(Util.getString(context, "block_option_title").getOrElse("options")))
+      val optionsHeader = view.findViewById(XResource.getId(context, "nodata_header_option")).asInstanceOf[TextView]
+      optionsHeader.setText(Html.fromHtml(XResource.getString(context, "block_option_title").getOrElse("options")))
       // serviceEnvironment
-      val serviceEnvironmentHeader = view.findViewById(Util.getId(context, "nodata_header_serviceenvironment")).asInstanceOf[TextView]
-      serviceEnvironmentHeader.setText(Html.fromHtml(Util.getString(context, "block_serviceenvironment_title").getOrElse("environment")))
+      val serviceEnvironmentHeader = view.findViewById(XResource.getId(context, "nodata_header_serviceenvironment")).asInstanceOf[TextView]
+      serviceEnvironmentHeader.setText(Html.fromHtml(XResource.getString(context, "block_serviceenvironment_title").getOrElse("environment")))
       // serviceSoftware
-      val serviceSoftwareHeader = view.findViewById(Util.getId(context, "nodata_header_servicesoftware")).asInstanceOf[TextView]
-      serviceSoftwareHeader.setText(Html.fromHtml(Util.getString(context, "block_components_title").getOrElse("components")))
+      val serviceSoftwareHeader = view.findViewById(XResource.getId(context, "nodata_header_servicesoftware")).asInstanceOf[TextView]
+      serviceSoftwareHeader.setText(Html.fromHtml(XResource.getString(context, "block_components_title").getOrElse("components")))
       view
     }
   @Loggable

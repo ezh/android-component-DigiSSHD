@@ -21,7 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.service.option
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
 
@@ -33,7 +33,7 @@ import android.widget
 trait CheckBoxItem extends Item {
   def onCheckboxClick(view: widget.CheckBox, lastState: Boolean)
   def getView(context: Context, inflater: LayoutInflater): View = {
-    val view = inflater.inflate(Util.getId(context, "element_option_list_item_multiple_choice", "layout"), null)
+    val view = inflater.inflate(XResource.getId(context, "element_option_list_item_multiple_choice", "layout"), null)
     val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[widget.CheckBox]
     checkbox.setClickable(false)
     checkbox.setFocusable(false)

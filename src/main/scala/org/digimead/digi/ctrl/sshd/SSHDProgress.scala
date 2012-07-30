@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.actors.Actor
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
@@ -91,8 +91,8 @@ object SSHDProgress extends Logging {
       })
   }
 
-  lazy val NewConnection = AppComponent.Context.map(a => Util.getId(a, "new_connection")).getOrElse(0)
-  lazy val ComponentInfo = AppComponent.Context.map(a => Util.getId(a, "component_info")).getOrElse(0)
+  lazy val NewConnection = AppComponent.Context.map(a => XResource.getId(a, "new_connection")).getOrElse(0)
+  lazy val ComponentInfo = AppComponent.Context.map(a => XResource.getId(a, "component_info")).getOrElse(0)
   private[sshd] val busyDialog = new SyncVar[ProgressDialog]()
   private[sshd] val busyCounter = new AtomicInteger()
   private[sshd] val busySize = 5

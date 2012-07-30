@@ -1,4 +1,4 @@
-/*
+/**
  * DigiSSHD - DigiControl component for Android Platform
  * Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -32,7 +32,7 @@ import scala.Array.canBuildFrom
 import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -47,6 +47,7 @@ import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.SSHDService
 
 import android.app.Activity
 import android.content.Context
@@ -63,7 +64,7 @@ object UserKeys extends Logging {
         val sshDir = new File(homeDir, ".ssh")
         Some(new File(sshDir, "dropbear_user_key." + Uri.encode(user.name)))
       } else {
-        AppControl.Inner.getExternalDirectory(DTimeout.long).flatMap {
+        SSHDService.getExternalDirectory().flatMap {
           androidHome =>
             val sshDir = new File(androidHome, ".ssh")
             Some(new File(sshDir, "dropbear_user_key." + Uri.encode(user.name)))
@@ -80,7 +81,7 @@ object UserKeys extends Logging {
   def importKey(activity: Activity, user: UserInfo) {
     /*AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
       val dialog = FileChooser.createDialog(activity,
-        Util.getString(activity, "dialog_import_key").getOrElse("Import public key"),
+        XResource.getString(activity, "dialog_import_key").getOrElse("Import public key"),
         new File("/"),
         importKeyOnResult,
         new FileFilter { override def accept(file: File) = true },
@@ -92,11 +93,15 @@ object UserKeys extends Logging {
     })*/
   }
   def importKeyOnClick(context: Context, file: File): Boolean = try {
-    if (scala.io.Source.fromFile(file).getLines.filter(_.startsWith("ssh-")).isEmpty) {
+    val source = scala.io.Source.fromFile(file)
+    if (source.getLines.filter(_.startsWith("ssh-")).isEmpty) {
+      source.close
       Toast.makeText(context, "public key \"" + file.getName + "\" is broken", Toast.LENGTH_LONG).show
       false
-    } else
+    } else {
+      source.close
       true
+    }
   } catch {
     case e =>
       Toast.makeText(context, "public key \"" + file.getName + "\" is broken", Toast.LENGTH_LONG).show
@@ -116,17 +121,17 @@ object UserKeys extends Logging {
         importFileTo.getParentFile.mkdirs
       if (Common.copyFile(importFileFrom, importFileTo)) {
         updateAuthorizedKeys(context, user)
-        Toast.makeText(context, Util.getString(context, "import_public_key_successful").
+        Toast.makeText(context, XResource.getString(context, "import_public_key_successful").
           getOrElse("import \"%s\" key succesful").format(importFileFrom.getName), Toast.LENGTH_SHORT).show
       } else
-        Toast.makeText(context, Util.getString(context, "import_public_key_failed").
+        Toast.makeText(context, XResource.getString(context, "import_public_key_failed").
           getOrElse("import \"%s\" key failed").format(importFileFrom.getName), Toast.LENGTH_LONG).show
     }) getOrElse {
-      Toast.makeText(context, Util.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
+      Toast.makeText(context, XResource.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
     }
   } catch {
     case e =>
-      Toast.makeText(context, Util.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
+      Toast.makeText(context, XResource.getString(context, "import_public_key_canceled").getOrElse("import failed"), Toast.LENGTH_LONG).show
       log.error(e.getMessage, e)
   }
   @Loggable
@@ -137,7 +142,7 @@ object UserKeys extends Logging {
         val intent = new Intent(Intent.ACTION_SEND)
         intent.setType("application/octet-stream")
         intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-        context.startActivity(Intent.createChooser(intent, Util.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
+        context.startActivity(Intent.createChooser(intent, XResource.getString(context, "export_dropbear_key").getOrElse("Export Dropbear key")))
       case _ =>
         val message = "unable to export unexists/broken Dropbear private key"
         AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
@@ -158,7 +163,7 @@ object UserKeys extends Logging {
         val intent = new Intent(Intent.ACTION_SEND)
         intent.setType("application/octet-stream")
         intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
-        context.startActivity(Intent.createChooser(intent, Util.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
+        context.startActivity(Intent.createChooser(intent, XResource.getString(context, "export_openssh_key").getOrElse("Export OpenSSH key")))
       case _ =>
         val message = "unable to export unexists/broken OpenSSH private key"
         AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
@@ -217,8 +222,12 @@ object UserKeys extends Logging {
           def accept(dir: File, name: String) = name.startsWith("public_user_key.")
         })
         log.debug("accumulate public keys from: " + publicKeys.map(_.getName.substring(16)).mkString(", "))
-        publicKeys.foreach(f => fw.write(scala.io.Source.fromFile(f).getLines.
-          filter(_.startsWith("ssh-")).mkString("\n") + "\n"))
+        publicKeys.foreach(f => {
+          val source = scala.io.Source.fromFile(f)
+          fw.write(source.getLines.
+            filter(_.startsWith("ssh-")).mkString("\n") + "\n")
+          source.close
+        })
         fw.flush
         true
       } catch {
@@ -285,7 +294,9 @@ object UserKeys extends Logging {
         Futures.future {
           var bufferedOutput: OutputStream = null
           try {
-            val lines = scala.io.Source.fromInputStream(p.getInputStream()).getLines.filter(_.startsWith("ssh-"))
+            val source = scala.io.Source.fromInputStream(p.getInputStream())
+            val lines = source.getLines.filter(_.startsWith("ssh-"))
+            source.close
             Common.writeToFile(keyPublic, lines.mkString("\n") + "\n")
             keyPublic.setReadable(true, false)
           } catch {

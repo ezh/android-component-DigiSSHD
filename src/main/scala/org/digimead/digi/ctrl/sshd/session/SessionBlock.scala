@@ -25,7 +25,7 @@ import java.net.InetAddress
 
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -115,29 +115,29 @@ class SessionBlock(val context: Context) extends Block[SessionBlock.Item] with L
     } catch {
       case e =>
         log.warn(e.getMessage)
-        val text = Util.getString(context, "session_context_menu_unavailable_for_unknown_source").
+        val text = XResource.getString(context, "session_context_menu_unavailable_for_unknown_source").
           getOrElse("optional actions unavailable for session from unknown source")
         context.runOnUiThread(new Runnable { def run = Toast.makeText(context, text, DConstant.toastTimeout).show() })
         return
     }
     log.debug("create context menu for " + item.connection.connectionID + " with IP " + ip)
     menu.setHeaderTitle(ip)
-    menu.setHeaderIcon(Util.getId(context, "ic_launcher", "drawable"))
+    menu.setHeaderIcon(XResource.getId(context, "ic_launcher", "drawable"))
     if (!SSHDPreferences.FilterConnection.Allow.contains(context, ip))
-      menu.add(Menu.NONE, Util.getId(context, "session_always_allow"), 1,
-        Util.getString(context, "session_always_allow").getOrElse("Allow %1$s").format(ip))
+      menu.add(Menu.NONE, XResource.getId(context, "session_always_allow"), 1,
+        XResource.getString(context, "session_always_allow").getOrElse("Allow %1$s").format(ip))
     if (!SSHDPreferences.FilterConnection.Deny.contains(context, ip))
-      menu.add(Menu.NONE, Util.getId(context, "session_always_deny"), 3,
-        Util.getString(context, "session_always_deny").getOrElse("Deny %1$s").format(ip))
+      menu.add(Menu.NONE, XResource.getId(context, "session_always_deny"), 3,
+        XResource.getString(context, "session_always_deny").getOrElse("Deny %1$s").format(ip))
     ip.split("""\.""") match {
       case Array(ip1, ip2, ip3, ip4) =>
         val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
         if (!SSHDPreferences.FilterConnection.Allow.contains(context, acl))
-          menu.add(Menu.NONE, Util.getId(context, "session_always_allow_net"), 2,
-            Util.getString(context, "session_always_allow_net").getOrElse("Allow %1$s").format(acl))
+          menu.add(Menu.NONE, XResource.getId(context, "session_always_allow_net"), 2,
+            XResource.getString(context, "session_always_allow_net").getOrElse("Allow %1$s").format(acl))
         if (!SSHDPreferences.FilterConnection.Deny.contains(context, acl))
-          menu.add(Menu.NONE, Util.getId(context, "session_always_deny_net"), 4,
-            Util.getString(context, "session_always_deny_net").getOrElse("Deny %1$s").format(acl))
+          menu.add(Menu.NONE, XResource.getId(context, "session_always_deny_net"), 4,
+            XResource.getString(context, "session_always_deny_net").getOrElse("Deny %1$s").format(acl))
       case _ =>
     }
   }
@@ -149,11 +149,11 @@ class SessionBlock(val context: Context) extends Block[SessionBlock.Item] with L
       case e =>
         log.warn(e.getMessage)
         None
-    }).getOrElse(Util.getString(context, "unknown_source").getOrElse("unknown source"))
+    }).getOrElse(XResource.getString(context, "unknown_source").getOrElse("unknown source"))
     menuItem.getItemId match {
-      case id if id == Util.getId(context, "session_always_allow") =>
+      case id if id == XResource.getId(context, "session_always_allow") =>
         if (!SSHDPreferences.FilterConnection.Allow.contains(context, ip)) {
-          val msg = Util.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(ip)
+          val msg = XResource.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(ip)
           IAmMumble(msg)
           SSHDPreferences.FilterConnection.Allow.enable(context, ip)
           Toast.makeText(context, msg, DConstant.toastTimeout).show()
@@ -161,9 +161,9 @@ class SessionBlock(val context: Context) extends Block[SessionBlock.Item] with L
         } else
           log.warn("allow filter already exists " + ip)
         true
-      case id if id == Util.getId(context, "session_always_deny") =>
+      case id if id == XResource.getId(context, "session_always_deny") =>
         if (!SSHDPreferences.FilterConnection.Deny.contains(context, ip)) {
-          val msg = Util.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(ip)
+          val msg = XResource.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(ip)
           IAmMumble(msg)
           SSHDPreferences.FilterConnection.Deny.enable(context, ip)
           Toast.makeText(context, msg, DConstant.toastTimeout).show()
@@ -171,12 +171,12 @@ class SessionBlock(val context: Context) extends Block[SessionBlock.Item] with L
         } else
           log.warn("deny filter already exists " + ip)
         true
-      case id if id == Util.getId(context, "session_always_allow_net") =>
+      case id if id == XResource.getId(context, "session_always_allow_net") =>
         ip.split("""\.""") match {
           case Array(ip1, ip2, ip3, ip4) =>
             val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
             if (!SSHDPreferences.FilterConnection.Allow.contains(context, acl)) {
-              val msg = Util.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(acl)
+              val msg = XResource.getString(context, "session_filter_add_allow").getOrElse("add allow filter %1$s").format(acl)
               IAmMumble(msg)
               SSHDPreferences.FilterConnection.Allow.enable(context, acl)
               Toast.makeText(context, msg, DConstant.toastTimeout).show()
@@ -187,12 +187,12 @@ class SessionBlock(val context: Context) extends Block[SessionBlock.Item] with L
             log.warn("allow filter source ip incorrect " + ip)
         }
         true
-      case id if id == Util.getId(context, "session_always_deny_net") =>
+      case id if id == XResource.getId(context, "session_always_deny_net") =>
         ip.split("""\.""") match {
           case Array(ip1, ip2, ip3, ip4) =>
             val acl = ip1 + "." + ip2 + "." + ip3 + ".*"
             if (!SSHDPreferences.FilterConnection.Deny.contains(context, acl)) {
-              val msg = Util.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(acl)
+              val msg = XResource.getString(context, "session_filter_add_deny").getOrElse("add deny filter %1$s").format(acl)
               IAmMumble(msg)
               SSHDPreferences.FilterConnection.Deny.enable(context, acl)
               Toast.makeText(context, msg, DConstant.toastTimeout).show()
@@ -215,7 +215,7 @@ object SessionBlock extends Logging {
   /** InterfaceBlock adapter */
   private[session] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
-      new SessionAdapter(context.getApplicationContext, Util.getId(context, "element_session_item", "layout"))
+      new SessionAdapter(context.getApplicationContext, XResource.getId(context, "element_session_item", "layout"))
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -224,9 +224,9 @@ object SessionBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "element_session_header", "layout"), null).asInstanceOf[LinearLayout]
+        inflate(XResource.getId(context.getApplicationContext, "element_session_header", "layout"), null).asInstanceOf[LinearLayout]
       val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-      headerTitle.setText(Html.fromHtml(Util.getString(context, "block_session_title").getOrElse("sessions")))
+      headerTitle.setText(Html.fromHtml(XResource.getString(context, "block_session_title").getOrElse("sessions")))
       Level.intermediate(view.findViewById(android.R.id.custom))
       view.findViewById(android.R.id.custom).setVisibility(View.VISIBLE)
       view
@@ -256,13 +256,13 @@ object SessionBlock extends Logging {
             log.warn(e.getMessage)
             None
         }
-        val source = ip.getOrElse(Util.getString(title.getContext, "unknown_source").getOrElse("unknown source"))
+        val source = ip.getOrElse(XResource.getString(title.getContext, "unknown_source").getOrElse("unknown source"))
         val text = user match {
           case Some(user) =>
-            Util.getString(title.getContext, "session_title_user").getOrElse("<b>%1$s</b> from %2$s to %3$s").
+            XResource.getString(title.getContext, "session_title_user").getOrElse("<b>%1$s</b> from %2$s to %3$s").
               format(user.name, source, executable.name)
           case None =>
-            Util.getString(title.getContext, "session_title_nouser").getOrElse("%1$s to %2$s").
+            XResource.getString(title.getContext, "session_title_nouser").getOrElse("%1$s to %2$s").
               format(source, executable.name)
         }
         title.setText(Html.fromHtml(text))

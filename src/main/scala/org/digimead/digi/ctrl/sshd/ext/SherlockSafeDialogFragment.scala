@@ -21,30 +21,53 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.sshd.R
 import com.actionbarsherlock.app.SherlockDialogFragment
 import android.content.DialogInterface
-import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import android.view.View
 import android.support.v4.app.FragmentManager
-import org.digimead.digi.ctrl.lib.log.Logging
+import android.support.v4.app.FragmentTransaction
+import scala.actors.Futures
 
 class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog with Logging {
-/*  override def show(manager: FragmentManager, tag: String) {
-    // DialogFragment.show() will take care of adding the fragment
-    // in a transaction.  We also want to remove any currently showing
-    // dialog, so make our own transaction and take care of that here.
-    val ft = manager.beginTransaction()
-    val prev = manager.findFragmentByTag(tag)
-    if (prev != null) {
-      ft.remove(prev)
-    }
-    ft.addToBackStack(null)
-    ft.commitAllowingStateLoss
-    log.g_a_s_e("!!!")
-    super.show(manager, tag)
-  }*/
-  // http://stackoverflow.com/questions/10579545/dialogfragment-using-alertdialog-with-custom-layout
   override def onDismiss(dialog: DialogInterface) {
     super.onDismiss(dialog)
     notifySafeDialogDismissed(dialog)
   }
+  override def onResume() = {
+    if (!getShowsDialog) {
+      Option(getSherlockActivity.findViewById(R.id.main_bottomPanel)).foreach {
+        case panel if panel.isShown =>
+          panel.setVisibility(View.GONE)
+        case _ =>
+      }
+    }
+    super.onResume
+  }
+  override def onPause() = {
+    /*
+     * android fragment transaction architecture is incomplete
+     * backstack persistency is unfinished
+     * reimplement it by hands is unreasonable
+     * deadlines, beer, other stuff... we must to forgive android framework coders
+     * in the hope of android 5.x
+     * 30.07.2012 Ezh
+     */
+    getSherlockActivity.getSupportFragmentManager.
+      popBackStack(this.toString, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+    if (!getShowsDialog) {
+      Option(getSherlockActivity.findViewById(R.id.main_bottomPanel)).foreach {
+        case panel if !panel.isShown =>
+          panel.setVisibility(View.VISIBLE)
+        case _ =>
+      }
+    }
+    super.onPause
+  }
+}
+
+object SherlockSafeDialogFragment {
+  implicit def dialog2string(d: SherlockSafeDialogFragment) = d.toString
 }

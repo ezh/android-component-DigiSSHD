@@ -29,7 +29,7 @@ import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -145,9 +145,9 @@ object FilterBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "element_service_filter_header", "layout"), null).asInstanceOf[LinearLayout]
+        inflate(XResource.getId(context.getApplicationContext, "element_service_filter_header", "layout"), null).asInstanceOf[LinearLayout]
       val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-      headerTitle.setText(Html.fromHtml(Util.getString(context, "block_filter_title").getOrElse("interface filters")))
+      headerTitle.setText(Html.fromHtml(XResource.getString(context, "block_filter_title").getOrElse("interface filters")))
       Level.professional(view.findViewById(android.R.id.custom))
       val onClickServiceFilterAddButton = view.findViewById(R.id.service_filter_add_button).asInstanceOf[Button]
       onClickServiceFilterAddButton.setOnClickListener(new View.OnClickListener() {
@@ -191,7 +191,7 @@ object FilterBlock extends Logging {
       if (value != ALL)
         value
       else
-        Util.getString(context, "allow_all").getOrElse("allow all")
+        XResource.getString(context, "allow_all").getOrElse("allow all")
     def state: Boolean = synchronized {
       if (_state == None) {
         context.get.foreach {
@@ -222,7 +222,7 @@ object FilterBlock extends Logging {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
+        view.setText(XResource.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {

@@ -23,7 +23,7 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -57,7 +57,7 @@ object AuthentificationMode extends TextViewItem with Logging {
                 SSHDPreferences.AuthentificationMode.set(authType, context, true)
                 AuthentificationMode.view.get.foreach(view => {
                   val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                  Util.getString(activity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
+                  XResource.getString(activity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
                     case Some(string) =>
                       text.setText(string)
                     case None =>
@@ -91,7 +91,7 @@ object AuthentificationMode extends TextViewItem with Logging {
     val view = super.getView(context, inflater)
     val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
     val authType = SSHDPreferences.AuthentificationMode.get(context).toString
-    Util.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
+    XResource.getString(context, "option_auth_" + authType.replaceAll(""" """, """_""")) match {
       case Some(string) =>
         value.setText(string)
       case None =>

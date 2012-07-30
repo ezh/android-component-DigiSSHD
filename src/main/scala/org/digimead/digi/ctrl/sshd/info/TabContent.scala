@@ -23,7 +23,7 @@ package org.digimead.digi.ctrl.sshd.info
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.CommunityBlock
@@ -73,17 +73,17 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
     val context = getSherlockActivity
     // prepare empty view
     // interfaces
-    val interfacesHeader = view.findViewById(Util.getId(context, "nodata_header_interface")).asInstanceOf[TextView]
-    interfacesHeader.setText(Html.fromHtml(Util.getString(context, "block_interface_title").getOrElse("interfaces")))
+    val interfacesHeader = view.findViewById(XResource.getId(context, "nodata_header_interface")).asInstanceOf[TextView]
+    interfacesHeader.setText(Html.fromHtml(XResource.getString(context, "block_interface_title").getOrElse("interfaces")))
     // community
-    val communityHeader = view.findViewById(Util.getId(context, "nodata_header_community")).asInstanceOf[TextView]
-    communityHeader.setText(Html.fromHtml(Util.getString(context, "block_community_title").getOrElse("community")))
+    val communityHeader = view.findViewById(XResource.getId(context, "nodata_header_community")).asInstanceOf[TextView]
+    communityHeader.setText(Html.fromHtml(XResource.getString(context, "block_community_title").getOrElse("community")))
     // support
-    val supportHeader = view.findViewById(Util.getId(context, "nodata_header_support")).asInstanceOf[TextView]
-    supportHeader.setText(Html.fromHtml(Util.getString(context, "block_support_title").getOrElse("support")))
+    val supportHeader = view.findViewById(XResource.getId(context, "nodata_header_support")).asInstanceOf[TextView]
+    supportHeader.setText(Html.fromHtml(XResource.getString(context, "block_support_title").getOrElse("support")))
     // legal
-    val legalHeader = view.findViewById(Util.getId(context, "nodata_header_legal")).asInstanceOf[TextView]
-    legalHeader.setText(Html.fromHtml(Util.getString(context, "block_legal_title").getOrElse("legal")))
+    val legalHeader = view.findViewById(XResource.getId(context, "nodata_header_legal")).asInstanceOf[TextView]
+    legalHeader.setText(Html.fromHtml(XResource.getString(context, "block_legal_title").getOrElse("legal")))
     view
   }
   @Loggable
@@ -162,10 +162,10 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item: LegalBlock.Item =>
             legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
-            menu.add(Menu.NONE, Util.getId(getSherlockActivity, "block_legal_coreutils"), 1,
-              Util.getString(getSherlockActivity, "block_legal_coreutils").getOrElse("GNU Coreutils"))
-            menu.add(Menu.NONE, Util.getId(getSherlockActivity, "block_legal_grep"), 1,
-              Util.getString(getSherlockActivity, "block_legal_grep").getOrElse("GNU Grep"))
+            menu.add(Menu.NONE, XResource.getId(getSherlockActivity, "block_legal_coreutils"), 1,
+              XResource.getString(getSherlockActivity, "block_legal_coreutils").getOrElse("GNU Coreutils"))
+            menu.add(Menu.NONE, XResource.getId(getSherlockActivity, "block_legal_grep"), 1,
+              XResource.getString(getSherlockActivity, "block_legal_grep").getOrElse("GNU Grep"))
           case item: InterfaceBlock.Item =>
             interfaceBlock.onCreateContextMenu(menu, v, menuInfo, item)
           case item =>
@@ -194,7 +194,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
           thanksBlock.onContextItemSelected(menuItem, item)
         case item: LegalBlock.Item =>
           menuItem.getItemId match {
-            case id if id == Util.getId(getSherlockActivity, "block_legal_coreutils") =>
+            case id if id == XResource.getId(getSherlockActivity, "block_legal_coreutils") =>
               log.debug("open link from " + TabContent.CoreutilsURL)
               try {
                 val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.CoreutilsURL))
@@ -206,7 +206,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
                   IAmYell("Unable to open license link " + TabContent.CoreutilsURL, e)
                   false
               }
-            case id if id == Util.getId(getSherlockActivity, "block_legal_grep") =>
+            case id if id == XResource.getId(getSherlockActivity, "block_legal_grep") =>
               log.debug("open link from " + TabContent.GrepURL)
               try {
                 val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.GrepURL))

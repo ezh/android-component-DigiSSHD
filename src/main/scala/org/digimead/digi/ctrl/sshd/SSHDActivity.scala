@@ -30,7 +30,8 @@ import scala.collection.immutable.HashMap
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DActivity
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XAndroid
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
@@ -53,13 +54,13 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.Point
 import android.os.Bundle
 import android.os.Handler
 import android.support.v4.app.Fragment
+import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
-import android.graphics.Point
-import android.view.Gravity
 
 class SSHDActivity extends SherlockFragmentActivity with DActivity {
   /** profiling support */
@@ -90,7 +91,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     val display = getWindowManager.getDefaultDisplay()
     val variant = getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK match {
       case Configuration.SCREENLAYOUT_SIZE_XLARGE =>
-        if (Util.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+        if (XAndroid.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_XLARGE, layout Largest, landscape")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Largest
         } else {
@@ -98,7 +99,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
         }
       case Configuration.SCREENLAYOUT_SIZE_LARGE =>
-        if (Util.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+        if (XAndroid.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_LARGE, layout Large, landscape")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Large
         } else {
@@ -106,7 +107,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
         }
       case _ =>
-        if (Util.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
+        if (XAndroid.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_NORMAL and bellow, layout Small, landscape"); 1
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Small
         } else {

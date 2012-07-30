@@ -30,7 +30,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.HashMap
 
 import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
@@ -106,8 +106,8 @@ object InterfaceBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Util.getString(context, "block_interface_title").getOrElse("interfaces")))
+        inflate(XResource.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(XResource.getString(context, "block_interface_title").getOrElse("interfaces")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -202,7 +202,7 @@ object InterfaceBlock extends Logging {
       text.setCompoundDrawablePadding(10)
       item match {
         case InterfaceBlock.Item(null, null) =>
-          text.setText(Util.getString(context, "loading").getOrElse("loading..."))
+          text.setText(XResource.getString(context, "loading").getOrElse("loading..."))
         case InterfaceBlock.Item(_, Some(true)) =>
           text.setCompoundDrawablesWithIntrinsicBounds(icActive, null, null, null)
         case InterfaceBlock.Item(_, Some(false)) =>

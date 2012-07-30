@@ -28,7 +28,7 @@ import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.info.UserInfo
@@ -155,7 +155,7 @@ object UserDialog extends Logging with Passwords {
         initialUser = UserAdapter.find(context, getArguments.getString("username"))
         initialUser match {
           case Some(user) =>
-            dialog.setTitle(Util.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name))
+            dialog.setTitle(XResource.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name))
             dialog.show
             dialog
           case None =>
@@ -168,8 +168,8 @@ object UserDialog extends Logging with Passwords {
         val dialog = for { user <- initialUser } yield ChangePassword.customView match {
           case Some((view, enablePasswordButton, togglePasswordButton, passwordField)) =>
             val dialog = new AlertDialog.Builder(context).
-              setTitle(Util.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name)).
-              setMessage(Html.fromHtml(Util.getString(context, "dialog_password_message").
+              setTitle(XResource.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name)).
+              setMessage(Html.fromHtml(XResource.getString(context, "dialog_password_message").
                 getOrElse("Please select a password. User password must be at least 1 characters long. Password cannot be more than 16 characters. Only standard unix password characters are allowed."))).
               setView(onCreateView(null, null, null)).
               setPositiveButton(android.R.string.ok, ChangePassword.PositiveButtonListener).
@@ -242,7 +242,7 @@ object UserDialog extends Logging with Passwords {
               user <- UserAdapter.find(context, dialog.getArguments.getString("username"))
               (view, enablePasswordButton, togglePasswordButton, passwordField) <- customView
             } yield try {
-              val notification = Util.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(user.name)
+              val notification = XResource.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(user.name)
               IAmWarn(notification.format(user.name))
               AnyBase.runOnUiThread { Toast.makeText(context, notification.format(user.name), Toast.LENGTH_SHORT).show() }
               val newUser = user.copy(password = passwordField.getText.toString)
@@ -325,12 +325,12 @@ object UserDialog extends Logging with Passwords {
         if (isChecked) {
           togglePasswordButton.setEnabled(true)
           passwordField.setEnabled(true)
-          Toast.makeText(context, Util.getString(context, "enable_password_authentication").
+          Toast.makeText(context, XResource.getString(context, "enable_password_authentication").
             getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
         } else {
           togglePasswordButton.setEnabled(false)
           passwordField.setEnabled(false)
-          Toast.makeText(context, Util.getString(context, "disable_password_authentication").
+          Toast.makeText(context, XResource.getString(context, "disable_password_authentication").
             getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
         }
       }

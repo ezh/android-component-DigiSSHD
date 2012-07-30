@@ -25,7 +25,6 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 
 import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentActivity
 import android.view.View
 
 trait TabInterface extends Logging {
@@ -34,11 +33,14 @@ trait TabInterface extends Logging {
   def getTabDescriptionFragment(): Option[Fragment]
   def showTabDescriptionFragment() = if (isTopPanelAvailable)
     getTabDescriptionFragment.foreach {
-      case fragment if !fragment.isVisible =>
+      case fragment if !fragment.isAdded =>
         log.debug("show description fragment for " + this.getClass.getName)
-        val ft = getActivity.getSupportFragmentManager.beginTransaction()
-        ft.replace(R.id.main_topPanel, fragment)
-        ft.commit()
+        val manager = getActivity.getSupportFragmentManager
+        if (manager.getBackStackEntryCount == 0) {
+          val ft = manager.beginTransaction()
+          ft.replace(R.id.main_topPanel, fragment)
+          ft.commit()
+        }
       case _ =>
         log.debug("skip show description fragment for " + this.getClass.getName)
     }

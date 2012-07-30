@@ -30,7 +30,7 @@ import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.Util
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Block
@@ -98,8 +98,8 @@ object OptionBlock extends Logging {
   private lazy val header = AppComponent.Context match {
     case Some(context) =>
       val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(Util.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(Util.getString(context, "block_option_title").getOrElse("options")))
+        inflate(XResource.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
+      view.setText(Html.fromHtml(XResource.getString(context, "block_option_title").getOrElse("options")))
       view
     case None =>
       log.fatal("lost ApplicationContext")
@@ -115,8 +115,8 @@ object OptionBlock extends Logging {
       val affirmative = new AtomicBoolean(false)
       /*      AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
         val dialog = new AlertDialog.Builder(activity).
-          setTitle(Util.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
-          setMessage(Util.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
+          setTitle(XResource.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
+          setMessage(XResource.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
           setIcon(android.R.drawable.ic_dialog_alert).
           setPositiveButton(_root_.android.R.string.ok, new DialogInterface.OnClickListener() {
             def onClick(dialog: DialogInterface, whichButton: Int) = affirmative.set(true)
@@ -157,7 +157,7 @@ object OptionBlock extends Logging {
       val item = getItem(position)
       if (item == null) {
         val view = new TextView(parent.getContext)
-        view.setText(Util.getString(context, "loading").getOrElse("loading..."))
+        view.setText(XResource.getString(context, "loading").getOrElse("loading..."))
         view
       } else
         item.view.get match {
@@ -189,7 +189,7 @@ object OptionBlock extends Logging {
                   Level.intermediate(view)
                   view
                 case _ =>
-                  inflater.inflate(Util.getId(context, "option_list_item_multiple_choice", "layout"), null)
+                  inflater.inflate(XResource.getId(context, "option_list_item_multiple_choice", "layout"), null)
               }
             val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
             val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]

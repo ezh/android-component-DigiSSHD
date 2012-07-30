@@ -91,10 +91,10 @@ class FilterActivity extends ListActivity with Logging {
     setContentView(R.layout.session_filter)
     getIntent.getIntExtra("requestCode", 0) match {
       case id if id == FilterBlock.FILTER_REQUEST_ALLOW =>
-        setTitle(Util.getString(this, "app_name_filter_allow").getOrElse("DigiSSHD: Allow filter"))
+        setTitle(XResource.getString(this, "app_name_filter_allow").getOrElse("DigiSSHD: Allow filter"))
         isActivityAllow = true
       case id if id == FilterBlock.FILTER_REQUEST_DENY =>
-        setTitle(Util.getString(this, "app_name_filter_deny").getOrElse("DigiSSHD: Deny filter"))
+        setTitle(XResource.getString(this, "app_name_filter_deny").getOrElse("DigiSSHD: Deny filter"))
         isActivityAllow = false
       case id =>
         log.fatal("unknown activity resultCode " + id)
