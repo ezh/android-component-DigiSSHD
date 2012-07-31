@@ -75,7 +75,6 @@ object UserAdapter extends Logging {
           view
         }
       })
-      None
   } getOrElse { log.fatal("unable to create SSHDUsers adapter"); None }
   def list(): List[UserInfo] = adapter.map(adapter =>
     (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())

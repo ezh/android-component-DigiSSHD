@@ -64,21 +64,10 @@ object AuthentificationMode extends TextViewItem with Logging {
   override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
     dialog <- AuthentificationMode.Dialog.selectAuth
-  } if (dialog.isShowing) {
+  } if (dialog.isShowing)
     log.debug(dialog + " already shown")
-  } else {
-    val manager = fragment.getSherlockActivity.getSupportFragmentManager
-    if (manager.findFragmentByTag(dialog) == null || !fragment.isTopPanelAvailable) {
-      log.debug("show " + dialog)
-      SafeDialog.transaction.prepend((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog, () => dialog)
-    } else {
-      log.debug("restore " + dialog)
-      manager.popBackStack(dialog, 0)
-    }
-  }
+  else
+    dialog.show(fragment)
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
     SSHDPreferences.AuthentificationMode.get(context).id.asInstanceOf[T]
@@ -111,7 +100,7 @@ object AuthentificationMode extends TextViewItem with Logging {
       @volatile private var ok = new WeakReference[Button](null)
       private lazy val cachedDialog = {
         val dialog = new AlertDialog.Builder(getSherlockActivity).
-          setIcon(android.R.drawable.ic_dialog_alert).
+          setIcon(android.R.drawable.ic_menu_preferences).
           setTitle(R.string.dialog_auth_title).
           setSingleChoiceItems(R.array.auth_type, defaultSelection, onChoiseListener).
           setPositiveButton(android.R.string.ok, positiveButtonListener).
@@ -133,7 +122,7 @@ object AuthentificationMode extends TextViewItem with Logging {
         val title = view.findViewById(android.R.id.title).asInstanceOf[TextView]
         title.setText(R.string.dialog_auth_title)
         val icon = view.findViewById(android.R.id.icon).asInstanceOf[ImageView]
-        icon.setImageResource(android.R.drawable.ic_dialog_alert)
+        icon.setImageResource(android.R.drawable.ic_menu_preferences)
         icon.setVisibility(View.VISIBLE)
         view.findViewById(android.R.id.summary).setVisibility(View.VISIBLE)
         val cancel = view.findViewById(android.R.id.button1).asInstanceOf[Button]
@@ -155,7 +144,7 @@ object AuthentificationMode extends TextViewItem with Logging {
       private lazy val negativeButtonListener = new SelectAuth.NegativeButtonListener(new WeakReference(this))
       private lazy val onChoiseListener = new SelectAuth.OnChoiceListener(new WeakReference(this))
 
-      override def toString = "dialog_selectport"
+      override def toString = "dialog_authmode"
       @Loggable
       override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = if (getShowsDialog) {
         null

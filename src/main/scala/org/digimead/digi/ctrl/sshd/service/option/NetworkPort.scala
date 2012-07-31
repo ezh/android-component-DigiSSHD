@@ -65,21 +65,10 @@ object NetworkPort extends TextViewItem with Logging {
   override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
     dialog <- NetworkPort.Dialog.selectPort
-  } if (dialog.isShowing) {
+  } if (dialog.isShowing)
     log.debug(dialog + " already shown")
-  } else {
-    val manager = fragment.getSherlockActivity.getSupportFragmentManager
-    if (manager.findFragmentByTag(dialog) == null || !fragment.isTopPanelAvailable) {
-      log.debug("show " + dialog)
-      SafeDialog.transaction.prepend((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog, () => dialog)
-    } else {
-      log.debug("restore " + dialog)
-      manager.popBackStack(dialog, 0)
-    }
-  }
+  else
+    dialog.show(fragment)
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
     SSHDPreferences.NetworkPort.get(context).asInstanceOf[T]
@@ -99,7 +88,7 @@ object NetworkPort extends TextViewItem with Logging {
       @volatile private var port = new WeakReference[EditText](null)
       private lazy val cachedDialog = {
         val dialog = new AlertDialog.Builder(getSherlockActivity).
-          setIcon(android.R.drawable.ic_dialog_info).
+          setIcon(android.R.drawable.ic_menu_preferences).
           setTitle(R.string.dialog_port_title).
           setMessage(content(getSherlockActivity)).
           setPositiveButton(android.R.string.ok, positiveButtonListener).
@@ -119,7 +108,7 @@ object NetworkPort extends TextViewItem with Logging {
         val title = view.findViewById(android.R.id.title).asInstanceOf[TextView]
         title.setText(R.string.dialog_port_title)
         val icon = view.findViewById(android.R.id.icon).asInstanceOf[ImageView]
-        icon.setImageResource(android.R.drawable.ic_dialog_info)
+        icon.setImageResource(android.R.drawable.ic_menu_preferences)
         icon.setVisibility(View.VISIBLE)
         content.setText(this.content(context))
         view.findViewById(android.R.id.summary).setVisibility(View.VISIBLE)

@@ -23,33 +23,42 @@ package org.digimead.digi.ctrl.sshd.ext
 
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.actionbarsherlock.app.SherlockFragmentActivity
 
 import android.support.v4.app.Fragment
+import android.view.View
 
-trait TabInterface extends Logging {
-  this: Fragment with TabInterface.Sherlock =>
-  def onTabSelected()
-  def getTabDescriptionFragment(): Option[Fragment]
-  def showTabDescriptionFragment() = if (isTopPanelAvailable)
-    getTabDescriptionFragment.foreach {
-      case fragment if !fragment.isAdded =>
-        log.debug("show description fragment for " + this.getClass.getName)
-        val manager = getActivity.getSupportFragmentManager
-        if (manager.getBackStackEntryCount == 0) {
-          val ft = manager.beginTransaction()
-          ft.replace(R.id.main_topPanel, fragment)
-          ft.commit()
-        }
-      case _ =>
-        log.debug("skip show description fragment for " + this.getClass.getName)
-    }
-  def isTopPanelAvailable =
-    Option(getActivity.findViewById(R.id.main_topPanel)).exists(_.isShown)  
-  def getSherlockActivity(): SherlockFragmentActivity
+trait SherlockDynamicFragment {
+  this: Fragment with SherlockDynamicFragment.Sherlock =>
+  def showDynamicFragment() = SSHDActivity.activity.foreach {
+    activity =>
+      activity.findViewById(R.id.main_primary).setVisibility(View.GONE)
+      activity.findViewById(R.id.main_secondary).setVisibility(View.VISIBLE)
+  }
+  def hideDynamicFragment() = SSHDActivity.activity.foreach {
+    activity =>
+      activity.findViewById(R.id.main_primary).setVisibility(View.VISIBLE)
+      activity.findViewById(R.id.main_secondary).setVisibility(View.GONE)
+  }
 }
 
-object TabInterface {
+object SherlockDynamicFragment extends Logging {
   type Sherlock = { def getSherlockActivity(): SherlockFragmentActivity }
+  def show(fragment: Class[_ <: SherlockDynamicFragment], tab: TabInterface) {
+    val manager = tab.getSherlockActivity.getSupportFragmentManager
+    val userFragment = Fragment.instantiate(tab.getSherlockActivity, fragment.getName, null)
+    val target = if (tab.isTopPanelAvailable) {
+      log.debug("show embedded user fragment")
+      R.id.main_topPanel
+    } else {
+      log.debug("show modal user fragment")
+      R.id.main_secondary
+    }
+    val ft = manager.beginTransaction()
+    ft.replace(target, userFragment)
+    ft.addToBackStack(userFragment.toString)
+    ft.commit()
+  }
 }

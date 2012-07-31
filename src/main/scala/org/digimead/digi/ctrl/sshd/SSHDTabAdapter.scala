@@ -36,6 +36,7 @@ import com.actionbarsherlock.app.ActionBar.Tab
 import android.os.Bundle
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentPagerAdapter
 import android.support.v4.app.FragmentTransaction
 import android.support.v4.view.ViewPager
@@ -60,6 +61,10 @@ class SSHDTabAdapter(activity: FragmentActivity, val pager: WeakReference[ViewPa
     val tag = tab.getTag
     for { index <- 0 until SSHDTabAdapter.tabs.size }
       if (SSHDTabAdapter.tabs(index).clazz == tag) {
+        // clear backstack
+        val manager = getItem(SSHDTabAdapter.selected.get).getFragmentManager
+        manager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        // select new tab
         SSHDTabAdapter.selected.set(index)
         pager.get.foreach(_.setCurrentItem(index))
         return
@@ -104,7 +109,9 @@ object SSHDTabAdapter extends Logging {
   log.debug("alive")
   ppLoading.stop
 
-  def getSelected() = tabs(selected.get)
+  def getSelectedTab() = tabs(selected.get)
+  def getSelectedFragment(): Option[Fragment with TabInterface] =
+    adapter.map(_.getItem(selected.get).asInstanceOf[Fragment with TabInterface])
   def addTab(tabTitleResource: Int, clazz: Class[_ <: TabInterface], args: Bundle) = synchronized {
     SSHDActivity.activity.foreach {
       activity =>

@@ -30,6 +30,7 @@ import com.actionbarsherlock.app.SherlockDialogFragment
 
 import android.content.DialogInterface
 import android.support.v4.app.FragmentManager
+import android.support.v4.app.FragmentTransaction
 import android.view.View
 
 class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog with Logging {
@@ -71,6 +72,30 @@ class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog 
       }
     }
     super.onPause
+  }
+  def isInBackStack(manager: FragmentManager): Boolean = {
+    val tag = toString
+    if (manager.findFragmentByTag(tag) == null)
+      return false
+    for (i <- 0 until manager.getBackStackEntryCount)
+      if (manager.getBackStackEntryAt(i).getName == tag)
+        return true
+    false
+  }
+  def show(fragment: TabInterface) {
+    val tag = toString
+    val context = fragment.getSherlockActivity
+    val manager = context.getSupportFragmentManager
+    if (isInBackStack(manager) && fragment.isTopPanelAvailable) {
+      log.debug("restore " + tag)
+      manager.popBackStack(tag, 0)
+    } else {
+      log.debug("show " + tag)
+      SafeDialog.transaction.prepend((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(tag)
+      }).show(context, Some(R.id.main_topPanel), tag, () => this)
+    }
   }
 }
 

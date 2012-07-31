@@ -39,6 +39,16 @@
         android:textAppearance="?android:attr/textAppearanceSmall" />
 
     <LinearLayout
+        android:id="@+id/main_secondary"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/main_textStatusSmallDevices"
+        android:orientation="vertical" 
+        android:visibility="gone">
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/main_primary"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/main_textStatusSmallDevices"

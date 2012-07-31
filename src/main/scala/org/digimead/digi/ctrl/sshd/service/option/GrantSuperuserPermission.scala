@@ -60,29 +60,17 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
   val option: DOption.OptVal = SSHDPreferences.AsRoot.option
 
   @Loggable
-  def onCheckboxClick(view: CheckBox, lastState: Boolean) =
-    if (lastState) {
-      Futures.future { SSHDPreferences.AsRoot.set(false, view.getContext, true) }
-      if (view.isChecked)
-        view.setChecked(false)
-    } else for {
-      fragment <- TabContent.fragment
-      dialog <- GrantSuperuserPermission.Dialog.rootRequest
-    } if (dialog.isShowing) {
-      log.debug(dialog + " already shown")
-    } else {
-      val manager = fragment.getSherlockActivity.getSupportFragmentManager
-      if (manager.findFragmentByTag(dialog) == null || !fragment.isTopPanelAvailable) {
-        log.debug("show " + dialog)
-        SafeDialog.transaction.prepend((ft, fragment, target) => {
-          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-          ft.addToBackStack(dialog)
-        }).show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog, () => dialog)
-      } else {
-        log.debug("restore " + dialog)
-        manager.popBackStack(dialog, 0)
-      }
-    }
+  def onCheckboxClick(view: CheckBox, lastState: Boolean) = if (lastState) {
+    Futures.future { SSHDPreferences.AsRoot.set(false, view.getContext, true) }
+    if (view.isChecked)
+      view.setChecked(false)
+  } else for {
+    fragment <- TabContent.fragment
+    dialog <- GrantSuperuserPermission.Dialog.rootRequest
+  } if (dialog.isShowing)
+    log.debug(dialog + " already shown")
+  else
+    dialog.show(fragment)
   @Loggable
   def onListItemClick(l: ListView, v: View) =
     view.get.foreach {

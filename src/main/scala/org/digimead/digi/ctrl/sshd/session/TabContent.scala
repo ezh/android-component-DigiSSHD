@@ -90,7 +90,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
   @Loggable
   override def onResume() {
     super.onResume
-    if (SSHDTabAdapter.getSelected.clazz == getClass)
+    if (SSHDTabAdapter.getSelectedTab.clazz == getClass)
       showTabDescriptionFragment()
   }
   @Loggable
@@ -177,7 +177,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
 object TabContent extends Logging {
   /** profiling support */
   private val ppLoading = SSHDActivity.ppGroup.start("sessions.TabContent$")
-  /** */
+  /** TabContent fragment instance */
   @volatile private[session] var fragment: Option[TabContent] = None
   lazy val adapter: MergeAdapter = {
     val adapter = new MergeAdapter()

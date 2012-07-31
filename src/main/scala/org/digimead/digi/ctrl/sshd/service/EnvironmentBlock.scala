@@ -32,6 +32,7 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.user.UserFragment
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -51,6 +52,8 @@ import android.widget.TextView
 // buy or not
 
 class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher: Dispatcher) extends Block[EnvironmentBlock.Item] with Logging {
+  EnvironmentBlock.block = Some(this)
+
   def items = for (i <- 0 until EnvironmentBlock.adapter.getCount) yield EnvironmentBlock.adapter.getItem(i)
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
@@ -59,15 +62,11 @@ class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher:
     Option(EnvironmentBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
   @Loggable
-  def onListItemClick(l: ListView, v: View, item: EnvironmentBlock.Item) = {
-  }
+  def onListItemClick(l: ListView, v: View, item: EnvironmentBlock.Item) = {}
   @Loggable
-  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: EnvironmentBlock.Item) {
-  }
+  override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: EnvironmentBlock.Item) {}
   @Loggable
-  override def onContextItemSelected(menuItem: MenuItem, item: EnvironmentBlock.Item): Boolean = {
-    false
-  }
+  override def onContextItemSelected(menuItem: MenuItem, item: EnvironmentBlock.Item): Boolean = false
   @Loggable
   def onClickServiceReinstall(v: View) = {
     IAmMumble("reinstall files/force prepare evironment")
@@ -84,14 +83,7 @@ class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher:
     IAmMumble("reset settings")
   }
   @Loggable
-  def onClickUsers(v: View) = {
-    /*    try {
-      startActivity(new Intent(this, classOf[SSHDUsers]))
-    } catch {
-      case e =>
-        IAmYell("Unable to open activity for " + classOf[SSHDUsers].getName, e)
-    }*/
-  }
+  def onClickUsers(v: View) = UserFragment.show
 }
 
 object EnvironmentBlock extends Logging {
@@ -142,8 +134,6 @@ object EnvironmentBlock extends Logging {
       item.view.get match {
         case None =>
           val view = inflater.inflate(textViewResourceId, null)
-          val text1 = view.findViewById(android.R.id.text1).asInstanceOf[TextView]
-          //val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
           view
         case Some(view) =>
           view
