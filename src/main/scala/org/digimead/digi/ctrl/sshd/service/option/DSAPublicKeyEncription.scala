@@ -50,17 +50,17 @@ object DSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
   def onCheckboxClick(view: CheckBox, lastState: Boolean) = {
     val context = view.getContext
     val allow = if (!RSAPublicKeyEncription.getState[Boolean](context) && getState[Boolean](context))
-      false // prevent RSA and DSS simultaneous shutdown
+      false // prevent RSA and DSS a simultaneous shutdown
     else
       true
     if (allow) {
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-      val editor = pref.edit()
-      editor.putBoolean(option.tag, !lastState)
-      editor.commit()
+      Futures.future {
+        val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+        val editor = pref.edit()
+        editor.putBoolean(option.tag, !lastState)
+        editor.commit()
+      }
       view.setChecked(!lastState)
-      context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
-      //     SSHDCommon.optionChangedOnRestartNotify(context, option, getState[Boolean](context).toString)
     } else {
       val message = XResource.getString(context, "option_rsa_dss_at_least_one").getOrElse("at least one of the encription type must be selected from either RSA or DSA")
       view.setChecked(getState[Boolean](context))

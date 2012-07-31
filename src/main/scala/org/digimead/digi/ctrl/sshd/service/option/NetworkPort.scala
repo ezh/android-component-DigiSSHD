@@ -62,19 +62,23 @@ object NetworkPort extends TextViewItem with Logging {
   val option = SSHDPreferences.NetworkPort.option
 
   @Loggable
-  override def onListItemClick(l: ListView, v: View) =
-    showDialog
-  @Loggable
-  def showDialog() = for {
+  override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
     dialog <- NetworkPort.Dialog.selectPort
   } if (dialog.isShowing) {
-    //  AnyBase.runOnUiThread { dialog.updateContent(info) }
+    log.debug(dialog + " already shown")
   } else {
-    SafeDialog.transaction.prepend((ft, fragment, target) => {
-      ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-      ft.addToBackStack(dialog)
-    }).show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog, () => dialog)
+    val manager = fragment.getSherlockActivity.getSupportFragmentManager
+    if (manager.findFragmentByTag(dialog) == null || !fragment.isTopPanelAvailable) {
+      log.debug("show " + dialog)
+      SafeDialog.transaction.prepend((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog, () => dialog)
+    } else {
+      log.debug("restore " + dialog)
+      manager.popBackStack(dialog, 0)
+    }
   }
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
@@ -99,7 +103,7 @@ object NetworkPort extends TextViewItem with Logging {
           setTitle(R.string.dialog_port_title).
           setMessage(content(getSherlockActivity)).
           setPositiveButton(android.R.string.ok, positiveButtonListener).
-          setNegativeButton(android.R.string.cancel, null).
+          setNegativeButton(android.R.string.cancel, negativeButtonListener).
           setView(innerView(getSherlockActivity)).
           create()
         dialog.show
@@ -135,10 +139,10 @@ object NetworkPort extends TextViewItem with Logging {
       }
       private lazy val cachedEmbeddedAttr = XResource.getAttributeSet(getSherlockActivity, R.layout.fragment_dialog)
       private lazy val positiveButtonListener = new SelectPort.PositiveButtonListener(new WeakReference(this))
-      private lazy val negativeButtonListener = new SelectPort.PositiveButtonListener(new WeakReference(this))
+      private lazy val negativeButtonListener = new SelectPort.NegativeButtonListener(new WeakReference(this))
       private lazy val portFieldTextChangedListener = new SelectPort.PortFieldTextChangedListener(new WeakReference(this))
 
-      override def toString = "dialog_rootrequest"
+      override def toString = "dialog_selectport"
       @Loggable
       override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = if (getShowsDialog) {
         null
@@ -201,10 +205,14 @@ object NetworkPort extends TextViewItem with Logging {
         }
       }
       class NegativeButtonListener(dialog: WeakReference[SelectPort]) extends DialogInterface.OnClickListener() {
-        def onClick(dialogInterface: DialogInterface, whichButton: Int) =
+        def onClick(dialogInterface: DialogInterface, whichButton: Int) = try {
           dialog.get.foreach(dialog => if (!dialog.getShowsDialog)
             dialog.getSherlockActivity.getSupportFragmentManager.
             popBackStackImmediate(dialog, FragmentManager.POP_BACK_STACK_INCLUSIVE))
+        } catch {
+          case e =>
+            log.error(e.getMessage, e)
+        }
       }
       class PortFieldTextChangedListener(dialog: WeakReference[SelectPort]) extends TextWatcher {
         override def afterTextChanged(s: Editable) = try {

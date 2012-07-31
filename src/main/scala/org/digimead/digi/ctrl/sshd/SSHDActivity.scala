@@ -117,7 +117,6 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     }
     SSHDActivity.layoutAdjusted = false
     SSHDActivity.adjustHiddenLayout(this)
-
     SSHDActivity.State.actor ! SSHDActivity.State.Event.OnCreate(this, savedInstanceState)
   }
   /**
@@ -151,6 +150,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
    */
   @Loggable
   override def onPause() = SSHDActivity.ppGroup("SSHDActivity.onPause") {
+    SafeDialog.disable
     SSHDActivity.State.actor ! SSHDActivity.State.Event.OnPause(this)
     super.onPause()
   }

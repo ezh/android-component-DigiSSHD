@@ -22,20 +22,23 @@
 package org.digimead.digi.ctrl.sshd.ext
 
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+
 import com.actionbarsherlock.app.SherlockDialogFragment
+
 import android.content.DialogInterface
-import android.view.View
 import android.support.v4.app.FragmentManager
-import android.support.v4.app.FragmentTransaction
-import scala.actors.Futures
+import android.view.View
 
 class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog with Logging {
+  @Loggable
   override def onDismiss(dialog: DialogInterface) {
     super.onDismiss(dialog)
     notifySafeDialogDismissed(dialog)
   }
+  @Loggable
   override def onResume() = {
     if (!getShowsDialog) {
       Option(getSherlockActivity.findViewById(R.id.main_bottomPanel)).foreach {
@@ -46,6 +49,7 @@ class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog 
     }
     super.onResume
   }
+  @Loggable
   override def onPause() = {
     /*
      * android fragment transaction architecture is incomplete
@@ -55,8 +59,10 @@ class SherlockSafeDialogFragment extends SherlockDialogFragment with SafeDialog 
      * in the hope of android 5.x
      * 30.07.2012 Ezh
      */
-    getSherlockActivity.getSupportFragmentManager.
-      popBackStack(this.toString, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+    // main activity unavailable (configuration change are in progress for example)
+    if (!SafeDialog.isEnabled)
+      getSherlockActivity.getSupportFragmentManager.
+        popBackStack(this.toString, FragmentManager.POP_BACK_STACK_INCLUSIVE)
     if (!getShowsDialog) {
       Option(getSherlockActivity.findViewById(R.id.main_bottomPanel)).foreach {
         case panel if !panel.isShown =>

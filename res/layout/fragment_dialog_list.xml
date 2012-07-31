@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ ~ DigiSSHD - DigiControl component for Android Platform
+ ~ Copyright (c) 2012, Alexey Aksenov ezh@ezh.msk.ru. All rights reserved.
+ ~ DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ ~
+ ~ This code is free software; you can redistribute it and/or modify it
+ ~ under the terms of the GNU General Public License version 3 or any later
+ ~ version, as published by the Free Software Foundation.
+ ~
+ ~ This code is distributed in the hope that it will be useful, but WITHOUT
+ ~ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ ~ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ ~ version 3 for more details (a copy is included in the LICENSE file that
+ ~ accompanied this code).
+ ~
+ ~ You should have received a copy of the GNU General Public License version
+ ~ 3 along with this work; if not, write to the Free Software Foundation,
+ ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ ~
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="right|center_vertical"
+        android:paddingBottom="7dip" >
+
+        <TextView
+            android:id="@android:id/title"
+            style="@android:style/TextAppearance.DeviceDefault.DialogWindowTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:paddingRight="10dip"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <ImageView
+            android:id="@android:id/icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@android:string/untitled"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="7dip"
+        android:contentDescription="@android:string/untitled"
+        android:paddingBottom="3dip"
+        android:paddingLeft="10dip"
+        android:paddingRight="10dip"
+        android:paddingTop="3dip"
+        android:src="@drawable/divider_h_alt" />
+
+    <ListView
+        android:id="@android:id/custom"
+        android:layout_width="match_parent"
+        android:layout_height="0dip"
+        android:layout_gravity="center"
+        android:layout_weight="1"
+        android:paddingBottom="7dip"
+        android:paddingTop="7dip" >
+    </ListView>
+
+    <ImageView
+        android:id="@android:id/summary"
+        android:layout_width="match_parent"
+        android:layout_height="7dip"
+        android:contentDescription="@android:string/untitled"
+        android:paddingBottom="3dip"
+        android:paddingLeft="10dip"
+        android:paddingRight="10dip"
+        android:paddingTop="3dip"
+        android:src="@drawable/divider_h_alt"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center" >
+
+        <Button
+            android:id="@android:id/button1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@android:id/button2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@android:id/button3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+    </LinearLayout>
+
+</LinearLayout>

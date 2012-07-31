@@ -81,8 +81,7 @@ object DefaultUser extends CheckBoxItem with Logging {
       val context = fragment.getSherlockActivity
       if (SSHDPreferences.AuthentificationMode.get(context) == AuthentificationMode.AuthType.SingleUser)
         AnyBase.runOnUiThread {
-        view.setChecked(getState[Boolean](view.getContext))
-          //updateCheckbox(view)
+          updateCheckbox(view)
           Toast.makeText(view.getContext, "\"android\" is always enabled in single user mode", Toast.LENGTH_SHORT).show()
         }
       else
@@ -102,15 +101,8 @@ object DefaultUser extends CheckBoxItem with Logging {
         null
     //})
   }
-  // fucking android 2.x :-/, shitty puzzles
-  /*def updateCheckbox(view: CheckBox) = {
-    view.setFocusable(true)
-    view.setFocusableInTouchMode(true)
-    view.requestFocus
+  def updateCheckbox(view: CheckBox) =
     view.setChecked(getState[Boolean](view.getContext))
-    view.setFocusable(false)
-    view.setFocusableInTouchMode(false)
-  }*/
   @Loggable
   override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
