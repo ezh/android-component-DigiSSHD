@@ -22,29 +22,29 @@
 package org.digimead.digi.ctrl.sshd
 
 import scala.collection.JavaConversions._
+
+import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.block.Level
 import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.declaration.DState
 import org.digimead.digi.ctrl.lib.dialog.Preferences
 import org.digimead.digi.ctrl.lib.log.RichLogger
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.util.PublicPreferences
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.preference.ListPreference
 import android.preference.{ Preference => APreference }
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.declaration.DState
 import android.widget.Toast
-import org.digimead.digi.ctrl.lib.util.PublicPreferences
-import org.digimead.digi.ctrl.sshd.service.option.{ AuthentificationMode => OAuthentificationMode }
-import org.digimead.digi.ctrl.lib.androidext.XResource
 
 class SSHDPreferences extends Preferences {
   implicit val logger = log
@@ -212,13 +212,13 @@ object SSHDPreferences {
       context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + option)))
     }
   }
-  object AuthentificationMode extends Preferences.Preference[Int, OAuthentificationMode.AuthType.Value, OAuthentificationMode.AuthType.Value] {
+  object AuthentificationMode extends Preferences.Preference[Int, AuthentificationType.Value, AuthentificationType.Value] {
     val option = DOption.AuthentificationMode
-    def get(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): OAuthentificationMode.AuthType.Value =
-      OAuthentificationMode.AuthType(context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).getInt(option.tag, default))
+    def get(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): AuthentificationType.Value =
+      AuthentificationType(context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).getInt(option.tag, default))
     def set(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit =
       set(get(context)(logger, dispatcher), context)(logger, dispatcher)
-    def set(value: OAuthentificationMode.AuthType.Value, context: Context, notify: Boolean = false)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit = {
+    def set(value: AuthentificationType.Value, context: Context, notify: Boolean = false)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit = {
       val editor = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).edit
       editor.putInt(option.tag, value.id)
       editor.commit
@@ -235,6 +235,11 @@ object SSHDPreferences {
     val FilterConnectionInitialized: OptVal = Value("filter_connection_initialized", classOf[Boolean], false: java.lang.Boolean)
     val SelectedTab: OptVal = Value("selected_tab", classOf[Int], 0: java.lang.Integer)
     val NetworkPort: OptVal = Value("network_port", classOf[Int], 2222: java.lang.Integer)
-    val AuthentificationMode: OptVal = DOption.Value("auth", classOf[Int], OAuthentificationMode.AuthType.SingleUser.id: java.lang.Integer)
+    val AuthentificationMode: OptVal = DOption.Value("auth", classOf[Int], AuthentificationType.SingleUser.id: java.lang.Integer)
+  }
+  object AuthentificationType extends Enumeration {
+    val None = Value("none")
+    val SingleUser = Value("single user")
+    val MultiUser = Value("multi user")
   }
 }

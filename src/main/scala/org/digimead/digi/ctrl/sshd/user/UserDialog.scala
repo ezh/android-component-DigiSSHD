@@ -37,7 +37,7 @@ import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 
 import android.app.AlertDialog
 import android.app.Dialog
@@ -107,14 +107,18 @@ object UserDialog extends Logging with Passwords {
   }
   lazy val changePassword = AppComponent.Context.map(context =>
     Fragment.instantiate(context.getApplicationContext, classOf[ChangePassword].getName, null).asInstanceOf[ChangePassword])
+  lazy val enable = AppComponent.Context.map(context =>
+    Fragment.instantiate(context.getApplicationContext, classOf[Enable].getName, null).asInstanceOf[Enable])
+  lazy val disable = AppComponent.Context.map(context =>
+    Fragment.instantiate(context.getApplicationContext, classOf[Disable].getName, null).asInstanceOf[Disable])
 
-  class ChangePassword extends SherlockSafeDialogFragment with Logging {
+  class ChangePassword extends SSHDDialog with Logging {
     @volatile private var dirtyHackForDirtyFramework = false
     @volatile private var onUserUpdateCallback: Option[(ChangePassword, UserInfo) => Any] = None
     @volatile private var cachedDialog: Option[AlertDialog] = None
     @volatile private var initialUser: Option[UserInfo] = None
 
-    override def toString = "dialog_user_changepassword"
+    def tag = "dialog_user_changepassword"
     @Loggable
     override def onCreate(savedInstanceState: Bundle) = {
       super.onCreate(savedInstanceState)
@@ -336,4 +340,53 @@ object UserDialog extends Logging with Passwords {
       }
     }
   }
+  class Enable extends ChangeState(true) with Logging {
+    def title = XResource.getString(getSherlockActivity, "users_enable_title").getOrElse("Enable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+    def message = XResource.getString(getSherlockActivity, "users_enable_message").getOrElse("Do you want to enable \"%s\" account?").format(user.map(_.name).getOrElse("unknown"))
+    def notification = XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+    def tag = "dialog_user_disable"
+  }
+  class Disable extends ChangeState(false) with Logging {
+    def title = XResource.getString(getSherlockActivity, "users_disable_title").getOrElse("Disable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+    def message = XResource.getString(getSherlockActivity, "users_disable_message").getOrElse("Do you want to disable \"%s\" account?").format(user.map(_.name).getOrElse("unknown"))
+    def notification = XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+    def tag = "dialog_user_disable"
+  }
+  abstract class ChangeState(newState: Boolean)
+    extends SSHDDialog.Alert(Some(android.R.drawable.ic_dialog_alert)) {
+    private[user] var user: Option[UserInfo] = None
+    private[user] var onOkCallback: Option[UserInfo => Any] = None
+    def notification: String
+    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
+      Some((dialog: ChangeState) => user.map {
+        user =>
+          val context = dialog.getSherlockActivity
+          IAmWarn(notification)
+          Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
+          val newUser = user.copy(enabled = newState)
+          Futures.future { UserAdapter.save(context, newUser) }
+          UserAdapter.adapter.foreach {
+            adapter =>
+              val position = adapter.getPosition(user)
+              if (position >= 0) {
+                adapter.remove(user)
+                adapter.insert(newUser, position)
+              }
+          }
+          UserFragment.fragment.foreach {
+            fragment =>
+              fragment.updateFieldsState()
+              if (fragment.lastActiveUserInfo.get.exists(_ == user))
+                fragment.lastActiveUserInfo.set(Some(newUser))
+          }
+          dialog.onOkCallback.foreach(_(newUser))
+      }))))
+    override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
+      Some(defaultNegativeButtonCallback))))
+  }
 }
+
+
+
+
+

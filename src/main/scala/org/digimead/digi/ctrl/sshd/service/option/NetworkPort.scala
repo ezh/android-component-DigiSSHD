@@ -32,8 +32,8 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment.dialog2string
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import android.app.AlertDialog
@@ -82,7 +82,7 @@ object NetworkPort extends TextViewItem with Logging {
   object Dialog {
     lazy val selectPort = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[SelectPort].getName, null).asInstanceOf[SelectPort])
-    class SelectPort extends SherlockSafeDialogFragment with Logging {
+    class SelectPort extends SSHDDialog with Logging {
       @volatile private var initialValue: Option[Int] = None
       @volatile private var ok = new WeakReference[Button](null)
       @volatile private var port = new WeakReference[EditText](null)
@@ -131,7 +131,7 @@ object NetworkPort extends TextViewItem with Logging {
       private lazy val negativeButtonListener = new SelectPort.NegativeButtonListener(new WeakReference(this))
       private lazy val portFieldTextChangedListener = new SelectPort.PortFieldTextChangedListener(new WeakReference(this))
 
-      override def toString = "dialog_selectport"
+      def tag = "dialog_selectport"
       @Loggable
       override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = if (getShowsDialog) {
         null

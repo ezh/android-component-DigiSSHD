@@ -114,23 +114,20 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
     filterBlock <- TabContent.filterBlock
     optionBlock <- TabContent.optionBlock
     sessionBlock <- TabContent.sessionBlock
-  } {
-    super.onCreateContextMenu(menu, v, menuInfo)
-    menuInfo match {
-      case info: AdapterContextMenuInfo =>
-        TabContent.adapter.getItem(info.position) match {
-          case item: FilterBlock.Item =>
-          case item: OptionBlock.Item =>
-          case item: SessionBlock.Item =>
-            sessionBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case null =>
-          // loading...
-          case item =>
-            log.fatal("unknown item " + item)
-        }
-      case info =>
-        log.fatal("unsupported menu info " + info)
-    }
+  } menuInfo match {
+    case info: AdapterContextMenuInfo =>
+      TabContent.adapter.getItem(info.position) match {
+        case item: FilterBlock.Item =>
+        case item: OptionBlock.Item =>
+        case item: SessionBlock.Item =>
+          sessionBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case null =>
+        // loading...
+        case item =>
+          log.fatal("unknown item " + item)
+      }
+    case info =>
+      log.fatal("unsupported menu info " + info)
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem): Boolean = {
@@ -138,19 +135,21 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       filterBlock <- TabContent.filterBlock
       optionBlock <- TabContent.optionBlock
       sessionBlock <- TabContent.sessionBlock
-    } yield {
-      val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
-      TabContent.adapter.getItem(info.position) match {
-        case item: FilterBlock.Item =>
-          false
-        case item: OptionBlock.Item =>
-          false
-        case item: SessionBlock.Item =>
-          sessionBlock.onContextItemSelected(menuItem, item)
-        case item =>
-          log.fatal("unknown item " + item)
-          false
-      }
+    } yield menuItem.getMenuInfo match {
+      case info: AdapterContextMenuInfo =>
+        if (getListView.getPositionForView(info.targetView) == -1)
+          return false
+        TabContent.adapter.getItem(info.position) match {
+          case item: FilterBlock.Item =>
+            false
+          case item: OptionBlock.Item =>
+            false
+          case item: SessionBlock.Item =>
+            sessionBlock.onContextItemSelected(menuItem, item)
+          case item =>
+            log.fatal("unknown item " + item)
+            false
+        }
     }
   } getOrElse false
   @Loggable

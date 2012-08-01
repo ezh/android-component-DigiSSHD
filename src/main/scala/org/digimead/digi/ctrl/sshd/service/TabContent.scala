@@ -119,27 +119,24 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
     optionBlock <- TabContent.optionBlock
     environmentBlock <- TabContent.environmentBlock
     componentBlock <- TabContent.componentBlock
-  } {
-    super.onCreateContextMenu(menu, v, menuInfo)
-    menuInfo match {
-      case info: AdapterContextMenuInfo =>
-        TabContent.adapter.getItem(info.position) match {
-          case item: FilterBlock.Item =>
-            filterBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: OptionBlock.Item =>
-            optionBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: EnvironmentBlock.Item =>
-            environmentBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: ComponentBlock.Item =>
-            componentBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case null =>
-          // loading...
-          case item =>
-            log.fatal("unknown item " + item)
-        }
-      case info =>
-        log.fatal("unsupported menu info " + info)
-    }
+  } menuInfo match {
+    case info: AdapterContextMenuInfo =>
+      TabContent.adapter.getItem(info.position) match {
+        case item: FilterBlock.Item =>
+          filterBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item: OptionBlock.Item =>
+          optionBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item: EnvironmentBlock.Item =>
+          environmentBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item: ComponentBlock.Item =>
+          componentBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case null =>
+        // loading...
+        case item =>
+          log.fatal("unknown item " + item)
+      }
+    case info =>
+      log.fatal("unsupported menu info " + info)
   }
   @Loggable
   override def onContextItemSelected(menuItem: MenuItem): Boolean = {
@@ -148,21 +145,26 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       optionBlock <- TabContent.optionBlock
       environmentBlock <- TabContent.environmentBlock
       componentBlock <- TabContent.componentBlock
-    } yield {
-      val info = menuItem.getMenuInfo.asInstanceOf[AdapterContextMenuInfo]
-      TabContent.adapter.getItem(info.position) match {
-        case item: FilterBlock.Item =>
-          filterBlock.onContextItemSelected(menuItem, item)
-        case item: OptionBlock.Item =>
-          optionBlock.onContextItemSelected(menuItem, item)
-        case item: EnvironmentBlock.Item =>
-          environmentBlock.onContextItemSelected(menuItem, item)
-        case item: ComponentBlock.Item =>
-          componentBlock.onContextItemSelected(menuItem, item)
-        case item =>
-          log.fatal("unknown item " + item)
-          false
-      }
+    } yield menuItem.getMenuInfo match {
+      case info: AdapterContextMenuInfo =>
+        if (getListView.getPositionForView(info.targetView) == -1)
+          return false
+        TabContent.adapter.getItem(info.position) match {
+          case item: FilterBlock.Item =>
+            filterBlock.onContextItemSelected(menuItem, item)
+          case item: OptionBlock.Item =>
+            optionBlock.onContextItemSelected(menuItem, item)
+          case item: EnvironmentBlock.Item =>
+            environmentBlock.onContextItemSelected(menuItem, item)
+          case item: ComponentBlock.Item =>
+            componentBlock.onContextItemSelected(menuItem, item)
+          case item =>
+            log.debug("skip unknown context menu item " + info)
+            false
+        }
+      case info =>
+        log.fatal("unsupported menu info " + info)
+        false
     }
   } getOrElse false
   @Loggable

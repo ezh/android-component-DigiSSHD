@@ -46,7 +46,7 @@ import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDService
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -98,9 +98,9 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
       if (dialog.isShowing)
         AnyBase.runOnUiThread { dialog.updateContent(info) }
       else {
-        val bundle = new Bundle
-        bundle.putParcelable("info", info)
-        SafeDialog.show(fragment.getSherlockActivity, Some(R.id.main_topPanel), dialog.toString, () => dialog, bundle)
+//        val bundle = new Bundle
+//        bundle.putParcelable("info", info)
+        SafeDialog(fragment.getSherlockActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
       }
   }
   @Loggable
@@ -376,17 +376,18 @@ object ComponentBlock extends Logging {
   object Dialog {
     lazy val info = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[Info].getName, null).asInstanceOf[Info])
-    class Info extends SherlockSafeDialogFragment with Logging {
+    class Info extends SSHDDialog with Logging {
       @volatile private var content = new WeakReference[TextView](null)
       @volatile private var dirtyHackForDirtyFramework = false
 
-      override def toString = "dialog_service_components"
+      def tag = "dialog_service_components"
       @Loggable
       override def onCreate(savedInstanceState: Bundle) {
         super.onCreate(savedInstanceState)
       }
       @Loggable
       override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
+        super.onCreateView(inflater, container, savedInstanceState)
         if (dirtyHackForDirtyFramework && inflater != null) {
           log.warn("workaround for \"requestFeature() must be called before adding content\"")
           dirtyHackForDirtyFramework = false
@@ -405,6 +406,7 @@ object ComponentBlock extends Logging {
       }
       @Loggable
       override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
+        super.onCreateDialog(savedInstanceState)
         new AlertDialog.Builder(getSherlockActivity).
           setIcon(R.drawable.ic_launcher).
           setTitle(R.string.dialog_component_info_title).

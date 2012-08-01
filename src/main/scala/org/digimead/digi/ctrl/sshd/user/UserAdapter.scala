@@ -36,7 +36,9 @@ import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import android.content.Context
 import android.util.Base64
@@ -76,6 +78,13 @@ object UserAdapter extends Logging {
         }
       })
   } getOrElse { log.fatal("unable to create SSHDUsers adapter"); None }
+
+  @Loggable
+  def isMultiUser(context: Context): Boolean =
+    SSHDPreferences.AuthentificationMode.get(context) == SSHDPreferences.AuthentificationType.MultiUser
+  @Loggable
+  def isSingleUser(context: Context): Boolean =
+    SSHDPreferences.AuthentificationMode.get(context) == SSHDPreferences.AuthentificationType.SingleUser
   def list(): List[UserInfo] = adapter.map(adapter =>
     (for (i <- 0 until adapter.getCount) yield adapter.getItem(i)).toList).getOrElse(List())
   @Loggable

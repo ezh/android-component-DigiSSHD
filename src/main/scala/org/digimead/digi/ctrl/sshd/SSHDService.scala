@@ -182,7 +182,7 @@ object SSHDService extends Logging {
         val commandLine = executable match {
           case "dropbear" =>
             val masterPassword = AuthentificationMode.getStateExt(context) match {
-              case AuthentificationMode.AuthType.SingleUser =>
+              case SSHDPreferences.AuthentificationType.SingleUser =>
                 UserAdapter.find(context, "android") match {
                   case Some(systemUser) =>
                     if (UserAdapter.isPasswordEnabled(context, systemUser))
@@ -193,7 +193,7 @@ object SSHDService extends Logging {
                     log.fatal("system user not found")
                     None
                 }
-              case AuthentificationMode.AuthType.MultiUser =>
+              case SSHDPreferences.AuthentificationType.MultiUser =>
                 None
               case invalid =>
                 log.fatal("invalid authenticatin type \"" + invalid + "\"")
@@ -203,7 +203,7 @@ object SSHDService extends Logging {
               case Some(pw) =>
                 Seq("-Y", pw) // Enable master password to android account
               case None =>
-                if (AuthentificationMode.getStateExt(context) == AuthentificationMode.AuthType.SingleUser)
+                if (UserAdapter.isSingleUser(context))
                   Seq("-s") // Disable password logins
                 else
                   Seq[String]()

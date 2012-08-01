@@ -44,7 +44,7 @@ import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.user.UserAdapter
@@ -79,7 +79,7 @@ object DefaultUser extends CheckBoxItem with Logging {
   def onCheckboxClick(view: CheckBox, lastState: Boolean) = TabContent.fragment.map {
     fragment =>
       val context = fragment.getSherlockActivity
-      if (SSHDPreferences.AuthentificationMode.get(context) == AuthentificationMode.AuthType.SingleUser)
+      if (UserAdapter.isSingleUser(context))
         AnyBase.runOnUiThread {
           updateCheckbox(view)
           Toast.makeText(view.getContext, "\"android\" is always enabled in single user mode", Toast.LENGTH_SHORT).show()
@@ -115,19 +115,18 @@ object DefaultUser extends CheckBoxItem with Logging {
     bundle.putString("username", android.name)
     val context = fragment.getSherlockActivity
     dialog.setOnUserUpdateListener(Some(onUserUpdate))
-    SafeDialog.show(fragment.getActivity, Some(R.id.main_topPanel), dialog.toString, () => dialog, bundle)
+    SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
   }
   @Loggable
   def onUserUpdate(dialog: UserDialog.ChangePassword, newUser: UserInfo) {
-    if (SSHDPreferences.AuthentificationMode.get(dialog.getActivity) == AuthentificationMode.AuthType.SingleUser &&
-      AppComponent.Inner.state.get.value == DState.Active) for {
+    if (UserAdapter.isSingleUser(dialog.getActivity) && AppComponent.Inner.state.get.value == DState.Active) for {
       fragment <- TabContent.fragment
       dialog <- DefaultUser.Dialog.restartRequired
     } if (dialog.isShowing) {
       //AnyBase.runOnUiThread { dialog.updateContent(info) }
     } else {
       val context = fragment.getSherlockActivity
-      SafeDialog.show(fragment.getActivity, Some(R.id.main_topPanel), dialog.toString, () => dialog)
+      SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
     }
     // update SSHDUsers
     /*activity.foreach {
@@ -190,7 +189,7 @@ object DefaultUser extends CheckBoxItem with Logging {
   } getOrElse false
   override def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
-    if (SSHDPreferences.AuthentificationMode.get(context) == AuthentificationMode.AuthType.SingleUser)
+    if (UserAdapter.isSingleUser(context))
       true.asInstanceOf[T] // android user always enable in single user mode
     else
       android.enabled.asInstanceOf[T]
@@ -220,11 +219,11 @@ object DefaultUser extends CheckBoxItem with Logging {
   object Dialog {
     lazy val restartRequired = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[RestartRequired].getName, null).asInstanceOf[RestartRequired])
-    class RestartRequired extends SherlockSafeDialogFragment with Logging {
+    class RestartRequired extends SSHDDialog with Logging {
       @volatile private var dirtyHackForDirtyFramework = false
       @volatile private var cachedDialog: Option[AlertDialog] = None
 
-      override def toString = "dialog_service_restartrequired"
+      def tag = "dialog_service_restartrequired"
       @Loggable
       override def onCreate(savedInstanceState: Bundle) {
         super.onCreate(savedInstanceState)

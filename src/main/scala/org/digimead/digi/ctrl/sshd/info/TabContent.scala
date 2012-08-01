@@ -55,6 +55,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.ListView
 import android.widget.TextView
 
@@ -149,31 +150,28 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
     communityBlock <- TabContent.communityBlock
     thanksBlock <- TabContent.thanksBlock
     legalBlock <- TabContent.legalBlock
-  } {
-    super.onCreateContextMenu(menu, v, menuInfo)
-    menuInfo match {
-      case info: AdapterView.AdapterContextMenuInfo =>
-        TabContent.adapter.getItem(info.position) match {
-          case item: SupportBlock.Item =>
-            supportBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: CommunityBlock.Item =>
-            communityBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: ThanksBlock.Item =>
-            thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item: LegalBlock.Item =>
-            legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
-            menu.add(Menu.NONE, XResource.getId(getSherlockActivity, "block_legal_coreutils"), 1,
-              XResource.getString(getSherlockActivity, "block_legal_coreutils").getOrElse("GNU Coreutils"))
-            menu.add(Menu.NONE, XResource.getId(getSherlockActivity, "block_legal_grep"), 1,
-              XResource.getString(getSherlockActivity, "block_legal_grep").getOrElse("GNU Grep"))
-          case item: InterfaceBlock.Item =>
-            interfaceBlock.onCreateContextMenu(menu, v, menuInfo, item)
-          case item =>
-            log.fatal("unknown item " + item)
-        }
-      case info =>
-        log.fatal("unsupported menu info " + info)
-    }
+  } menuInfo match {
+    case info: AdapterView.AdapterContextMenuInfo =>
+      TabContent.adapter.getItem(info.position) match {
+        case item: SupportBlock.Item =>
+          supportBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item: CommunityBlock.Item =>
+          communityBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item: ThanksBlock.Item =>
+          thanksBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item: LegalBlock.Item =>
+          legalBlock.onCreateContextMenu(menu, v, menuInfo, item)
+          menu.add(Menu.NONE, XResource.getId(getSherlockActivity, "block_legal_coreutils"), 1,
+            XResource.getString(getSherlockActivity, "block_legal_coreutils").getOrElse("GNU Coreutils"))
+          menu.add(Menu.NONE, XResource.getId(getSherlockActivity, "block_legal_grep"), 1,
+            XResource.getString(getSherlockActivity, "block_legal_grep").getOrElse("GNU Grep"))
+        case item: InterfaceBlock.Item =>
+          interfaceBlock.onCreateContextMenu(menu, v, menuInfo, item)
+        case item =>
+          log.fatal("unknown item " + item)
+      }
+    case info =>
+      log.fatal("unsupported menu info " + info)
   }
   @Loggable
   override def onContextItemSelected(menuItem: android.view.MenuItem): Boolean = {
@@ -183,48 +181,50 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       communityBlock <- TabContent.communityBlock
       thanksBlock <- TabContent.thanksBlock
       legalBlock <- TabContent.legalBlock
-    } yield {
-      val info = menuItem.getMenuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
-      TabContent.adapter.getItem(info.position) match {
-        case item: SupportBlock.Item =>
-          supportBlock.onContextItemSelected(menuItem, item)
-        case item: CommunityBlock.Item =>
-          communityBlock.onContextItemSelected(menuItem, item)
-        case item: ThanksBlock.Item =>
-          thanksBlock.onContextItemSelected(menuItem, item)
-        case item: LegalBlock.Item =>
-          menuItem.getItemId match {
-            case id if id == XResource.getId(getSherlockActivity, "block_legal_coreutils") =>
-              log.debug("open link from " + TabContent.CoreutilsURL)
-              try {
-                val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.CoreutilsURL))
-                intent.addCategory(Intent.CATEGORY_BROWSABLE)
-                startActivity(intent)
-                true
-              } catch {
-                case e =>
-                  IAmYell("Unable to open license link " + TabContent.CoreutilsURL, e)
-                  false
-              }
-            case id if id == XResource.getId(getSherlockActivity, "block_legal_grep") =>
-              log.debug("open link from " + TabContent.GrepURL)
-              try {
-                val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.GrepURL))
-                intent.addCategory(Intent.CATEGORY_BROWSABLE)
-                startActivity(intent)
-                true
-              } catch {
-                case e =>
-                  IAmYell("Unable to open license link " + TabContent.GrepURL, e)
-                  false
-              }
-            case id =>
-              legalBlock.onContextItemSelected(menuItem, item)
-          }
-        case item =>
-          log.fatal("unknown item " + item)
-          false
-      }
+    } yield menuItem.getMenuInfo match {
+      case info: AdapterContextMenuInfo =>
+        if (getListView.getPositionForView(info.targetView) == -1)
+          return false
+        TabContent.adapter.getItem(info.position) match {
+          case item: SupportBlock.Item =>
+            supportBlock.onContextItemSelected(menuItem, item)
+          case item: CommunityBlock.Item =>
+            communityBlock.onContextItemSelected(menuItem, item)
+          case item: ThanksBlock.Item =>
+            thanksBlock.onContextItemSelected(menuItem, item)
+          case item: LegalBlock.Item =>
+            menuItem.getItemId match {
+              case id if id == XResource.getId(getSherlockActivity, "block_legal_coreutils") =>
+                log.debug("open link from " + TabContent.CoreutilsURL)
+                try {
+                  val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.CoreutilsURL))
+                  intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                  startActivity(intent)
+                  true
+                } catch {
+                  case e =>
+                    IAmYell("Unable to open license link " + TabContent.CoreutilsURL, e)
+                    false
+                }
+              case id if id == XResource.getId(getSherlockActivity, "block_legal_grep") =>
+                log.debug("open link from " + TabContent.GrepURL)
+                try {
+                  val intent = new Intent(Intent.ACTION_VIEW, Uri.parse(TabContent.GrepURL))
+                  intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                  startActivity(intent)
+                  true
+                } catch {
+                  case e =>
+                    IAmYell("Unable to open license link " + TabContent.GrepURL, e)
+                    false
+                }
+              case id =>
+                legalBlock.onContextItemSelected(menuItem, item)
+            }
+          case item =>
+            log.fatal("unknown item " + item)
+            false
+        }
     }
   } getOrElse false
   def getTabDescriptionFragment() = TabDescription()

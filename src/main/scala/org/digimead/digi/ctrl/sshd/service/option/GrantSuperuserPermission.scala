@@ -34,8 +34,8 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment.dialog2string
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import android.app.AlertDialog
@@ -80,7 +80,7 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
   object Dialog {
     lazy val rootRequest = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[RootRequest].getName, null).asInstanceOf[RootRequest])
-    class RootRequest extends SherlockSafeDialogFragment with Logging {
+    class RootRequest extends SSHDDialog with Logging {
       private lazy val cachedDialog = {
         val dialog = new AlertDialog.Builder(getSherlockActivity).
           setIcon(R.drawable.ic_danger).
@@ -121,7 +121,7 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
       private lazy val positiveButtonListener = new RootRequest.PositiveButtonListener(new WeakReference(this))
       private lazy val negativeButtonListener = new RootRequest.NegativeButtonListener(new WeakReference(this))
 
-      override def toString = "dialog_rootrequest"
+      def tag = "dialog_rootrequest"
       @Loggable
       override def onCreate(savedInstanceState: Bundle) {
         super.onCreate(savedInstanceState)

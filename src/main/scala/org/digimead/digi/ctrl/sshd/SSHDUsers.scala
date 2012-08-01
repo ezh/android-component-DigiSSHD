@@ -176,9 +176,9 @@ object SSHDUsers extends Logging with Passwords {
     }
     @Loggable
     def createDialogUserDisable(context: Context, user: UserInfo, callback: (UserInfo) => Any): AlertDialog = {
-      val title = XResource.getString(context, "users_disable_title").getOrElse("Disable user \"%s\"").format(user.name)
-      val message = XResource.getString(context, "users_disable_message").getOrElse("Do you want to disable \"%s\" account?").format(user.name)
-      val notification = XResource.getString(context, "users_disabled_message").getOrElse("disabled user \"%s\"").format(user.name)
+      val title = 
+      val message = 
+      val 
       createDialogUserChangeState(context, title, message, notification, false, user, callback)
     }
     def createDialogGenerateUserKey(context: Context, user: UserInfo): AlertDialog = {

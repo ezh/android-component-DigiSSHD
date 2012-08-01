@@ -21,11 +21,11 @@
 
 package org.digimead.digi.ctrl.sshd.service.option
 
-import java.util.ArrayList
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.actors.Futures
 import scala.ref.WeakReference
-import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -33,9 +33,10 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment
-import org.digimead.digi.ctrl.sshd.ext.SherlockSafeDialogFragment.dialog2string
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 import org.digimead.digi.ctrl.sshd.service.TabContent
+
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
@@ -43,19 +44,17 @@ import android.content.DialogInterface
 import android.os.Bundle
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentManager
-import android.support.v4.app.FragmentTransaction
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AbsListView
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.ListView
-import android.widget.SimpleAdapter
 import android.widget.TextView
-import android.widget.ArrayAdapter
-import android.widget.AbsListView
-import android.widget.AdapterView
 
 object AuthentificationMode extends TextViewItem with Logging {
   val option = SSHDPreferences.DOption.AuthentificationMode
@@ -72,13 +71,7 @@ object AuthentificationMode extends TextViewItem with Logging {
     assert(m.erasure == option.kind)
     SSHDPreferences.AuthentificationMode.get(context).id.asInstanceOf[T]
   }
-  def getStateExt(context: Context) =
-    AuthType(getState[Int](context))
-  object AuthType extends Enumeration {
-    val None = Value("none")
-    val SingleUser = Value("single user")
-    val MultiUser = Value("multi user")
-  }
+  def getStateExt(context: Context) = SSHDPreferences.AuthentificationType(getState[Int](context))
   override def getView(context: Context, inflater: LayoutInflater): View = {
     val view = super.getView(context, inflater)
     val value = view.findViewById(android.R.id.content).asInstanceOf[TextView]
@@ -94,7 +87,7 @@ object AuthentificationMode extends TextViewItem with Logging {
   object Dialog {
     lazy val selectAuth = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[SelectAuth].getName, null).asInstanceOf[SelectAuth])
-    class SelectAuth extends SherlockSafeDialogFragment with Logging {
+    class SelectAuth extends SSHDDialog with Logging {
       private lazy val currentValue = new AtomicInteger(getState[Int](getSherlockActivity))
       @volatile private var initialValue: Option[Int] = None
       @volatile private var ok = new WeakReference[Button](null)
@@ -144,7 +137,7 @@ object AuthentificationMode extends TextViewItem with Logging {
       private lazy val negativeButtonListener = new SelectAuth.NegativeButtonListener(new WeakReference(this))
       private lazy val onChoiseListener = new SelectAuth.OnChoiceListener(new WeakReference(this))
 
-      override def toString = "dialog_authmode"
+      def tag = "dialog_authmode"
       @Loggable
       override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = if (getShowsDialog) {
         null
@@ -188,7 +181,7 @@ object AuthentificationMode extends TextViewItem with Logging {
             dialog =>
               log.debug("change authentification mode")
               val context = dialog.getSherlockActivity
-              val authType = AuthType(dialog.currentValue.get)
+              val authType = SSHDPreferences.AuthentificationType(dialog.currentValue.get)
               Futures.future { SSHDPreferences.AuthentificationMode.set(authType, context, true) }
               AuthentificationMode.view.get.foreach(view => {
                 val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
