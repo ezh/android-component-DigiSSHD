@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.Option.option2Iterable
 import scala.actors.Futures
+import scala.collection.JavaConversions._
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
@@ -56,11 +57,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
+import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.Spinner
 import android.widget.Toast
 
 object UserDialog extends Logging with Passwords {
@@ -111,6 +114,8 @@ object UserDialog extends Logging with Passwords {
     Fragment.instantiate(context.getApplicationContext, classOf[Enable].getName, null).asInstanceOf[Enable])
   lazy val disable = AppComponent.Context.map(context =>
     Fragment.instantiate(context.getApplicationContext, classOf[Disable].getName, null).asInstanceOf[Disable])
+  lazy val setGUID = AppComponent.Context.map(context =>
+    Fragment.instantiate(context.getApplicationContext, classOf[SetGUID].getName, null).asInstanceOf[SetGUID])
 
   class ChangePassword extends SSHDDialog with Logging {
     @volatile private var dirtyHackForDirtyFramework = false
@@ -340,49 +345,93 @@ object UserDialog extends Logging with Passwords {
       }
     }
   }
-  class Enable extends ChangeState(true) with Logging {
-    def title = XResource.getString(getSherlockActivity, "users_enable_title").getOrElse("Enable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
-    def message = XResource.getString(getSherlockActivity, "users_enable_message").getOrElse("Do you want to enable \"%s\" account?").format(user.map(_.name).getOrElse("unknown"))
-    def notification = XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
-    def tag = "dialog_user_disable"
+  class Enable extends ChangeState with Logging {
+    def tag = "dialog_user_enable"
+    def title = XResource.getString(getSherlockActivity, "users_enable_title").
+      getOrElse("Enable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+    def message = Some(XResource.getString(getSherlockActivity, "users_enable_message").
+      getOrElse("Do you want to enable \"%s\" account?").format(user.map(_.name).getOrElse("unknown")))
   }
-  class Disable extends ChangeState(false) with Logging {
-    def title = XResource.getString(getSherlockActivity, "users_disable_title").getOrElse("Disable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
-    def message = XResource.getString(getSherlockActivity, "users_disable_message").getOrElse("Do you want to disable \"%s\" account?").format(user.map(_.name).getOrElse("unknown"))
-    def notification = XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+  class Disable extends ChangeState with Logging {
     def tag = "dialog_user_disable"
+    def title = XResource.getString(getSherlockActivity, "users_disable_title").
+      getOrElse("Disable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
+    def message = Some(XResource.getString(getSherlockActivity, "users_disable_message").
+      getOrElse("Do you want to disable \"%s\" account?").format(user.map(_.name).getOrElse("unknown")))
   }
-  abstract class ChangeState(newState: Boolean)
-    extends SSHDDialog.Alert(Some(android.R.drawable.ic_dialog_alert)) {
+  abstract class ChangeState extends SSHDDialog.Alert(Some(android.R.drawable.ic_dialog_alert)) {
     private[user] var user: Option[UserInfo] = None
     private[user] var onOkCallback: Option[UserInfo => Any] = None
-    def notification: String
     override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
-      Some((dialog: ChangeState) => user.map {
-        user =>
-          val context = dialog.getSherlockActivity
-          IAmWarn(notification)
-          Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
-          val newUser = user.copy(enabled = newState)
-          Futures.future { UserAdapter.save(context, newUser) }
-          UserAdapter.adapter.foreach {
-            adapter =>
-              val position = adapter.getPosition(user)
-              if (position >= 0) {
-                adapter.remove(user)
-                adapter.insert(newUser, position)
-              }
-          }
-          UserFragment.fragment.foreach {
-            fragment =>
-              fragment.updateFieldsState()
-              if (fragment.lastActiveUserInfo.get.exists(_ == user))
-                fragment.lastActiveUserInfo.set(Some(newUser))
-          }
-          dialog.onOkCallback.foreach(_(newUser))
-      }))))
+      Some((dialog: ChangeState) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
     override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some(defaultNegativeButtonCallback))))
+  }
+  class SetGUID extends SSHDDialog.Alert(Some(android.R.drawable.ic_dialog_alert), Some(R.layout.dialog_users_guid)) {
+    private[user] var user: Option[UserInfo] = None
+    private[user] var userExt: Option[UserInfoExt] = None
+    private[user] var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
+    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(SetGUID.this),
+      Some((dialog: SetGUID) => {
+        dialog.customContent.foreach {
+          customContent =>
+            val uidSpinner = customContent.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
+            val uid = Option(uidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
+            val gidSpinner = customContent.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
+            val gid = Option(gidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
+            user.foreach(user => dialog.onOkCallback.foreach(_(user, uid, gid)))
+        }
+      }))))
+    override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(SetGUID.this),
+      Some(defaultNegativeButtonCallback))))
+
+    def tag = "dialog_user_set_guid"
+    def title = XResource.getString(getSherlockActivity, "users_set_guid_title").
+      getOrElse("Set UID and GID").format(user.map(_.name).getOrElse("unknown"))
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_set_guid_message").
+      getOrElse("Please provide new UID (user id) and GID (group id) for <b>%s</b> user. " +
+        "Those values affect ssh session only in <b>SUPER USER</b> environment").
+      format(user.map(_.name).getOrElse("unknown"))))
+    override def onResume() {
+      for {
+        customContent <- customContent
+        userExt <- userExt
+      } {
+        val context = getSherlockActivity
+        val pm = context.getPackageManager
+        val packages = pm.getInstalledPackages(0)
+        val ids = SetGUID.Item(-1, XResource.getString(context, "default_value").getOrElse("default")) +:
+          packages.flatMap(p => Option(p.applicationInfo).map(ai => SetGUID.Item(ai.uid, p.packageName))).toList.sortBy(_.packageName)
+        val uidSpinner = customContent.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
+        val uidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
+        uidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        uidSpinner.setAdapter(uidAdapter)
+        userExt.uid match {
+          case Some(uid) => ids.indexWhere(_.id == uid) match {
+            case index if index > 0 => uidSpinner.setSelection(index)
+            case _ => uidSpinner.setSelection(0)
+          }
+          case None => uidSpinner.setSelection(0)
+        }
+        val gidSpinner = customContent.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
+        val gidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
+        gidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        gidSpinner.setAdapter(gidAdapter)
+        userExt.gid match {
+          case Some(gid) => ids.indexWhere(_.id == gid) match {
+            case index if index > 0 => gidSpinner.setSelection(index)
+            case _ => gidSpinner.setSelection(0)
+          }
+          case None => gidSpinner.setSelection(0)
+        }
+      }
+      super.onResume
+    }
+  }
+  object SetGUID {
+    case class Item(id: Int, packageName: String) {
+      override def toString = if (id >= 0) packageName + " - " + id else packageName
+    }
   }
 }
 

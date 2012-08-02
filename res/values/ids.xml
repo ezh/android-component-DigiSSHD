@@ -19,7 +19,7 @@
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
 -->
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item name="help" type="id"/>
     <item name="component_info" type="id"/>
@@ -35,6 +35,8 @@
     <item name="users_disable" type="id"/>
     <item name="users_enable" type="id"/>
     <item name="users_delete" type="id"/>
+    <item name="users_set_gid_uid" type="id"/>
+    <item name="users_set_home" type="id"/>
     <item name="users_show_details" type="id"/>
     <item name="users_copy_details" type="id"/>
     <item name="history_menu_complex" type="id"/>

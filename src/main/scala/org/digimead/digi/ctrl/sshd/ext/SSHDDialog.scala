@@ -21,27 +21,30 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
+import scala.Option.option2Iterable
+import scala.ref.WeakReference
+
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+
 import com.actionbarsherlock.app.SherlockDialogFragment
+
+import android.app.AlertDialog
+import android.app.Dialog
+import android.content.Context
 import android.content.DialogInterface
+import android.os.Bundle
 import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentTransaction
-import android.view.View
-import scala.ref.WeakReference
-import android.content.Context
-import org.digimead.digi.ctrl.lib.info.UserInfo
-import android.app.AlertDialog
 import android.view.LayoutInflater
-import android.widget.TextView
-import android.widget.ImageView
-import android.widget.Button
-import org.digimead.digi.ctrl.lib.androidext.XResource
+import android.view.View
 import android.view.ViewGroup
-import android.os.Bundle
-import android.app.Dialog
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
 
 abstract class SSHDDialog extends SherlockDialogFragment with SafeDialog with Logging {
   protected lazy val defaultNegativeButtonCallback: (SSHDDialog => Any) =
@@ -135,22 +138,60 @@ abstract class SSHDDialog extends SherlockDialogFragment with SafeDialog with Lo
 object SSHDDialog {
   implicit def dialog2string(d: SSHDDialog) = d.tag
 
-  abstract class Alert(icon: Option[Int]) extends SSHDDialog with Logging {
-    def title: String
-    def message: String
-    protected lazy val cachedDialog = {
-      val builder = new AlertDialog.Builder(getSherlockActivity).
-        setTitle(title).
-        setMessage(message)
+  abstract class Alert(icon: Option[Int] = None, extContent: Option[Int] = None) extends SSHDDialog with Logging {
+    @volatile protected var customContent: Option[View] = None
+    def title: CharSequence
+    def message: Option[CharSequence]
+    protected lazy val (cachedModal,
+      modalContent,
+      modalCustomContent,
+      modalNegative,
+      modalNeutral,
+      modalPositive) = {
+      val context = getSherlockActivity
+      val scale = context.getResources().getDisplayMetrics().density
+      val padding = (10 * scale).toInt
+      val builder = new AlertDialog.Builder(context).setTitle(title)
+      val customContentView = extContent.map(extContent => {
+        val inflater = getSherlockActivity.getApplicationContext.
+          getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+        val extView = inflater.inflate(extContent, null)
+        extView.setPadding(padding, padding, padding, padding)
+        builder.setView(extView)
+        extView
+      })
       icon.foreach(builder.setIcon)
       negative.foreach(t => builder.setNegativeButton(t._1, t._2))
       neutral.foreach(t => builder.setNeutralButton(t._1, t._2))
       positive.foreach(t => builder.setPositiveButton(t._1, t._2))
+
+      val contentView = customContentView match {
+        case Some(customContentView) =>
+          val extViewContent = customContentView.findViewById(android.R.id.custom).asInstanceOf[ViewGroup]
+          assert(extViewContent != null, { "android.R.id.custom not found in external dialog viewgroup" })
+          val contentView = new TextView(context)
+          contentView.setTextAppearance(context, android.R.style.TextAppearance_Medium)
+          contentView.setPadding(0, 0, 0, padding)
+          extViewContent.addView(contentView, 0, new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+          Some(contentView)
+        case None =>
+          message.foreach(builder.setMessage)
+          None
+      }
       val dialog = builder.create()
       dialog.show
-      dialog
+      val negativeView = negative.flatMap(n => Option(dialog.getButton(0)))
+      val neutralView = neutral.flatMap(n => Option(dialog.getButton(1)))
+      val positiveView = positive.flatMap(n => Option(dialog.getButton(2)))
+      (dialog, contentView, customContentView, negativeView, neutralView, positiveView)
     }
-    protected lazy val cachedEmbedded = {
+    protected lazy val (cachedEmbedded,
+      embeddedContent,
+      embeddedCustomContent,
+      embeddedNegative,
+      embeddedNeutral,
+      embeddedPositive) = {
       def setButtonListener(bView: Button, title: Int, callback: ButtonListener[_ <: Alert]) {
         bView.setVisibility(View.VISIBLE)
         bView.setText(title)
@@ -158,21 +199,44 @@ object SSHDDialog {
       }
       val context = getSherlockActivity
       val view = LayoutInflater.from(context).inflate(R.layout.fragment_dialog, null)
-      val content = view.findViewById(android.R.id.custom).asInstanceOf[TextView]
-      val title = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-      title.setText(R.string.dialog_port_title)
+      val contentView = view.findViewById(android.R.id.custom).asInstanceOf[TextView]
+      val titleView = view.findViewById(android.R.id.title).asInstanceOf[TextView]
+      titleView.setText(title)
       icon.foreach {
         icon =>
           val iconContainer = view.findViewById(android.R.id.icon).asInstanceOf[ImageView]
           iconContainer.setImageResource(icon)
           iconContainer.setVisibility(View.VISIBLE)
       }
-      content.setText(message)
-      view.findViewById(android.R.id.summary).setVisibility(View.VISIBLE)
-      negative.foreach(t => setButtonListener(view.findViewById(android.R.id.button1).asInstanceOf[Button], t._1, t._2))
-      neutral.foreach(t => setButtonListener(view.findViewById(android.R.id.button2).asInstanceOf[Button], t._1, t._2))
-      positive.foreach(t => setButtonListener(view.findViewById(android.R.id.button3).asInstanceOf[Button], t._1, t._2))
-      view
+      val customContentView = extContent.flatMap(extContent => {
+        val inflater = getSherlockActivity.getApplicationContext.
+          getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+        Option(inflater.inflate(extContent, contentView.getParent.asInstanceOf[ViewGroup], true))
+      })
+      message match {
+        case Some(message) =>
+          contentView.setText(message)
+        case None =>
+          contentView.setVisibility(View.GONE)
+      }
+      if (negative.nonEmpty || neutral.nonEmpty || positive.nonEmpty)
+        view.findViewById(android.R.id.summary).setVisibility(View.VISIBLE)
+      val negativeView = negative.map(t => {
+        val buttonView = view.findViewById(android.R.id.button1).asInstanceOf[Button]
+        setButtonListener(buttonView, t._1, t._2)
+        buttonView
+      })
+      val neutralView = neutral.map(t => {
+        val buttonView = view.findViewById(android.R.id.button2).asInstanceOf[Button]
+        setButtonListener(buttonView, t._1, t._2)
+        buttonView
+      })
+      val positiveView = positive.map(t => {
+        val buttonView = view.findViewById(android.R.id.button3).asInstanceOf[Button]
+        setButtonListener(buttonView, t._1, t._2)
+        buttonView
+      })
+      (view, contentView, customContentView, negativeView, neutralView, positiveView)
     }
     protected lazy val cachedEmbeddedAttr = XResource.getAttributeSet(getSherlockActivity, R.layout.fragment_dialog)
     protected lazy val positive: Option[(Int, ButtonListener[_ <: Alert])] = None
@@ -188,14 +252,34 @@ object SSHDDialog {
         val context = getSherlockActivity
         Option(cachedEmbedded.getParent).foreach(_.asInstanceOf[ViewGroup].removeView(cachedEmbedded))
         cachedEmbeddedAttr.foreach(attr => cachedEmbedded.setLayoutParams(container.generateLayoutParams(attr)))
+        customContent = embeddedCustomContent
         cachedEmbedded
       }
     }
     @Loggable
     override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
       super.onCreateDialog(savedInstanceState)
-      cachedDialog.show
-      cachedDialog
+      cachedModal.show
+      (modalContent, message) match {
+        case (Some(content), Some(message)) =>
+          content.setVisibility(View.VISIBLE)
+          content.setText(message)
+        case (Some(content), None) =>
+          content.setVisibility(View.GONE)
+        case (None, Some(message)) =>
+          cachedModal.setMessage(message)
+        case (None, None) =>
+          try {
+            cachedModal.setMessage(null)
+          } catch {
+            case e =>
+              log.warn("unable to reset dialog content")
+              cachedModal.setMessage("")
+          }
+      }
+      cachedModal.setTitle(title)
+      customContent = modalCustomContent
+      cachedModal
     }
   }
   class ButtonListener[T <: SSHDDialog](dialog: WeakReference[T],

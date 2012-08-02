@@ -114,34 +114,32 @@ object UserAdapter extends Logging {
   }
   @Loggable
   def getUserUID(context: Context, user: UserInfo): Option[Int] = synchronized {
-    None
+    UserInfoExt.get(context, user).flatMap(_.uid)
   }
   @Loggable
-  def setUserUID(context: Context, user: UserInfo, uid: Option[Int]): Unit = synchronized {
-    None
+  def setUserUID(context: Context, user: UserInfo, newUID: Option[Int]): Unit = synchronized {
+    assert(newUID == None || newUID.get >= 0)
+    UserInfoExt.set(context, user, UserInfoExt.get(context, user).
+      getOrElse(UserInfoExt.default).copy(uid = newUID))
   }
   @Loggable
   def getUserGID(context: Context, user: UserInfo): Option[Int] = synchronized {
-    None
+    UserInfoExt.get(context, user).flatMap(_.gid)
   }
   @Loggable
-  def setUserGID(context: Context, user: UserInfo, gid: Option[Int]): Unit = synchronized {
-    None
+  def setUserGID(context: Context, user: UserInfo, newGID: Option[Int]): Unit = synchronized {
+    assert(newGID == None || newGID.get >= 0)
+    UserInfoExt.set(context, user, UserInfoExt.get(context, user).
+      getOrElse(UserInfoExt.default).copy(gid = newGID))
   }
   @Loggable
   def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) = synchronized {
-    val userPEnabledPref = context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE)
-    val editor = userPEnabledPref.edit
-    if (enabled)
-      editor.putBoolean(user.name, true)
-    else
-      editor.putBoolean(user.name, false)
-    editor.commit
+    UserInfoExt.set(context, user, UserInfoExt.get(context, user).
+      getOrElse(UserInfoExt.default).copy(passwordEnabled = enabled))
   }
   @Loggable
   def isPasswordEnabled(context: Context, user: UserInfo): Boolean = synchronized {
-    context.getSharedPreferences(DPreference.Users + "@penabled", Context.MODE_PRIVATE).
-      getBoolean(user.name, true)
+    UserInfoExt.get(context, user).map(_.passwordEnabled).getOrElse(true)
   }
   @Loggable
   def homeDirectory(context: Context, user: UserInfo): File =

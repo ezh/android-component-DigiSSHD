@@ -157,5 +157,6 @@
     <string name="users_password">Password</string>
     <string name="users_update_user_message">Do you want to save the changes?</string>
     <string name="users_update_user_title">Update user \"%1$s\"</string>
+    <string name="default_value">default</string>
 
 </resources>

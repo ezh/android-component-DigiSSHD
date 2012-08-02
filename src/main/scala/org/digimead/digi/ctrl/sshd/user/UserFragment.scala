@@ -32,6 +32,8 @@ import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmWarn
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
@@ -212,13 +214,17 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
               else
                 menu.add(Menu.NONE, XResource.getId(v.getContext, "users_enable"), 1,
                   XResource.getString(v.getContext, "users_enable").getOrElse("Enable"))
+              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_set_gid_uid"), 1,
+                XResource.getString(v.getContext, "users_set_gid_uid").getOrElse("Set GID and UID"))
+              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_set_home"), 1,
+                XResource.getString(v.getContext, "users_set_home").getOrElse("Set home directory"))
               if (item.name != "android")
                 menu.add(Menu.NONE, XResource.getId(v.getContext, "users_delete"), 1,
                   XResource.getString(v.getContext, "users_delete").getOrElse("Delete"))
               menu.add(Menu.NONE, XResource.getId(v.getContext, "users_copy_details"), 3,
                 XResource.getString(v.getContext, "users_copy_details").getOrElse("Copy details"))
               menu.add(Menu.NONE, XResource.getId(v.getContext, "users_show_details"), 3,
-                XResource.getString(v.getContext, "users_show_details").getOrElse("Show details"))
+                XResource.getString(v.getContext, "users_show_details").getOrElse("Details"))
             case item =>
               log.fatal("unknown item " + item)
           }
@@ -242,14 +248,31 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
                       SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
-                      }).before(dialog => dialog.user = Some(item)).show())
+                      }).before(dialog => {
+                        dialog.user = Some(item)
+                        dialog.onOkCallback = Some((user) => onDialogChangeState(false, user))
+                      }).show())
                     true
                   case id if id == XResource.getId(getSherlockActivity, "users_enable") =>
                     UserDialog.enable.foreach(dialog =>
                       SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
-                      }).before(dialog => dialog.user = Some(item)).show())
+                      }).before(dialog => {
+                        dialog.user = Some(item)
+                        dialog.onOkCallback = Some((user) => onDialogChangeState(true, user))
+                      }).show())
+                    true
+                  case id if id == XResource.getId(getSherlockActivity, "users_set_gid_uid") =>
+                    UserDialog.setGUID.foreach(dialog =>
+                      SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
+                        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                        ft.addToBackStack(dialog)
+                      }).before(dialog => {
+                        dialog.user = Some(item)
+                        dialog.userExt = UserInfoExt.get(dialog.getSherlockActivity, item)
+                        dialog.onOkCallback = Some((user, uid, gid) => onDialogSetGUID(user, uid, gid))
+                      }).show())
                     true
                   case id if id == XResource.getId(getSherlockActivity, "users_delete") =>
                     /*                new AlertDialog.Builder(this).
@@ -576,6 +599,40 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
       UserFragment.showPassword = true
       userPasswordShowButton.setSelected(true)
       userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
+    }
+  }
+  @Loggable
+  def onDialogChangeState(state: Boolean, user: UserInfo) = {
+    val context = getSherlockActivity
+    val notification = if (state)
+      XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(user.name)
+    else
+      XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(user.name)
+    IAmWarn(notification)
+    Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
+    val newUser = user.copy(enabled = state)
+    Futures.future { UserAdapter.save(context, newUser) }
+    UserAdapter.adapter.foreach {
+      adapter =>
+        val position = adapter.getPosition(user)
+        if (position >= 0) {
+          adapter.remove(user)
+          adapter.insert(newUser, position)
+        }
+    }
+    UserFragment.fragment.foreach {
+      fragment =>
+        fragment.updateFieldsState()
+        if (fragment.lastActiveUserInfo.get.exists(_ == user))
+          fragment.lastActiveUserInfo.set(Some(newUser))
+    }
+  }
+  @Loggable
+  def onDialogSetGUID(user: UserInfo, uid: Option[Int], gid: Option[Int]) = Futures.future {
+    this.synchronized {
+      val context = getSherlockActivity
+      UserAdapter.setUserUID(context, user, uid)
+      UserAdapter.setUserGID(context, user, gid)
     }
   }
   @Loggable
