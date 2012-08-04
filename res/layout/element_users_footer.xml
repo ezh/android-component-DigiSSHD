@@ -58,11 +58,10 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
                 android:background="@android:color/transparent"
-                android:onClick="onClickGenerateNewUser"
-                android:src="@drawable/btn_plus" />
+                android:onClick="onClickUsersGenerateNewUser"
+                android:src="@drawable/btn_plus"
+                android:contentDescription="@android:string/untitled" />
         </LinearLayout>
-
-
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -96,8 +95,9 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
                 android:background="@android:color/transparent"
-                android:onClick="onClickShowPassword"
-                android:src="@drawable/btn_eye" />
+                android:onClick="onClickUsersShowPassword"
+                android:src="@drawable/btn_eye"
+                android:contentDescription="@android:string/untitled" />
         </LinearLayout>
     </LinearLayout>
 
@@ -112,7 +112,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:enabled="false"
-            android:onClick="onClickApply"
+            android:onClick="onClickUsersApply"
             android:text="@string/apply" />
 
         <Button
@@ -120,7 +120,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:enabled="false"
-            android:onClick="onClickToggleBlockAll"
+            android:onClick="onClickUsersToggleBlockAll"
             android:text="@string/users_block_all" />
 
         <Button
@@ -128,7 +128,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:enabled="false"
-            android:onClick="onClickDeleteAll"
+            android:onClick="onClickUsersDeleteAll"
             android:text="@string/users_delete_all" />
     </LinearLayout>
 

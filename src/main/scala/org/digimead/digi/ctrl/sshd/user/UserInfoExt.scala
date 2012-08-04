@@ -73,7 +73,9 @@ object UserInfoExt extends Logging {
   def default() = UserInfoExt(true, None, None)
   def get(context: Context, user: UserInfo): Option[UserInfoExt] = cached.get(user.name) orElse {
     val userPref = context.getSharedPreferences(namespace, Context.MODE_PRIVATE)
-    val data = userPref.getString(user.name, "")
+    if (!userPref.contains(user.name))
+      return None
+    val data = userPref.getString(user.name, "") // "" return UserInfoExt(false,Some(0),Some(0))
     try {
       Common.unparcelFromArray[UserInfoExt](Base64.decode(data, Base64.DEFAULT),
         UserInfo.getClass.getClassLoader) match {

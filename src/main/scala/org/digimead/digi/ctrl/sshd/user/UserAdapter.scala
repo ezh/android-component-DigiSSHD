@@ -25,22 +25,25 @@ import java.io.File
 import java.util.ArrayList
 
 import scala.Option.option2Iterable
+import scala.actors.Futures
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
+import org.digimead.digi.ctrl.sshd.SSHDService
 
 import android.content.Context
+import android.text.Html
 import android.util.Base64
 import android.view.View
 import android.view.ViewGroup
@@ -48,8 +51,8 @@ import android.widget.ArrayAdapter
 import android.widget.CheckedTextView
 import android.widget.TextView
 
-object UserAdapter extends Logging {
-  private val nameMaximumLength = 16
+object UserAdapter extends Logging with Passwords {
+  private[user] val nameMaximumLength = 16
   private[user] lazy val adapter: Option[ArrayAdapter[UserInfo]] = AppComponent.Context map {
     context =>
       val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
@@ -118,7 +121,7 @@ object UserAdapter extends Logging {
   }
   @Loggable
   def setUserUID(context: Context, user: UserInfo, newUID: Option[Int]): Unit = synchronized {
-    assert(newUID == None || newUID.get >= 0)
+    assert(newUID == None || newUID.get >= 0, { "invalid UID " + newUID })
     UserInfoExt.set(context, user, UserInfoExt.get(context, user).
       getOrElse(UserInfoExt.default).copy(uid = newUID))
   }
@@ -128,22 +131,73 @@ object UserAdapter extends Logging {
   }
   @Loggable
   def setUserGID(context: Context, user: UserInfo, newGID: Option[Int]): Unit = synchronized {
-    assert(newGID == None || newGID.get >= 0)
+    assert(newGID == None || newGID.get >= 0, { "invalid GID " + newGID })
     UserInfoExt.set(context, user, UserInfoExt.get(context, user).
       getOrElse(UserInfoExt.default).copy(gid = newGID))
-  }
-  @Loggable
-  def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) = synchronized {
-    UserInfoExt.set(context, user, UserInfoExt.get(context, user).
-      getOrElse(UserInfoExt.default).copy(passwordEnabled = enabled))
   }
   @Loggable
   def isPasswordEnabled(context: Context, user: UserInfo): Boolean = synchronized {
     UserInfoExt.get(context, user).map(_.passwordEnabled).getOrElse(true)
   }
   @Loggable
-  def homeDirectory(context: Context, user: UserInfo): File =
-    AppControl.Inner.getExternalDirectory(DTimeout.long) getOrElse new File("/")
+  def setPasswordEnabled(enabled: Boolean, context: Context, user: UserInfo) = synchronized {
+    UserInfoExt.set(context, user, UserInfoExt.get(context, user).getOrElse(UserInfoExt.default).copy(passwordEnabled = enabled))
+  }
+  @Loggable
+  def homeDirectory(context: Context, user: UserInfo): File = try {
+    val home = new File(user.home)
+    if (user.name != "android" && home.exists)
+      home
+    else
+      SSHDService.getExternalDirectory() getOrElse new File("/")
+  } catch {
+    case e =>
+      SSHDService.getExternalDirectory() getOrElse new File("/")
+  }
+  @Loggable
+  def getDetails(context: Context, user: UserInfo): String = Html.fromHtml(getHtmlDetails(context, user)).toString
+  @Loggable(result = false)
+  def getHtmlDetails(context: Context, user: UserInfo): String = {
+    val ext = UserInfoExt.get(context, user) getOrElse (UserInfoExt.default)
+    val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, user) }
+    val authorizedKeysFileFuture = Futures.future { UserKeys.getAuthorizedKeysFile(context, user) }
+    val dropbearKeyFileFuture = Futures.future { UserKeys.getDropbearKeyFile(context, user) }
+    val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, user) }
+    val home = Futures.future { homeDirectory(context, user) }
+    val keys = Futures.awaitAll(DTimeout.shortest + 500, publicKeyFileFuture, authorizedKeysFileFuture,
+      dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
+    val publicKey = keys(0).flatMap(file => file)
+    val authorizedKeys = keys(1).flatMap(file => file)
+    val dropbearKey = keys(2).flatMap(file => file)
+    val opensshKey = keys(3).flatMap(file => file)
+    val exists = XResource.getString(context, "str_exists").getOrElse("exists")
+    val notexists = XResource.getString(context, "str_not_exists").getOrElse("not exists")
+    XResource.getString(context, "users_html_details_message").getOrElse(
+      """login: <font color='white'>%s</font><br/>""" +
+        """enabled: %s<br/>""" +
+        """password enabled: %s<br/>""" +
+        """home: <font color='white'>%s</font><br/>""" +
+        """UID: <font color='white'>%s</font><br/>""" +
+        """GID: <font color='white'>%s</font><br/>""" +
+        """Public key: <font color='white'>%s</font> [%s]<br/>""" +
+        """Authorized keys: <font color='white'>%s</font> [%s]<br/>""" +
+        """Dropbear private key: <font color='white'>%s</font> [%s]<br/>""" +
+        """OpenSSH private key: <font color='white'>%s</font> [%s]<br/>""").format(user.name,
+        if (user.enabled) "<font color='green'>yes</font>" else "<font color='red'>no</font>",
+        if (ext.passwordEnabled) "<font color='green'>yes</font>" else "<font color='red'>no</font>",
+        Futures.awaitAll(DTimeout.normal, home).head.asInstanceOf[Option[String]] getOrElse "/",
+        ext.uid.getOrElse("default"),
+        ext.gid.getOrElse("default"),
+        publicKey.map(_.toString).getOrElse(notexists),
+        if (publicKey.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>",
+        authorizedKeys.map(_.toString).getOrElse(notexists),
+        if (authorizedKeys.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>",
+        dropbearKey.map(_.toString).getOrElse(notexists),
+        if (dropbearKey.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>",
+        opensshKey.map(_.toString).getOrElse(notexists),
+        if (opensshKey.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>")
+  }
+
   @Loggable
   private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
     log.debug("add default system user \"android\"")

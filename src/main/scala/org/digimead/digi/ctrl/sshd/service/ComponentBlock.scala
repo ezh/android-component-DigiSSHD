@@ -31,6 +31,7 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XAPI
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -47,6 +48,7 @@ import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDService
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -59,7 +61,6 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.app.Fragment
-import android.text.ClipboardManager
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
@@ -96,12 +97,10 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
   } item.updatedExecutableInfo {
     info =>
       if (dialog.isShowing)
-        AnyBase.runOnUiThread { dialog.updateContent(info) }
-      else {
-//        val bundle = new Bundle
-//        bundle.putParcelable("info", info)
-        SafeDialog(fragment.getSherlockActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
-      }
+        AnyBase.runOnUiThread { dialog.updateContent(Some(info)) }
+      else
+        SafeDialog(fragment.getSherlockActivity, dialog, () => dialog).target(R.id.main_topPanel).
+          before((dialog) => dialog.info = Some(info)).show()
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
@@ -137,8 +136,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
               getOrElse("Copy command line to clipboard")
             AnyBase.runOnUiThread {
               try {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
-                clipboard.setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
+                XAPI.clipboardManager(context).setText(execInfo.commandLine.map(_.mkString(" ")).getOrElse("-"))
                 Toast.makeText(context, message, DConstant.toastTimeout).show()
               } catch {
                 case e =>
@@ -169,8 +167,7 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
               getOrElse("Copy information to clipboard")
             AnyBase.runOnUiThread {
               try {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
-                clipboard.setText(Html.fromHtml(string).toString)
+                XAPI.clipboardManager(context).setText(Html.fromHtml(string).toString)
                 Toast.makeText(context, message, DConstant.toastTimeout).show()
               } catch {
                 case e =>
@@ -297,10 +294,10 @@ object ComponentBlock extends Logging {
       active match {
         case Some(true) =>
           log.debug(this.toString + " state: active")
-          activeDrawable.foreach(icon.setBackgroundDrawable)
+          activeDrawable.foreach(background => XAPI.setViewBackground(icon, background))
         case _ =>
           log.debug(this.toString + " state: passive")
-          passiveDrawable.foreach(icon.setBackgroundDrawable)
+          passiveDrawable.foreach(background => XAPI.setViewBackground(icon, background))
       }
       //val anim = icon.getBackground().asInstanceOf[AnimationDrawable]
       //context.get.foreach(_.runOnUiThread(new Runnable { def run = doUpdateOnUI(icon) }))
@@ -364,7 +361,7 @@ object ComponentBlock extends Logging {
             description.setText(execInfo.description)
             subinfo.setText(execInfo.version + " / " + execInfo.license)
             item.view = new WeakReference(view)
-            icon.setBackgroundDrawable(context.getResources.getDrawable(XResource.getId(context, "ic_executable_wait", "anim")))
+            XAPI.setViewBackground(icon, context.getResources.getDrawable(XResource.getId(context, "ic_executable_wait", "anim")))
             item.init(context, icon, false)
             Level.novice(view)
             view
@@ -377,6 +374,7 @@ object ComponentBlock extends Logging {
     lazy val info = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[Info].getName, null).asInstanceOf[Info])
     class Info extends SSHDDialog with Logging {
+      @volatile var info: Option[ExecutableInfo] = None
       @volatile private var content = new WeakReference[TextView](null)
       @volatile private var dirtyHackForDirtyFramework = false
 
@@ -414,23 +412,24 @@ object ComponentBlock extends Logging {
           setView(onCreateView(null, null, null)).
           create()
       }
-      def updateContent(info: ExecutableInfo = getArguments.getParcelable[ExecutableInfo]("info")) =
-        content.get.foreach {
-          content =>
-            val context = getSherlockActivity
-            val env = info.env.mkString("""<br/>""")
-            val s = XResource.getString(context, "dialog_component_info_message").get.format(info.name,
-              info.description,
-              info.project,
-              info.license,
-              info.version,
-              info.state,
-              info.port.getOrElse("-"),
-              info.commandLine.map(_.mkString(" ")).getOrElse("-"),
-              if (env.nonEmpty) env else "-")
-            Linkify.addLinks(content, Linkify.ALL)
-            content.setText(Html.fromHtml(s))
-        }
+      def updateContent(info: Option[ExecutableInfo] = info) = for {
+        content <- content.get
+        info <- info
+      } {
+        val context = getSherlockActivity
+        val env = info.env.mkString("""<br/>""")
+        val s = XResource.getString(context, "dialog_component_info_message").get.format(info.name,
+          info.description,
+          info.project,
+          info.license,
+          info.version,
+          info.state,
+          info.port.getOrElse("-"),
+          info.commandLine.map(_.mkString(" ")).getOrElse("-"),
+          if (env.nonEmpty) env else "-")
+        Linkify.addLinks(content, Linkify.ALL)
+        content.setText(Html.fromHtml(s))
+      }
     }
   }
 }

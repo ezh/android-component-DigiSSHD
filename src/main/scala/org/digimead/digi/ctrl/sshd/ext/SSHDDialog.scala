@@ -27,6 +27,7 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 
@@ -138,7 +139,16 @@ abstract class SSHDDialog extends SherlockDialogFragment with SafeDialog with Lo
 object SSHDDialog {
   implicit def dialog2string(d: SSHDDialog) = d.tag
 
-  abstract class Alert(icon: Option[Int] = None, extContent: Option[Int] = None) extends SSHDDialog with Logging {
+  abstract class Alert(icon: Option[Int], extContent: Option[View]) extends SSHDDialog with Logging {
+    def this(icon: Option[Int], extContent: Int) =
+      this(icon, AppComponent.AppContext.flatMap {
+        context =>
+          val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+          Option(inflater.inflate(extContent, null))
+      })
+    def this(icon: Option[Int]) = this(icon, None)
+    def this() = this(None, None)
+
     @volatile protected var customContent: Option[View] = None
     def title: CharSequence
     def message: Option[CharSequence]
@@ -153,12 +163,9 @@ object SSHDDialog {
       val padding = (10 * scale).toInt
       val builder = new AlertDialog.Builder(context).setTitle(title)
       val customContentView = extContent.map(extContent => {
-        val inflater = getSherlockActivity.getApplicationContext.
-          getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-        val extView = inflater.inflate(extContent, null)
-        extView.setPadding(padding, padding, padding, padding)
-        builder.setView(extView)
-        extView
+        extContent.setPadding(padding, padding, padding, padding)
+        builder.setView(extContent)
+        extContent
       })
       icon.foreach(builder.setIcon)
       negative.foreach(t => builder.setNegativeButton(t._1, t._2))
@@ -167,14 +174,15 @@ object SSHDDialog {
 
       val contentView = customContentView match {
         case Some(customContentView) =>
-          val extViewContent = customContentView.findViewById(android.R.id.custom).asInstanceOf[ViewGroup]
-          assert(extViewContent != null, { "android.R.id.custom not found in external dialog viewgroup" })
-          val contentView = new TextView(context)
-          contentView.setTextAppearance(context, android.R.style.TextAppearance_Medium)
-          contentView.setPadding(0, 0, 0, padding)
-          extViewContent.addView(contentView, 0, new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-          Some(contentView)
+          Option(customContentView.findViewById(android.R.id.custom).asInstanceOf[ViewGroup]).map {
+            extViewContent =>
+              val contentView = new TextView(context)
+              contentView.setTextAppearance(context, android.R.style.TextAppearance_Medium)
+              contentView.setPadding(0, 0, 0, padding)
+              extViewContent.addView(contentView, 0, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+              contentView
+          }
         case None =>
           message.foreach(builder.setMessage)
           None
@@ -208,10 +216,10 @@ object SSHDDialog {
           iconContainer.setImageResource(icon)
           iconContainer.setVisibility(View.VISIBLE)
       }
-      val customContentView = extContent.flatMap(extContent => {
-        val inflater = getSherlockActivity.getApplicationContext.
-          getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-        Option(inflater.inflate(extContent, contentView.getParent.asInstanceOf[ViewGroup], true))
+      val customContentView = extContent.map(extContent => {
+        val parent = contentView.getParent.asInstanceOf[ViewGroup]
+        parent.addView(extContent, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        extContent
       })
       message match {
         case Some(message) =>

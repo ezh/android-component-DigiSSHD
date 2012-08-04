@@ -35,7 +35,6 @@ import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmWarn
-import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
@@ -52,6 +51,7 @@ import android.text.InputFilter
 import android.text.InputType
 import android.text.Spanned
 import android.text.TextWatcher
+import android.text.method.LinkMovementMethod
 import android.text.method.PasswordTransformationMethod
 import android.view.LayoutInflater
 import android.view.View
@@ -63,10 +63,12 @@ import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 
-object UserDialog extends Logging with Passwords {
+object UserDialog extends Logging {
   lazy val userNameFilter = new InputFilter {
     /*
      * man 5 passwd:
@@ -80,7 +82,7 @@ object UserDialog extends Logging with Passwords {
     def filter(source: CharSequence, start: Int, end: Int,
       dest: Spanned, dstart: Int, dend: Int): CharSequence = {
       for (i <- start until end)
-        if (!(numbers ++ alphabet ++ """_-""").exists(_ == source.charAt(i)))
+        if (!(UserAdapter.numbers ++ UserAdapter.alphabet ++ """_-""").exists(_ == source.charAt(i)))
           return ""
       if (source.toString.nonEmpty && dest.toString.isEmpty &&
         """_-""".exists(_ == source.toString.head))
@@ -103,7 +105,7 @@ object UserDialog extends Logging with Passwords {
       if (dest.length > 15)
         return ""
       for (i <- start until end)
-        if (!defaultPasswordCharacters.exists(_ == source.charAt(i)))
+        if (!UserAdapter.defaultPasswordCharacters.exists(_ == source.charAt(i)))
           return ""
       return null
     }
@@ -114,8 +116,12 @@ object UserDialog extends Logging with Passwords {
     Fragment.instantiate(context.getApplicationContext, classOf[Enable].getName, null).asInstanceOf[Enable])
   lazy val disable = AppComponent.Context.map(context =>
     Fragment.instantiate(context.getApplicationContext, classOf[Disable].getName, null).asInstanceOf[Disable])
+  lazy val delete = AppComponent.Context.map(context =>
+    Fragment.instantiate(context.getApplicationContext, classOf[Delete].getName, null).asInstanceOf[Delete])
   lazy val setGUID = AppComponent.Context.map(context =>
     Fragment.instantiate(context.getApplicationContext, classOf[SetGUID].getName, null).asInstanceOf[SetGUID])
+  lazy val showDetails = AppComponent.Context.map(context =>
+    Fragment.instantiate(context.getApplicationContext, classOf[ShowDetails].getName, null).asInstanceOf[ShowDetails])
 
   class ChangePassword extends SSHDDialog with Logging {
     @volatile private var dirtyHackForDirtyFramework = false
@@ -347,30 +353,49 @@ object UserDialog extends Logging with Passwords {
   }
   class Enable extends ChangeState with Logging {
     def tag = "dialog_user_enable"
-    def title = XResource.getString(getSherlockActivity, "users_enable_title").
-      getOrElse("Enable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
-    def message = Some(XResource.getString(getSherlockActivity, "users_enable_message").
-      getOrElse("Do you want to enable \"%s\" account?").format(user.map(_.name).getOrElse("unknown")))
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_enable_title").
+      getOrElse("Enable user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_enable_message").
+      getOrElse("Do you want to enable <b>%s</b> account?").format(user.map(_.name).getOrElse("unknown"))))
   }
   class Disable extends ChangeState with Logging {
     def tag = "dialog_user_disable"
-    def title = XResource.getString(getSherlockActivity, "users_disable_title").
-      getOrElse("Disable user \"%s\"").format(user.map(_.name).getOrElse("unknown"))
-    def message = Some(XResource.getString(getSherlockActivity, "users_disable_message").
-      getOrElse("Do you want to disable \"%s\" account?").format(user.map(_.name).getOrElse("unknown")))
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_disable_title").
+      getOrElse("Disable user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_disable_message").
+      getOrElse("Do you want to disable <b>%s</b> account?").format(user.map(_.name).getOrElse("unknown"))))
   }
-  abstract class ChangeState extends SSHDDialog.Alert(Some(android.R.drawable.ic_dialog_alert)) {
-    private[user] var user: Option[UserInfo] = None
-    private[user] var onOkCallback: Option[UserInfo => Any] = None
-    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
+  abstract class ChangeState
+    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    @volatile var user: Option[UserInfo] = None
+    @volatile var onOkCallback: Option[UserInfo => Any] = None
+    override protected lazy val positive = Some((android.R.string.yes, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some((dialog: ChangeState) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
-    override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
+    override protected lazy val negative = Some((android.R.string.no, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some(defaultNegativeButtonCallback))))
   }
-  class SetGUID extends SSHDDialog.Alert(Some(android.R.drawable.ic_dialog_alert), Some(R.layout.dialog_users_guid)) {
-    private[user] var user: Option[UserInfo] = None
-    private[user] var userExt: Option[UserInfoExt] = None
-    private[user] var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
+  class Delete
+    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    @volatile var user: Option[UserInfo] = None
+    @volatile var onOkCallback: Option[UserInfo => Any] = None
+    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(Delete.this),
+      Some((dialog: Delete) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
+    override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(Delete.this),
+      Some(defaultNegativeButtonCallback))))
+
+    def tag = "dialog_user_delete"
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_delete_title").
+      getOrElse("Delete user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_delete_message").
+      getOrElse("Do you want to delete <b>%s</b> account?").
+      format(user.map(_.name).getOrElse("unknown"))))
+  }
+  class SetGUID
+    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
+      R.layout.dialog_users_guid) {
+    @volatile var user: Option[UserInfo] = None
+    @volatile var userExt: Option[UserInfoExt] = None
+    @volatile var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
     override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(SetGUID.this),
       Some((dialog: SetGUID) => {
         dialog.customContent.foreach {
@@ -389,8 +414,8 @@ object UserDialog extends Logging with Passwords {
     def title = XResource.getString(getSherlockActivity, "users_set_guid_title").
       getOrElse("Set UID and GID").format(user.map(_.name).getOrElse("unknown"))
     def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_set_guid_message").
-      getOrElse("Please provide new UID (user id) and GID (group id) for <b>%s</b> user. " +
-        "Those values affect ssh session only in <b>SUPER USER</b> environment").
+      getOrElse("Please provide new UID (user id) and GID (group id) for <b>%s</b>. " +
+        "Those values affect ssh session only in <b>SUPER USER</b> environment, <b>MULTIUSER</b> mode").
       format(user.map(_.name).getOrElse("unknown"))))
     override def onResume() {
       for {
@@ -429,8 +454,41 @@ object UserDialog extends Logging with Passwords {
     }
   }
   object SetGUID {
-    case class Item(id: Int, packageName: String) {
+    private case class Item(id: Int, packageName: String) {
       override def toString = if (id >= 0) packageName + " - " + id else packageName
+    }
+  }
+  class ShowDetails
+    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
+      ShowDetails.customContent) {
+    @volatile var user: Option[UserInfo] = None
+    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(ShowDetails.this),
+      Some(defaultNegativeButtonCallback))))
+
+    def tag = "dialog_user_details"
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_details_title").
+      getOrElse("<b>%s</b> details").format(user.map(_.name).getOrElse("unknown")))
+    def message = None
+    override def onResume() {
+      super.onResume
+      for {
+        customContent <- customContent
+        user <- user
+      } {
+        val content = customContent.asInstanceOf[ViewGroup].getChildAt(0).asInstanceOf[TextView]
+        content.setText(Html.fromHtml(UserAdapter.getHtmlDetails(getSherlockActivity, user)))
+      }
+    }
+  }
+  object ShowDetails {
+    private lazy val customContent = AppComponent.Context.map {
+      context =>
+        val view = new ScrollView(context)
+        val message = new TextView(context)
+        view.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        message.setMovementMethod(LinkMovementMethod.getInstance())
+        message.setId(Int.MaxValue)
+        view
     }
   }
 }

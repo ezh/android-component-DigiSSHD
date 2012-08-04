@@ -30,8 +30,8 @@ import scala.collection.immutable.HashMap
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DActivity
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XAPI
 import org.digimead.digi.ctrl.lib.androidext.XAndroid
-import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.AndroidLogger
@@ -40,13 +40,12 @@ import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabContent
 import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.session.TabContent
+import org.digimead.digi.ctrl.sshd.user.UserFragment
 
 import com.actionbarsherlock.app.ActionBar
 import com.actionbarsherlock.app.SherlockFragmentActivity
 import com.actionbarsherlock.view.Menu
-import com.actionbarsherlock.view.MenuInflater
 
-import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
@@ -54,7 +53,6 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.Point
 import android.os.Bundle
 import android.os.Handler
 import android.support.v4.app.Fragment
@@ -196,6 +194,11 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     //menu.add(0, 3, 3, android.R.string.paste).setIcon(android.R.drawable.ic_menu_compass).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
     //menu.add(0, 4, 4, android.R.string.search_go).setIcon(android.R.drawable.ic_menu_upload).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
   }
+  def onClickUsersGenerateNewUser(v: View) = UserFragment.onClickGenerateNewUser(v)
+  def onClickUsersShowPassword(v: View) = UserFragment.onClickUsersShowPassword(v)
+  def onClickUsersApply(v: View) = UserFragment.onClickApply(v)
+  def onClickUsersToggleBlockAll(v: View) = UserFragment.onClickToggleBlockAll(v)
+  def onClickUsersDeleteAll(v: View) = UserFragment.onClickDeleteAll(v)
 }
 
 object SSHDActivity extends Logging {
@@ -245,16 +248,8 @@ object SSHDActivity extends Logging {
   def getLayoutVariant() = layoutVariant
   def adjustHiddenLayout(activity: SherlockFragmentActivity): Unit = Layout.synchronized {
     ppGroup("SSHDActivity.adjustHiddenLayout") {
-      val size = new Point
       val display = activity.getWindowManager.getDefaultDisplay()
-      try {
-        val newGetSize = display.getClass.getMethod("getSize", Array[Class[_]](size.getClass): _*)
-        newGetSize.invoke(display, size)
-      } catch {
-        case e: NoSuchMethodException =>
-          size.x = display.getWidth
-          size.y = display.getHeight
-      }
+      val size = XAPI.getDisplaySize(display)
       layoutVariant match {
         case Layout.Large =>
           // adjust main_bottomPanel
@@ -316,7 +311,7 @@ object SSHDActivity extends Logging {
           main_viewpager_bgsize, main_viewpager_bgsize, true))
         bitmap.setAlpha(alpha)
         bitmap.setGravity(Gravity.CENTER)
-        main_viewpager.setBackgroundDrawable(bitmap)
+        XAPI.setViewBackground(main_viewpager, bitmap)
       }
       if (layoutVariant == Layout.Normal || layoutVariant == Layout.Small) return
       // set background for main_topPanel
@@ -327,7 +322,7 @@ object SSHDActivity extends Logging {
           main_topPanel_bgsize, main_topPanel_bgsize, true))
         bitmap.setAlpha(alpha)
         bitmap.setGravity(Gravity.CENTER)
-        main_topPanel.setBackgroundDrawable(bitmap)
+        XAPI.setViewBackground(main_topPanel, bitmap)
       }
       // set background for main_bottomPanel
       val main_bottomPanel = activity.findViewById(R.id.main_bottomPanel)
@@ -337,7 +332,7 @@ object SSHDActivity extends Logging {
           main_bottomPanel_bgsize, main_bottomPanel_bgsize, true))
         bitmap.setAlpha(alpha)
         bitmap.setGravity(Gravity.CENTER)
-        main_bottomPanel.setBackgroundDrawable(bitmap)
+        XAPI.setViewBackground(main_bottomPanel, bitmap)
       }
     }
   }

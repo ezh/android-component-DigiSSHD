@@ -21,23 +21,33 @@
 
 package org.digimead.digi.ctrl.sshd.user
 
+import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.Option.option2Iterable
 import scala.actors.Futures
 import scala.ref.WeakReference
+import scala.util.Random
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XAPI
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.base.AppControl
+import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmWarn
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
+import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 import org.digimead.digi.ctrl.sshd.ext.SherlockDynamicFragment
 import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
@@ -46,8 +56,10 @@ import com.actionbarsherlock.app.SherlockListFragment
 
 import android.app.Activity
 import android.os.Bundle
+import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentTransaction
 import android.text.Editable
+import android.text.Html
 import android.text.InputType
 import android.text.TextWatcher
 import android.text.method.PasswordTransformationMethod
@@ -58,6 +70,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView.AdapterContextMenuInfo
+import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.CompoundButton
 import android.widget.ImageButton
@@ -89,7 +102,7 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     asInstanceOf[TextView]).getOrElse(null))
   private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_show_password).
     asInstanceOf[ImageButton]).getOrElse(null))
-  private lazy val userPasswordEnableCheckbox = new WeakReference(dynamicFooter.get.map(_.findViewById(android.R.id.checkbox).
+  private lazy val userPasswordEnabledCheckbox = new WeakReference(dynamicFooter.get.map(_.findViewById(android.R.id.checkbox).
     asInstanceOf[CheckBox]).getOrElse(null))
   private[user] val lastActiveUserInfo = new AtomicReference[Option[UserInfo]](None)
   private var savedTitle: CharSequence = ""
@@ -115,7 +128,7 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     for {
       userName <- userName.get
       userPassword <- userPassword.get
-      userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
+      userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
     } {
       userName.addTextChangedListener(new TextWatcher() {
         def afterTextChanged(s: Editable) { updateFieldsState }
@@ -129,7 +142,7 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
         def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
       })
       userPassword.setFilters(Array(UserDialog.userPasswordFilter))
-      userPasswordEnableCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+      userPasswordEnabledCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
         def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = updateFieldsState
       })
     }
@@ -164,6 +177,8 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
         dynamicFooter.setVisibility(View.VISIBLE)
       }*/
     }
+    if (lastActiveUserInfo.get.isEmpty)
+      onListItemClick(getListView, getListView, 0, 0)
     updateFieldsState
     showDynamicFragment
   }
@@ -183,15 +198,16 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     adapter <- UserAdapter.adapter
     userName <- userName.get
     userPassword <- userPassword.get
-    userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
+    userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
     context <- Option(getSherlockActivity)
   } adapter.getItem(position) match {
     case user: UserInfo =>
       if (UserAdapter.isMultiUser(context) || user.name == "android") {
+        val isPasswordEnabled = Futures.future { UserAdapter.isPasswordEnabled(context, user) }
         lastActiveUserInfo.set(Some(user))
         userName.setText(user.name)
         userPassword.setText(user.password)
-        userPasswordEnableCheckbox.setChecked(UserAdapter.isPasswordEnabled(context, user))
+        userPasswordEnabledCheckbox.setChecked(isPasswordEnabled())
         updateFieldsState()
       } else
         Toast.makeText(context, XResource.getString(context, "users_in_single_user_mode").getOrElse("only android user available in single user mode"), Toast.LENGTH_SHORT).show()
@@ -206,7 +222,8 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
         case info: AdapterContextMenuInfo =>
           adapter.getItem(info.position) match {
             case item: UserInfo =>
-              menu.setHeaderTitle(item.name)
+              menu.setHeaderTitle(Html.fromHtml(XResource.getString(v.getContext, "users_user").
+                getOrElse("user <b>%s</b>").format(item.name)))
               menu.setHeaderIcon(XResource.getId(v.getContext, "ic_users", "drawable"))
               if (item.enabled)
                 menu.add(Menu.NONE, XResource.getId(v.getContext, "users_disable"), 1,
@@ -214,17 +231,20 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
               else
                 menu.add(Menu.NONE, XResource.getId(v.getContext, "users_enable"), 1,
                   XResource.getString(v.getContext, "users_enable").getOrElse("Enable"))
-              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_set_gid_uid"), 1,
-                XResource.getString(v.getContext, "users_set_gid_uid").getOrElse("Set GID and UID"))
-              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_set_home"), 1,
-                XResource.getString(v.getContext, "users_set_home").getOrElse("Set home directory"))
-              if (item.name != "android")
-                menu.add(Menu.NONE, XResource.getId(v.getContext, "users_delete"), 1,
-                  XResource.getString(v.getContext, "users_delete").getOrElse("Delete"))
-              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_copy_details"), 3,
+              if (item.name != "android") {
+                menu.add(Menu.NONE, XResource.getId(v.getContext, "users_set_gid_uid"), 2,
+                  XResource.getString(v.getContext, "users_set_gid_uid").getOrElse("Set GID and UID"))
+                menu.add(Menu.NONE, XResource.getId(v.getContext, "users_set_home"), 3,
+                  XResource.getString(v.getContext, "users_set_home").getOrElse("Set home directory"))
+              }
+              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_copy_details"), 4,
                 XResource.getString(v.getContext, "users_copy_details").getOrElse("Copy details"))
-              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_show_details"), 3,
+              menu.add(Menu.NONE, XResource.getId(v.getContext, "users_show_details"), 5,
                 XResource.getString(v.getContext, "users_show_details").getOrElse("Details"))
+              if (item.name != "android") {
+                menu.add(Menu.NONE, XResource.getId(v.getContext, "users_delete"), 6,
+                  XResource.getString(v.getContext, "users_delete").getOrElse("Delete"))
+              }
             case item =>
               log.fatal("unknown item " + item)
           }
@@ -240,12 +260,13 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
           case info: AdapterContextMenuInfo =>
             if (getListView.getPositionForView(info.targetView) == -1)
               return false
+            val context = getSherlockActivity
             adapter.getItem(info.position) match {
               case item: UserInfo =>
                 menuItem.getItemId match {
-                  case id if id == XResource.getId(getSherlockActivity, "users_disable") =>
+                  case id if id == XResource.getId(context, "users_disable") =>
                     UserDialog.disable.foreach(dialog =>
-                      SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
+                      SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
                       }).before(dialog => {
@@ -253,9 +274,9 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
                         dialog.onOkCallback = Some((user) => onDialogChangeState(false, user))
                       }).show())
                     true
-                  case id if id == XResource.getId(getSherlockActivity, "users_enable") =>
+                  case id if id == XResource.getId(context, "users_enable") =>
                     UserDialog.enable.foreach(dialog =>
-                      SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
+                      SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
                       }).before(dialog => {
@@ -263,9 +284,9 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
                         dialog.onOkCallback = Some((user) => onDialogChangeState(true, user))
                       }).show())
                     true
-                  case id if id == XResource.getId(getSherlockActivity, "users_set_gid_uid") =>
+                  case id if id == XResource.getId(context, "users_set_gid_uid") =>
                     UserDialog.setGUID.foreach(dialog =>
-                      SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
+                      SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
                       }).before(dialog => {
@@ -274,53 +295,45 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
                         dialog.onOkCallback = Some((user, uid, gid) => onDialogSetGUID(user, uid, gid))
                       }).show())
                     true
-                  case id if id == XResource.getId(getSherlockActivity, "users_delete") =>
-                    /*                new AlertDialog.Builder(this).
-                  setTitle(XResource.getString(this, "users_delete_title").getOrElse("Delete user \"%s\"").format(item.name)).
-                  setMessage(XResource.getString(this, "users_delete_message").getOrElse("Do you want to delete \"%s\" account?").format(item.name)).
-                  setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    def onClick(dialog: DialogInterface, whichButton: Int) = {
-                      val message = XResource.getString(SSHDUsers.this, "users_deleted_message").
-                        getOrElse("deleted user \"%s\"").format(item.name)
-                      IAmWarn(message)
-                      Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
-                      adapter.remove(item)
-                      SSHDUsers.remove(SSHDUsers.this, item)
-                      updateFieldsState()
-                      if (lastActiveUserInfo.get.exists(_ == item))
-                        lastActiveUserInfo.set(None)
-                    }
-                  }).
-                  setNegativeButton(android.R.string.cancel, null).
-                  setIcon(android.R.drawable.ic_dialog_alert).
-                  create().show()*/
+                  case id if id == XResource.getId(context, "users_set_home") =>
                     true
-                  case id if id == XResource.getId(getSherlockActivity, "users_copy_details") =>
-                    /*                try {
-                  val message = XResource.getString(SSHDUsers.this, "users_copy_details").
-                    getOrElse("Copy details about \"%s\" to clipboard").format(item.name)
-                  runOnUiThread(new Runnable {
-                    def run = try {
-                      val clipboard = SSHDUsers.this.getSystemService(Context.CLIPBOARD_SERVICE).asInstanceOf[ClipboardManager]
-                      clipboard.setText("login: %s\nhome: %s\npassword: %s\nenabled: %s\n".format(item.name, item.home, item.password, item.enabled))
-                      Toast.makeText(SSHDUsers.this, message, Toast.LENGTH_SHORT).show()
-                    } catch {
-                      case e =>
-                        IAmYell("Unable to copy to clipboard information about \"" + item.name + "\"", e)
+                  case id if id == XResource.getId(context, "users_delete") =>
+                    UserDialog.delete.foreach(dialog =>
+                      SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
+                        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                        ft.addToBackStack(dialog)
+                      }).before(dialog => {
+                        dialog.user = Some(item)
+                        dialog.onOkCallback = Some((user) => onDialogDelete(user))
+                      }).show())
+                    true
+                  case id if id == XResource.getId(context, "users_copy_details") =>
+                    Futures.future {
+                      try {
+                        val message = XResource.getString(context, "users_copy_details").
+                          getOrElse("Copy details about <b>%s</b> to clipboard").format(item.name)
+                        val content = UserAdapter.getDetails(context, item)
+                        AnyBase.runOnUiThread {
+                          try {
+                            XAPI.clipboardManager(context).setText(content)
+                            Toast.makeText(context, Html.fromHtml(message), Toast.LENGTH_SHORT).show()
+                          } catch {
+                            case e =>
+                              IAmYell("Unable to copy to clipboard information about \"" + item.name + "\"", e)
+                          }
+                        }
+                      } catch {
+                        case e =>
+                          IAmYell("Unable to copy to clipboard details about \"" + item.name + "\"", e)
+                      }
                     }
-                  })
-                } catch {
-                  case e =>
-                    IAmYell("Unable to copy to clipboard details about \"" + item.name + "\"", e)
-                }*/
                     true
                   case id if id == XResource.getId(getSherlockActivity, "users_show_details") =>
-                    /*                try {
-                  SSHDUsers.Dialog.createDialogUserDetails(this, item).show()
-                } catch {
-                  case e =>
-                    IAmYell("Unable to show details about \"" + item.name + "\"", e)
-                }*/
+                    UserDialog.showDetails.foreach(dialog =>
+                      SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
+                        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                        ft.addToBackStack(dialog)
+                      }).before(dialog => dialog.user = Some(item)).show())
                     true
                   case id =>
                     log.fatal("unknown action " + id)
@@ -341,129 +354,34 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     for {
       userName <- userName.get
       userPassword <- userPassword.get
-      adapter <- UserAdapter.adapter
-      userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
     } {
+      val context = getSherlockActivity
       val name = userName.getText.toString.trim
       val password = userPassword.getText.toString.trim
       assert(name.nonEmpty && password.nonEmpty, "one of user fields is empty")
       lastActiveUserInfo.get match {
-        case Some(user) if name == "android" =>
-        /*          new AlertDialog.Builder(this).
-            setTitle(XResource.getString(v.getContext, "users_update_user_title").getOrElse("Update user \"%s\"").format(name)).
-            setMessage(XResource.getString(v.getContext, "users_update_user_message").getOrElse("Do you want to save the changes?")).
-            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-              def onClick(dialog: DialogInterface, whichButton: Int) = {
-                val message = XResource.getString(v.getContext, "users_update_message").
-                  getOrElse("update user \"%s\"").format(name)
-                IAmWarn(message)
-                Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-                val newUser = user.copy(password = password)
-                lastActiveUserInfo.set(Some(newUser))
-                SSHDUsers.save(v.getContext, newUser)
-                SSHDUsers.setPasswordEnabled(userPasswordEnableCheckbox.isChecked, v.getContext, newUser)
-                val position = adapter.getPosition(user)
-                adapter.remove(user)
-                adapter.insert(newUser, position)
-                updateFieldsState()
-                SSHDUsers.this.getListView.setSelectionFromTop(position, 5)
-              }
-            }).
-            setNegativeButton(android.R.string.cancel, null).
-            setIcon(android.R.drawable.ic_dialog_alert).
-            create().show()*/
         case Some(user) if UserAdapter.list.exists(_.name == name) =>
-        /*          new AlertDialog.Builder(this).
-            setTitle(XResource.getString(v.getContext, "users_update_user_title").getOrElse("Update user \"%s\"").format(name)).
-            setMessage(XResource.getString(v.getContext, "users_update_user_message").getOrElse("Do you want to save the changes?")).
-            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-              def onClick(dialog: DialogInterface, whichButton: Int) = {
-                val message = XResource.getString(v.getContext, "users_update_message").
-                  getOrElse("update user \"%s\"").format(name)
-                IAmWarn(message)
-                Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-                val newUser = user.copy(name = name, password = password)
-                lastActiveUserInfo.set(Some(newUser))
-                SSHDUsers.save(v.getContext, newUser)
-                SSHDUsers.setPasswordEnabled(userPasswordEnableCheckbox.isChecked, v.getContext, newUser)
-                val position = adapter.getPosition(user)
-                adapter.remove(user)
-                adapter.insert(newUser, position)
-                updateFieldsState()
-                SSHDUsers.this.getListView.setSelectionFromTop(position, 5)
-              }
-            }).
-            setNegativeButton(android.R.string.cancel, null).
-            setIcon(android.R.drawable.ic_dialog_alert).
-            create().show()*/
+          UserFragment.Dialog.updateUser.foreach(dialog =>
+            SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
+              ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+              ft.addToBackStack(dialog)
+            }).before(dialog => dialog.user = Some(user)).show())
         case _ =>
-        /*          new AlertDialog.Builder(this).
-            setTitle(XResource.getString(v.getContext, "users_create_user_title").getOrElse("Create user \"%s\"").format(name)).
-            setMessage(XResource.getString(v.getContext, "users_create_user_message").getOrElse("Do you want to save the changes?")).
-            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-              def onClick(dialog: DialogInterface, whichButton: Int) = {
-                val message = XResource.getString(v.getContext, "users_create_message").
-                  getOrElse("created user \"%s\"").format(name)
-                IAmWarn(message)
-                Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-                // home
-                val home = AppControl.Inner.getExternalDirectory(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
-                  val sdcard = new File("/sdcard")
-                  if (!sdcard.exists)
-                    new File("/")
-                  else
-                    sdcard
-                }).getAbsolutePath
-                val newUser = UserInfo(name, password, home, true)
-                lastActiveUserInfo.set(Some(newUser))
-                SSHDUsers.save(v.getContext, newUser)
-                SSHDUsers.setPasswordEnabled(userPasswordEnableCheckbox.isChecked, v.getContext, newUser)
-                val position = (SSHDUsers.list :+ newUser).sortBy(_.name).indexOf(newUser)
-                adapter.insert(newUser, position)
-                updateFieldsState()
-                SSHDUsers.this.getListView.setSelectionFromTop(position, 5)
-              }
-            }).
-            setNegativeButton(android.R.string.cancel, null).
-            setIcon(android.R.drawable.ic_dialog_alert).
-            create().show()*/
+          UserFragment.Dialog.createUser.foreach(dialog =>
+            SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
+              ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+              ft.addToBackStack(dialog)
+            }).before(dialog => dialog.userName = Some(name)).show())
       }
     }
   }
   @Loggable
-  def onClickToggleBlockAll(v: View) = {
-    /*    new AlertDialog.Builder(this).
-      setTitle(XResource.getString(v.getContext, "users_disable_all_title").getOrElse("Disable all users")).
-      setMessage(XResource.getString(v.getContext, "users_disable_all_message").getOrElse("Are you sure you want to disable all users?")).
-      setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-        def onClick(dialog: DialogInterface, whichButton: Int) = SSHDUsers.this.synchronized {
-          for {
-            adapter <- SSHDUsers.adapter
-          } {
-            adapter.setNotifyOnChange(false)
-            SSHDUsers.list.foreach(user => {
-              IAmMumble("disable user \"%s\"".format(user.name))
-              val newUser = user.copy(enabled = false)
-              SSHDUsers.save(v.getContext, newUser)
-              val position = adapter.getPosition(user)
-              adapter.remove(user)
-              adapter.insert(newUser, position)
-              if (lastActiveUserInfo.get.exists(_ == user))
-                lastActiveUserInfo.set(Some(newUser))
-            })
-            adapter.setNotifyOnChange(true)
-            adapter.notifyDataSetChanged
-          }
-          val message = XResource.getString(v.getContext, "users_all_disabled").getOrElse("all users are disabled")
-          IAmWarn(message)
-          Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-          updateFieldsState
-        }
-      }).
-      setNegativeButton(android.R.string.cancel, null).
-      setIcon(android.R.drawable.ic_dialog_alert).
-      create().show()*/
-  }
+  def onClickToggleBlockAll(v: View) =
+    UserFragment.Dialog.disableAllUsers.foreach(dialog =>
+      SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).show())
   @Loggable
   def onClickDeleteAll(v: View) = {
     /*    new AlertDialog.Builder(this).
@@ -496,8 +414,8 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
       create().show()*/
   }
   @Loggable
-  def onClickGenerateNewUser(v: View) = Futures.future {
-    /*    try {
+  def onClickGenerateNewUser(v: View): Unit = Futures.future {
+    try {
       lastActiveUserInfo.set(None)
       // name
       val names = getResources.getStringArray(R.array.names)
@@ -523,23 +441,19 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
         name
       }
       // password
-      val password = SSHDUsers.generate()
+      val password = UserAdapter.generate()
       for {
         userName <- userName.get
         userPasswrod <- userPassword.get
-      } {
-        runOnUiThread(new Runnable {
-          def run {
-            userName.setText(name)
-            userPasswrod.setText(password)
-            updateFieldsState()
-          }
-        })
+      } AnyBase.runOnUiThread {
+        userName.setText(name)
+        userPasswrod.setText(password)
+        updateFieldsState()
       }
     } catch {
       case e =>
         log.error(e.getMessage, e)
-    }*/
+    }
   }
   /*@Loggable
   def onClickChangeHomeDirectory(v: View): Unit = userHome.get.foreach {
@@ -589,17 +503,15 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
   def onClickShowPassword(v: View): Unit = for {
     userPasswordShowButton <- userPasswordShowButton.get
     userPassword <- userPassword.get
-  } {
-    if (UserFragment.showPassword) {
-      UserFragment.showPassword = false
-      userPasswordShowButton.setSelected(false)
-      userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
-      userPassword.setTransformationMethod(PasswordTransformationMethod.getInstance())
-    } else {
-      UserFragment.showPassword = true
-      userPasswordShowButton.setSelected(true)
-      userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
-    }
+  } if (UserFragment.showPassword) {
+    UserFragment.showPassword = false
+    userPasswordShowButton.setSelected(false)
+    userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+    userPassword.setTransformationMethod(PasswordTransformationMethod.getInstance())
+  } else {
+    UserFragment.showPassword = true
+    userPasswordShowButton.setSelected(true)
+    userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
   }
   @Loggable
   def onDialogChangeState(state: Boolean, user: UserInfo) = {
@@ -628,11 +540,165 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     }
   }
   @Loggable
+  def onDialogDelete(user: UserInfo) = Futures.future {
+    this.synchronized {
+      try {
+        val context = getSherlockActivity
+        val message = XResource.getString(context, "users_deleted_message").
+          getOrElse("deleted user <b>%s</b>").format(user.name)
+        IAmWarn(message)
+        UserAdapter.remove(context, user)
+        AnyBase.runOnUiThread {
+          Toast.makeText(context, Html.fromHtml(message), Toast.LENGTH_SHORT).show()
+          UserAdapter.adapter.foreach(_.remove(user))
+        }
+        updateFieldsState()
+        if (lastActiveUserInfo.get.exists(_ == user))
+          lastActiveUserInfo.set(UserAdapter.find(context, "android"))
+      } catch {
+        case e =>
+          log.error(e.getMessage, e)
+      }
+    }
+  }
+  @Loggable
   def onDialogSetGUID(user: UserInfo, uid: Option[Int], gid: Option[Int]) = Futures.future {
     this.synchronized {
-      val context = getSherlockActivity
-      UserAdapter.setUserUID(context, user, uid)
-      UserAdapter.setUserGID(context, user, gid)
+      try {
+        val context = getSherlockActivity
+        UserAdapter.setUserUID(context, user, uid match {
+          case r @ Some(uid) if uid >= 0 => r
+          case _ => None
+        })
+        UserAdapter.setUserGID(context, user, gid match {
+          case r @ Some(gid) if gid >= 0 => r
+          case _ => None
+        })
+      } catch {
+        case e =>
+          log.error(e.getMessage, e)
+      }
+    }
+  }
+  def onDialogUserUpdate() = Futures.future {
+    this.synchronized {
+      for {
+        adapter <- UserAdapter.adapter
+        userName <- userName.get
+        userPassword <- userPassword.get
+        userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+        user <- lastActiveUserInfo.get
+      } {
+        val context = getSherlockActivity
+        val name = userName.getText.toString.trim
+        val password = userPassword.getText.toString.trim
+        (if (name == "android")
+          Some(user.copy(password = user.password))
+        else if (name != "android")
+          Some(user.copy(name = name, password = password))
+        else {
+          None
+        }) match {
+          case Some(newUser) =>
+            val message = XResource.getString(context, "users_update_message").
+              getOrElse("update user \"%s\"").format(user.name)
+            IAmWarn(message)
+            UserAdapter.save(context, newUser)
+            UserAdapter.setPasswordEnabled(userPasswordEnabledCheckbox.isChecked, context, newUser)
+            lastActiveUserInfo.set(Some(newUser))
+            AnyBase.runOnUiThread {
+              Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+              val position = adapter.getPosition(user)
+              adapter.remove(user)
+              adapter.insert(newUser, position)
+              UserFragment.this.getListView.setSelectionFromTop(position, 5)
+            }
+            updateFieldsState()
+          case None =>
+            val message = XResource.getString(context, "users_update_fail_message").
+              getOrElse("update user \"%s\" failed").format(user.name)
+            IAmYell(message)
+            AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+        }
+      }
+    }
+  }
+  @Loggable
+  def onDialogUserCreate() = Futures.future {
+    this.synchronized {
+      for {
+        adapter <- UserAdapter.adapter
+        userName <- userName.get
+        userPassword <- userPassword.get
+        userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+      } {
+        val context = getSherlockActivity
+        val name = userName.getText.toString.trim
+        val password = userPassword.getText.toString.trim
+        val passwordEnabled = userPasswordEnabledCheckbox.isChecked
+        val message = XResource.getString(context, "users_create_message").
+          getOrElse("created user \"%s\"").format(name)
+        IAmWarn(message)
+        // home
+        val home = AppControl.Inner.getExternalDirectory(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
+          val sdcard = new File("/sdcard")
+          if (!sdcard.exists)
+            new File("/")
+          else
+            sdcard
+        }).getAbsolutePath
+        val newUser = UserInfo(name, password, home, true)
+        UserAdapter.save(context, newUser)
+        UserAdapter.setPasswordEnabled(passwordEnabled, context, newUser)
+        lastActiveUserInfo.set(Some(newUser))
+        AnyBase.runOnUiThread {
+          try {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            val position = (UserAdapter.list :+ newUser).sortBy(_.name).indexOf(newUser)
+            adapter.insert(newUser, position)
+            UserFragment.this.getListView.setSelectionFromTop(position, 5)
+          } catch {
+            case e =>
+              log.error(e.getMessage, e)
+          }
+        }
+        updateFieldsState()
+      }
+    }
+  }
+  @Loggable
+  def onDialogDisableAllUsers(): Unit = Futures.future {
+    this.synchronized {
+      try {
+        val context = getSherlockActivity
+        val updateSeq = UserAdapter.list.map(user => {
+          IAmMumble("disable user \"%s\"".format(user.name))
+          val newUser = user.copy(enabled = false)
+          UserAdapter.save(context, newUser)
+          (adapter: ArrayAdapter[UserInfo]) => {
+            val position = adapter.getPosition(user)
+            adapter.remove(user)
+            adapter.insert(newUser, position)
+            if (lastActiveUserInfo.get.exists(_ == user))
+              lastActiveUserInfo.set(Some(newUser))
+          }
+        })
+        AnyBase.runOnUiThread {
+          UserAdapter.adapter.foreach(adapter => {
+            adapter.setNotifyOnChange(false)
+            updateSeq.foreach(_(adapter))
+            adapter.setNotifyOnChange(true)
+            adapter.notifyDataSetChanged
+          })
+          val message = XResource.getString(context, "users_all_disabled").getOrElse("all users are disabled")
+          IAmWarn(message)
+          Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+        updateFieldsState
+      } catch {
+        case e =>
+          log.error(e.getMessage, e)
+      }
     }
   }
   @Loggable
@@ -642,54 +708,39 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     apply <- apply.get
     blockAll <- blockAll.get
     deleteAll <- deleteAll.get
-    userPasswordEnableCheckbox <- userPasswordEnableCheckbox.get
-  } {
-    // set apply
-    if (lastActiveUserInfo.get.nonEmpty) {
-      if (lastActiveUserInfo.get.exists(u =>
-        u.name == userName.getText.toString.trim &&
-          u.password == userPassword.getText.toString.trim &&
-          userPasswordEnableCheckbox.isChecked == UserAdapter.isPasswordEnabled(userPasswordEnableCheckbox.getContext, u)))
-        apply.setEnabled(false)
-      else if (userName.getText.toString.trim.nonEmpty &&
-        userPassword.getText.toString.trim.nonEmpty)
-        apply.setEnabled(true)
+    userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+  } Futures.future {
+    var applyState = if (lastActiveUserInfo.get.nonEmpty) {
+      if (lastActiveUserInfo.get.exists(u => u.name == userName.getText.toString.trim &&
+        u.password == userPassword.getText.toString.trim && userPasswordEnabledCheckbox.isChecked ==
+        UserAdapter.isPasswordEnabled(userPasswordEnabledCheckbox.getContext, u)))
+        false
       else
-        apply.setEnabled(false)
+        userName.getText.toString.trim.nonEmpty && userPassword.getText.toString.trim.nonEmpty
     } else {
-      if (userName.getText.toString.trim.nonEmpty &&
-        userPassword.getText.toString.trim.nonEmpty) {
-        apply.setEnabled(true)
-      } else
-        apply.setEnabled(false)
+      userName.getText.toString.trim.nonEmpty && userPassword.getText.toString.trim.nonEmpty
     }
-    // set userName
-    if (lastActiveUserInfo.get.exists(_.name == "android"))
-      userName.setEnabled(false)
-    else
-      userName.setEnabled(true)
-    // set userPassword
-    if (userPasswordEnableCheckbox.isChecked)
-      userPassword.setEnabled(true)
-    else
-      userPassword.setEnabled(false)
-    // single user mode
+    var userNameState = !lastActiveUserInfo.get.exists(_.name == "android")
+    var userPasswordState = userPasswordEnabledCheckbox.isChecked
     if (!UserAdapter.isMultiUser(getSherlockActivity)) {
-      userName.setEnabled(false)
-      blockAll.setEnabled(false)
-      deleteAll.setEnabled(false)
+      AnyBase.runOnUiThread {
+        apply.setEnabled(applyState)
+        userName.setEnabled(false)
+        userPassword.setEnabled(userPasswordState)
+        blockAll.setEnabled(false)
+        deleteAll.setEnabled(false)
+      }
       return
     }
-    // set block all
-    if (UserAdapter.list.exists(_.enabled))
-      blockAll.setEnabled(true)
-    else
-      blockAll.setEnabled(false)
-    // set delete all
-    if (UserAdapter.list.exists(_.name != "android"))
-      deleteAll.setEnabled(true)
-    else
-      deleteAll.setEnabled(false)
+    var blockAllState = UserAdapter.list.exists(_.enabled)
+    var deleteAllState = UserAdapter.list.exists(_.name != "android")
+    AnyBase.runOnUiThread {
+      apply.setEnabled(applyState)
+      userName.setEnabled(userNameState)
+      userPassword.setEnabled(userPasswordState)
+      blockAll.setEnabled(blockAllState)
+      deleteAll.setEnabled(deleteAllState)
+    }
   }
 }
 
@@ -708,5 +759,71 @@ object UserFragment extends Logging {
       SherlockDynamicFragment.show(classOf[UserFragment], currentTabFragment)
     case None =>
       log.fatal("current tab fragment not found")
+  }
+  @Loggable
+  def onClickGenerateNewUser(v: View) = fragment.foreach(_.onClickGenerateNewUser(v))
+  @Loggable
+  def onClickUsersShowPassword(v: View) = fragment.foreach(_.onClickShowPassword(v))
+  @Loggable
+  def onClickApply(v: View) = fragment.foreach(_.onClickApply(v))
+  @Loggable
+  def onClickToggleBlockAll(v: View) = fragment.foreach(_.onClickToggleBlockAll(v))
+  @Loggable
+  def onClickDeleteAll(v: View) = fragment.foreach(_.onClickDeleteAll(v))
+  object Dialog {
+    lazy val updateUser = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[UpdateUser].getName, null).asInstanceOf[UpdateUser])
+    lazy val createUser = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[CreateUser].getName, null).asInstanceOf[CreateUser])
+    lazy val disableAllUsers = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[DisableAllUsers].getName, null).asInstanceOf[DisableAllUsers])
+
+    class UpdateUser
+      extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      @volatile var user: Option[UserInfo] = None
+      override protected lazy val positive = Some((android.R.string.ok,
+        new SSHDDialog.ButtonListener(new WeakReference(UpdateUser.this),
+          Some((dialog: UpdateUser) => fragment.foreach(_.onDialogUserUpdate())))))
+      override protected lazy val negative = Some((android.R.string.cancel,
+        new SSHDDialog.ButtonListener(new WeakReference(UpdateUser.this),
+          Some(defaultNegativeButtonCallback))))
+
+      def tag = "dialog_user_update"
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_update_user_title").
+        getOrElse("Update user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
+        "users_update_user_message").getOrElse("Do you want to save the changes?")))
+    }
+    class CreateUser
+      extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      @volatile var userName: Option[String] = None
+      override protected lazy val positive = Some((android.R.string.ok,
+        new SSHDDialog.ButtonListener(new WeakReference(CreateUser.this),
+          Some((dialog: CreateUser) => fragment.foreach(_.onDialogUserCreate)))))
+      override protected lazy val negative = Some((android.R.string.cancel,
+        new SSHDDialog.ButtonListener(new WeakReference(CreateUser.this),
+          Some(defaultNegativeButtonCallback))))
+
+      def tag = "dialog_user_create"
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_create_user_title").
+        getOrElse("Create user <b>%s</b>").format(userName.getOrElse("unknown")))
+      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
+        "users_create_user_message").getOrElse("Do you want to add new user?")))
+    }
+    class DisableAllUsers
+      extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      override protected lazy val positive = Some((android.R.string.ok,
+        new SSHDDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
+          Some((dialog: DisableAllUsers) => fragment.foreach(_.onDialogDisableAllUsers)))))
+      override protected lazy val negative = Some((android.R.string.cancel,
+        new SSHDDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
+          Some(defaultNegativeButtonCallback))))
+
+      def tag = "dialog_user_create"
+      def title = XResource.getString(getSherlockActivity, "users_disable_all_title").
+        getOrElse("Disable all users")
+      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
+        "users_disable_all_message").getOrElse("Are you sure you want to disable all users?")))
+    }
   }
 }

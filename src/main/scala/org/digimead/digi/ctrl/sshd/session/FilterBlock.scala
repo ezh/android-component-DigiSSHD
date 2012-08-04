@@ -28,6 +28,7 @@ import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.XAPI
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -273,9 +274,9 @@ object FilterBlock extends Logging {
             item.view = new WeakReference(view)
             item.updateUI
             if (item.isFilterADA)
-              FilterBlock.iconADA.foreach(button.setBackgroundDrawable)
+              FilterBlock.iconADA.foreach(drawable => XAPI.setViewBackground(button, drawable))
             else
-              FilterBlock.iconDAD.foreach(button.setBackgroundDrawable)
+              FilterBlock.iconDAD.foreach(drawable => XAPI.setViewBackground(button, drawable))
             view
           case Some(view) =>
             view
