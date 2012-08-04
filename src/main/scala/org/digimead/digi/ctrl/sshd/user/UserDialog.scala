@@ -29,6 +29,7 @@ import scala.collection.JavaConversions._
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.XDialog
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -37,6 +38,7 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 
 import android.app.AlertDialog
@@ -366,21 +368,21 @@ object UserDialog extends Logging {
       getOrElse("Do you want to disable <b>%s</b> account?").format(user.map(_.name).getOrElse("unknown"))))
   }
   abstract class ChangeState
-    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
     @volatile var onOkCallback: Option[UserInfo => Any] = None
-    override protected lazy val positive = Some((android.R.string.yes, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
+    override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some((dialog: ChangeState) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
-    override protected lazy val negative = Some((android.R.string.no, new SSHDDialog.ButtonListener(new WeakReference(ChangeState.this),
+    override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some(defaultNegativeButtonCallback))))
   }
   class Delete
-    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
     @volatile var onOkCallback: Option[UserInfo => Any] = None
-    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(Delete.this),
+    override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(Delete.this),
       Some((dialog: Delete) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
-    override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(Delete.this),
+    override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(Delete.this),
       Some(defaultNegativeButtonCallback))))
 
     def tag = "dialog_user_delete"
@@ -391,12 +393,12 @@ object UserDialog extends Logging {
       format(user.map(_.name).getOrElse("unknown"))))
   }
   class SetGUID
-    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
       R.layout.dialog_users_guid) {
     @volatile var user: Option[UserInfo] = None
     @volatile var userExt: Option[UserInfoExt] = None
     @volatile var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
-    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(SetGUID.this),
+    override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
       Some((dialog: SetGUID) => {
         dialog.customContent.foreach {
           customContent =>
@@ -407,7 +409,7 @@ object UserDialog extends Logging {
             user.foreach(user => dialog.onOkCallback.foreach(_(user, uid, gid)))
         }
       }))))
-    override protected lazy val negative = Some((android.R.string.cancel, new SSHDDialog.ButtonListener(new WeakReference(SetGUID.this),
+    override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
       Some(defaultNegativeButtonCallback))))
 
     def tag = "dialog_user_set_guid"
@@ -459,10 +461,10 @@ object UserDialog extends Logging {
     }
   }
   class ShowDetails
-    extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
       ShowDetails.customContent) {
     @volatile var user: Option[UserInfo] = None
-    override protected lazy val positive = Some((android.R.string.ok, new SSHDDialog.ButtonListener(new WeakReference(ShowDetails.this),
+    override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(ShowDetails.this),
       Some(defaultNegativeButtonCallback))))
 
     def tag = "dialog_user_details"

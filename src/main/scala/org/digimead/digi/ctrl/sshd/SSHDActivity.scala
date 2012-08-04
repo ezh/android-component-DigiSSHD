@@ -80,37 +80,42 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     val bar = getSupportActionBar()
-    bar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
     val barState = getLayoutInflater().inflate(R.layout.menubar_state, null)
-    getSupportActionBar().setCustomView(barState)
-    getSupportActionBar().setDisplayShowCustomEnabled(true)
-    //bar.setDisplayShowTitleEnabled(false)
-    //bar.setDisplayShowHomeEnabled(false)
+    bar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
+    bar.setCustomView(barState)
+    bar.setDisplayShowCustomEnabled(true)
+    bar.setDisplayShowHomeEnabled(true)
     val display = getWindowManager.getDefaultDisplay()
     val variant = getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK match {
       case Configuration.SCREENLAYOUT_SIZE_XLARGE =>
         if (XAndroid.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_XLARGE, layout Largest, landscape")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Largest
+          bar.setDisplayShowTitleEnabled(true)
         } else {
           log.debug("adjust to SIZE_XLARGE, layout Normal")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
+          bar.setDisplayShowTitleEnabled(false)
         }
       case Configuration.SCREENLAYOUT_SIZE_LARGE =>
         if (XAndroid.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_LARGE, layout Large, landscape")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Large
+          bar.setDisplayShowTitleEnabled(true)
         } else {
           log.debug("adjust to SIZE_LARGE, layout Normal")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Normal
+          bar.setDisplayShowTitleEnabled(false)
         }
       case _ =>
         if (XAndroid.getScreenOrientation(display) == Configuration.ORIENTATION_LANDSCAPE) {
           log.debug("adjust to SIZE_NORMAL and bellow, layout Small, landscape"); 1
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Small
+          bar.setDisplayShowTitleEnabled(true)
         } else {
           log.debug("adjust to SIZE_NORMAL and bellow, layout Small")
           SSHDActivity.layoutVariant = SSHDActivity.Layout.Small
+          bar.setDisplayShowTitleEnabled(false)
         }
     }
     SSHDActivity.layoutAdjusted = false

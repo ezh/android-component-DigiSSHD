@@ -35,7 +35,6 @@ import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import android.app.AlertDialog

@@ -102,14 +102,6 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
     super.onDetach()
   }
   @Loggable
-  override def onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) = {
-    import com.actionbarsherlock.view.MenuItem
-    menu.add(0, 1, 1, android.R.string.cancel).setIcon(android.R.drawable.ic_menu_camera).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-    menu.add(0, 2, 2, android.R.string.cut).setIcon(android.R.drawable.ic_menu_agenda).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-    menu.add(0, 3, 3, android.R.string.paste).setIcon(android.R.drawable.ic_menu_compass).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-    menu.add(0, 4, 4, android.R.string.search_go).setIcon(android.R.drawable.ic_menu_upload).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-  }
-  @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) = for {
     filterBlock <- TabContent.filterBlock
     optionBlock <- TabContent.optionBlock

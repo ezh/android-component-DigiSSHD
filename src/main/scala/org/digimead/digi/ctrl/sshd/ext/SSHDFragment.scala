@@ -30,8 +30,8 @@ import com.actionbarsherlock.app.SherlockFragmentActivity
 import android.support.v4.app.Fragment
 import android.view.View
 
-trait SherlockDynamicFragment {
-  this: Fragment with SherlockDynamicFragment.Sherlock =>
+trait SSHDFragment {
+  this: Fragment with SSHDFragment.Sherlock =>
   def showDynamicFragment() = SSHDActivity.activity.foreach {
     activity =>
       activity.findViewById(R.id.main_primary).setVisibility(View.GONE)
@@ -44,9 +44,9 @@ trait SherlockDynamicFragment {
   }
 }
 
-object SherlockDynamicFragment extends Logging {
+object SSHDFragment extends Logging {
   type Sherlock = { def getSherlockActivity(): SherlockFragmentActivity }
-  def show(fragment: Class[_ <: SherlockDynamicFragment], tab: TabInterface) {
+  def show(fragment: Class[_ <: SSHDFragment], tab: TabInterface) {
     val manager = tab.getSherlockActivity.getSupportFragmentManager
     val userFragment = Fragment.instantiate(tab.getSherlockActivity, fragment.getName, null)
     val target = if (tab.isTopPanelAvailable) {

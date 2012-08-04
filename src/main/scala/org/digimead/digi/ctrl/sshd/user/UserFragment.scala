@@ -32,11 +32,14 @@ import scala.util.Random
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.androidext.XAPI
+import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
+import org.digimead.digi.ctrl.lib.dialog.{ FileChooser => LibFileChooser }
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
@@ -47,9 +50,8 @@ import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
-import org.digimead.digi.ctrl.sshd.ext.SherlockDynamicFragment
+import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
 import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 
 import com.actionbarsherlock.app.SherlockListFragment
@@ -79,7 +81,7 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 
-class UserFragment extends SherlockListFragment with SherlockDynamicFragment with Logging {
+class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   UserFragment.fragment = Some(this)
   private lazy val dynamicHeader = new WeakReference({
     getSherlockActivity.findViewById(R.id.element_users_header).asInstanceOf[LinearLayout]
@@ -296,6 +298,14 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
                       }).show())
                     true
                   case id if id == XResource.getId(context, "users_set_home") =>
+                    UserFragment.Dialog.chooseHome.foreach(dialog =>
+                      SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
+                        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                        ft.addToBackStack(dialog)
+                      }).before(dialog => {
+                        dialog.user = Some(item)
+                        dialog.setCallbackOnResult((dir, selected) => onDialogChooseHome(item, dir))
+                      }).show())
                     true
                   case id if id == XResource.getId(context, "users_delete") =>
                     UserDialog.delete.foreach(dialog =>
@@ -383,36 +393,12 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
         ft.addToBackStack(dialog)
       }).show())
   @Loggable
-  def onClickDeleteAll(v: View) = {
-    /*    new AlertDialog.Builder(this).
-      setTitle(XResource.getString(v.getContext, "users_delete_all_title").getOrElse("Delete all users")).
-      setMessage(XResource.getString(v.getContext, "users_delete_all_message").getOrElse("Are you sure you want to delete all users except \"android\"?")).
-      setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-        def onClick(dialog: DialogInterface, whichButton: Int) = SSHDUsers.this.synchronized {
-          for {
-            adapter <- SSHDUsers.adapter
-          } {
-            adapter.setNotifyOnChange(false)
-            SSHDUsers.list.foreach(user => if (user.name != "android") {
-              IAmMumble("remove \"%s\" user account".format(user.name))
-              SSHDUsers.remove(v.getContext, user)
-              adapter.remove(user)
-              if (lastActiveUserInfo.get.exists(_ == user))
-                lastActiveUserInfo.set(None)
-            })
-            adapter.setNotifyOnChange(true)
-            adapter.notifyDataSetChanged
-          }
-          val message = XResource.getString(v.getContext, "users_all_deleted").getOrElse("all users except \"android\" are deleted")
-          IAmWarn(message)
-          Toast.makeText(v.getContext, message, Toast.LENGTH_SHORT).show()
-          updateFieldsState
-        }
-      }).
-      setNegativeButton(android.R.string.cancel, null).
-      setIcon(android.R.drawable.ic_dialog_alert).
-      create().show()*/
-  }
+  def onClickDeleteAll(v: View) =
+    UserFragment.Dialog.deleteAllUsers.foreach(dialog =>
+      SafeDialog(getSherlockActivity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).show())
   @Loggable
   def onClickGenerateNewUser(v: View): Unit = Futures.future {
     try {
@@ -562,6 +548,30 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     }
   }
   @Loggable
+  def onDialogChooseHome(user: UserInfo, home: File) = Futures.future {
+    log.debug(user.name + " new home is " + home)
+    this.synchronized {
+      UserAdapter.adapter.foreach {
+        adapter =>
+          val context = getSherlockActivity
+          val newUser = user.copy(home = home.getAbsolutePath)
+          val message = Html.fromHtml(XResource.getString(context, "users_update_message").
+            getOrElse("update user <b>%s</b>").format(user.name))
+          IAmWarn(message.toString)
+          UserAdapter.save(context, newUser)
+          lastActiveUserInfo.set(Some(newUser))
+          AnyBase.runOnUiThread {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            val position = adapter.getPosition(user)
+            adapter.remove(user)
+            adapter.insert(newUser, position)
+            UserFragment.this.getListView.setSelectionFromTop(position, 5)
+          }
+          updateFieldsState()
+      }
+    }
+  }
+  @Loggable
   def onDialogSetGUID(user: UserInfo, uid: Option[Int], gid: Option[Int]) = Futures.future {
     this.synchronized {
       try {
@@ -580,6 +590,7 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
       }
     }
   }
+  @Loggable
   def onDialogUserUpdate() = Futures.future {
     this.synchronized {
       for {
@@ -600,9 +611,9 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
           None
         }) match {
           case Some(newUser) =>
-            val message = XResource.getString(context, "users_update_message").
-              getOrElse("update user \"%s\"").format(user.name)
-            IAmWarn(message)
+            val message = Html.fromHtml(XResource.getString(context, "users_update_message").
+              getOrElse("update user <b>%s</b>").format(user.name))
+            IAmWarn(message.toString)
             UserAdapter.save(context, newUser)
             UserAdapter.setPasswordEnabled(userPasswordEnabledCheckbox.isChecked, context, newUser)
             lastActiveUserInfo.set(Some(newUser))
@@ -671,7 +682,7 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
     this.synchronized {
       try {
         val context = getSherlockActivity
-        val updateSeq = UserAdapter.list.map(user => {
+        val updateSeq: List[ArrayAdapter[UserInfo] => Unit] = UserAdapter.list.map(user => {
           IAmMumble("disable user \"%s\"".format(user.name))
           val newUser = user.copy(enabled = false)
           UserAdapter.save(context, newUser)
@@ -692,6 +703,39 @@ class UserFragment extends SherlockListFragment with SherlockDynamicFragment wit
           })
           val message = XResource.getString(context, "users_all_disabled").getOrElse("all users are disabled")
           IAmWarn(message)
+          Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+        updateFieldsState
+      } catch {
+        case e =>
+          log.error(e.getMessage, e)
+      }
+    }
+  }
+  @Loggable
+  def onDialogDeleteAllUsers(): Unit = Futures.future {
+    this.synchronized {
+      try {
+        val context = getSherlockActivity
+        val removeSeq: List[ArrayAdapter[UserInfo] => Unit] = UserAdapter.list.map(user => if (user.name != "android") {
+          IAmMumble("delete user \"%s\"".format(user.name))
+          UserAdapter.remove(context, user)
+          (adapter: ArrayAdapter[UserInfo]) => {
+            adapter.remove(user)
+            if (lastActiveUserInfo.get.exists(_ == user))
+              lastActiveUserInfo.set(UserAdapter.find(context, "android"))
+          }
+        } else (adapter: ArrayAdapter[UserInfo]) => {})
+        AnyBase.runOnUiThread {
+          UserAdapter.adapter.foreach(adapter => {
+            adapter.setNotifyOnChange(false)
+            removeSeq.foreach(_(adapter))
+            adapter.setNotifyOnChange(true)
+            adapter.notifyDataSetChanged
+          })
+          val message = Html.fromHtml(XResource.getString(context, "users_all_deleted").
+            getOrElse("all users except <b>android</b> are deleted"))
+          IAmWarn(message.toString)
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
         updateFieldsState
@@ -756,7 +800,7 @@ object UserFragment extends Logging {
   @Loggable
   def show() = SSHDTabAdapter.getSelectedFragment match {
     case Some(currentTabFragment) =>
-      SherlockDynamicFragment.show(classOf[UserFragment], currentTabFragment)
+      SSHDFragment.show(classOf[UserFragment], currentTabFragment)
     case None =>
       log.fatal("current tab fragment not found")
   }
@@ -777,15 +821,19 @@ object UserFragment extends Logging {
       Fragment.instantiate(context.getApplicationContext, classOf[CreateUser].getName, null).asInstanceOf[CreateUser])
     lazy val disableAllUsers = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[DisableAllUsers].getName, null).asInstanceOf[DisableAllUsers])
+    lazy val deleteAllUsers = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[DeleteAllUsers].getName, null).asInstanceOf[DeleteAllUsers])
+    lazy val chooseHome = AppComponent.Context.map(context =>
+      Fragment.instantiate(context.getApplicationContext, classOf[ChooseHome].getName, null).asInstanceOf[ChooseHome])
 
     class UpdateUser
-      extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
       @volatile var user: Option[UserInfo] = None
       override protected lazy val positive = Some((android.R.string.ok,
-        new SSHDDialog.ButtonListener(new WeakReference(UpdateUser.this),
+        new XDialog.ButtonListener(new WeakReference(UpdateUser.this),
           Some((dialog: UpdateUser) => fragment.foreach(_.onDialogUserUpdate())))))
       override protected lazy val negative = Some((android.R.string.cancel,
-        new SSHDDialog.ButtonListener(new WeakReference(UpdateUser.this),
+        new XDialog.ButtonListener(new WeakReference(UpdateUser.this),
           Some(defaultNegativeButtonCallback))))
 
       def tag = "dialog_user_update"
@@ -795,13 +843,13 @@ object UserFragment extends Logging {
         "users_update_user_message").getOrElse("Do you want to save the changes?")))
     }
     class CreateUser
-      extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
       @volatile var userName: Option[String] = None
       override protected lazy val positive = Some((android.R.string.ok,
-        new SSHDDialog.ButtonListener(new WeakReference(CreateUser.this),
+        new XDialog.ButtonListener(new WeakReference(CreateUser.this),
           Some((dialog: CreateUser) => fragment.foreach(_.onDialogUserCreate)))))
       override protected lazy val negative = Some((android.R.string.cancel,
-        new SSHDDialog.ButtonListener(new WeakReference(CreateUser.this),
+        new XDialog.ButtonListener(new WeakReference(CreateUser.this),
           Some(defaultNegativeButtonCallback))))
 
       def tag = "dialog_user_create"
@@ -811,19 +859,45 @@ object UserFragment extends Logging {
         "users_create_user_message").getOrElse("Do you want to add new user?")))
     }
     class DisableAllUsers
-      extends SSHDDialog.Alert(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
       override protected lazy val positive = Some((android.R.string.ok,
-        new SSHDDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
+        new XDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
           Some((dialog: DisableAllUsers) => fragment.foreach(_.onDialogDisableAllUsers)))))
       override protected lazy val negative = Some((android.R.string.cancel,
-        new SSHDDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
+        new XDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
           Some(defaultNegativeButtonCallback))))
 
-      def tag = "dialog_user_create"
+      def tag = "dialog_user_disable_all"
       def title = XResource.getString(getSherlockActivity, "users_disable_all_title").
         getOrElse("Disable all users")
       def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
         "users_disable_all_message").getOrElse("Are you sure you want to disable all users?")))
+    }
+    class DeleteAllUsers
+      extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      override protected lazy val positive = Some((android.R.string.ok,
+        new XDialog.ButtonListener(new WeakReference(DeleteAllUsers.this),
+          Some((dialog: DeleteAllUsers) => fragment.foreach(_.onDialogDeleteAllUsers)))))
+      override protected lazy val negative = Some((android.R.string.cancel,
+        new XDialog.ButtonListener(new WeakReference(DeleteAllUsers.this),
+          Some(defaultNegativeButtonCallback))))
+
+      def tag = "dialog_user_delete_all"
+      def title = XResource.getString(getSherlockActivity, "users_delete_all_title").
+        getOrElse("Delete all users")
+      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
+        "users_delete_all_message").getOrElse("Are you sure you want to delete all users except <b>android</b>?")))
+    }
+    class ChooseHome
+      extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) with LibFileChooser {
+      @volatile var user: Option[UserInfo] = None
+      def tag = "dialog_user_choosehome"
+      def title = Html.fromHtml(XResource.getString(getDialogActivity, "users_choosehome_title").
+        getOrElse("Select home directory for <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+      def message = Some(Html.fromHtml(XResource.getString(getDialogActivity,
+        "users_choosehome_message").getOrElse("Choose home")))
+      def initialPath() = user.map(user => UserAdapter.homeDirectory(getSherlockActivity, user))
+      def setCallbackOnResult(arg: (File, Seq[File]) => Any) = callbackOnResult = arg
     }
   }
 }

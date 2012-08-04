@@ -48,7 +48,6 @@ import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDService
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog.dialog2string
 
 import com.commonsware.cwac.merge.MergeAdapter
 
