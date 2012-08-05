@@ -53,6 +53,7 @@ import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
 import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
+import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
 
 import com.actionbarsherlock.app.SherlockListFragment
 
@@ -271,20 +272,14 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
                       SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
-                      }).before(dialog => {
-                        dialog.user = Some(item)
-                        dialog.onOkCallback = Some((user) => onDialogChangeState(false, user))
-                      }).show())
+                      }).before(dialog => dialog.user = Some(item)).show())
                     true
                   case id if id == XResource.getId(context, "users_enable") =>
                     UserDialog.enable.foreach(dialog =>
                       SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                         ft.addToBackStack(dialog)
-                      }).before(dialog => {
-                        dialog.user = Some(item)
-                        dialog.onOkCallback = Some((user) => onDialogChangeState(true, user))
-                      }).show())
+                      }).before(dialog => dialog.user = Some(item)).show())
                     true
                   case id if id == XResource.getId(context, "users_set_gid_uid") =>
                     UserDialog.setGUID.foreach(dialog =>
@@ -370,18 +365,23 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
       val password = userPassword.getText.toString.trim
       assert(name.nonEmpty && password.nonEmpty, "one of user fields is empty")
       lastActiveUserInfo.get match {
-        case Some(user) if UserAdapter.list.exists(_.name == name) =>
+        case Some(user) if UserAdapter.list.exists(_.name == name) &&
+          ((name != "android" && !lastActiveUserInfo.get.exists(_.name == "android")) ||
+            (name == "android" && lastActiveUserInfo.get.exists(_.name == "android"))) =>
           UserFragment.Dialog.updateUser.foreach(dialog =>
             SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
               ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
               ft.addToBackStack(dialog)
             }).before(dialog => dialog.user = Some(user)).show())
-        case _ =>
+        case _ if name != "android" =>
           UserFragment.Dialog.createUser.foreach(dialog =>
             SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
               ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
               ft.addToBackStack(dialog)
             }).before(dialog => dialog.userName = Some(name)).show())
+        case _ =>
+          Toast.makeText(context, Html.fromHtml(XResource.getString(context, "users_unable_to_save").
+            getOrElse("unable to save <b>%s</b>, validation failed").format(name)), Toast.LENGTH_SHORT).show
       }
     }
   }
@@ -441,50 +441,6 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         log.error(e.getMessage, e)
     }
   }
-  /*@Loggable
-  def onClickChangeHomeDirectory(v: View): Unit = userHome.get.foreach {
-    userHome =>
-      if (lastActiveUserInfo.get.exists(_.name == "android")) {
-        Toast.makeText(v.getContext, XResource.getString(v.getContext, "users_home_android_warning").
-          getOrElse("unable to change home directory of system user"), Toast.LENGTH_SHORT).show()
-        return
-      }
-      val filter = new FileFilter { override def accept(file: File) = file.isDirectory }
-      val userHomeString = userHome.getText.toString.trim
-      if (userHomeString.isEmpty) {
-        Toast.makeText(v.getContext, XResource.getString(v.getContext, "users_home_directory_empty").
-          getOrElse("home directory is empty"), Toast.LENGTH_SHORT).show()
-        return
-      }
-      val userHomeFile = new File(userHomeString)
-      if (!userHomeFile.exists) {
-        new AlertDialog.Builder(this).
-          setTitle(R.string.users_home_directory_not_exists_title).
-          setMessage(R.string.users_home_directory_not_exists_message).
-          setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-            def onClick(dialog: DialogInterface, whichButton: Int) =
-              if (userHomeFile.mkdirs) {
-                dialog.dismiss()
-                FileChooser.createDialog(SSHDUsers.this, XResource.getString(SSHDUsers.this, "dialog_select_folder").
-                  getOrElse("Select Folder"), userHomeFile, onResultChangeHomeDirectory, filter).show()
-              } else {
-                Toast.makeText(v.getContext, XResource.getString(v.getContext, "filechooser_create_directory_failed").
-                  getOrElse("unable to create directory %s").format(userHomeFile), Toast.LENGTH_SHORT).show()
-              }
-          }).
-          setNegativeButton(android.R.string.cancel, null).
-          setIcon(android.R.drawable.ic_dialog_alert).
-          create().show()
-      } else {
-        FileChooser.createDialog(this, XResource.getString(this, "dialog_select_folder").getOrElse("Select Folder"),
-          userHomeFile, onResultChangeHomeDirectory, filter).show()
-      }
-  }*/
-  /*  @Loggable
-  def onResultChangeHomeDirectory(context: Context, path: File, files: Seq[File], stash: AnyRef) = userHome.get.foreach {
-    userHome =>
-      userHome.setText(path.toString)
-  }*/
   @Loggable
   def onClickShowPassword(v: View): Unit = for {
     userPasswordShowButton <- userPasswordShowButton.get
@@ -500,30 +456,20 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
   }
   @Loggable
-  def onDialogChangeState(state: Boolean, user: UserInfo) = {
+  def onDialogChangeState(user: UserInfo, newUser: UserInfo) {
     val context = getSherlockActivity
-    val notification = if (state)
-      XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(user.name)
+    val notification = if (newUser.enabled)
+      XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
     else
-      XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(user.name)
+      XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
     IAmWarn(notification)
     Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
-    val newUser = user.copy(enabled = state)
-    Futures.future { UserAdapter.save(context, newUser) }
-    UserAdapter.adapter.foreach {
-      adapter =>
-        val position = adapter.getPosition(user)
-        if (position >= 0) {
-          adapter.remove(user)
-          adapter.insert(newUser, position)
-        }
-    }
-    UserFragment.fragment.foreach {
-      fragment =>
-        fragment.updateFieldsState()
-        if (fragment.lastActiveUserInfo.get.exists(_ == user))
-          fragment.lastActiveUserInfo.set(Some(newUser))
-    }
+    if (lastActiveUserInfo.get.exists(_ == user))
+      lastActiveUserInfo.set(Some(newUser))
+    updateFieldsState()
+    // update service.option.DefaultUser
+    if (user.name == "android")
+      DefaultUser.updateAndroidUser(newUser)
   }
   @Loggable
   def onDialogDelete(user: UserInfo) = Futures.future {
@@ -604,7 +550,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         val name = userName.getText.toString.trim
         val password = userPassword.getText.toString.trim
         (if (name == "android")
-          Some(user.copy(password = user.password))
+          Some(user.copy(password = password))
         else if (name != "android")
           Some(user.copy(name = name, password = password))
         else {
@@ -613,12 +559,12 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
           case Some(newUser) =>
             val message = Html.fromHtml(XResource.getString(context, "users_update_message").
               getOrElse("update user <b>%s</b>").format(user.name))
+            AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
             IAmWarn(message.toString)
             UserAdapter.save(context, newUser)
             UserAdapter.setPasswordEnabled(userPasswordEnabledCheckbox.isChecked, context, newUser)
             lastActiveUserInfo.set(Some(newUser))
             AnyBase.runOnUiThread {
-              Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
               val position = adapter.getPosition(user)
               adapter.remove(user)
               adapter.insert(newUser, position)
@@ -649,6 +595,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         val passwordEnabled = userPasswordEnabledCheckbox.isChecked
         val message = XResource.getString(context, "users_create_message").
           getOrElse("created user \"%s\"").format(name)
+        AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
         IAmWarn(message)
         // home
         val home = AppControl.Inner.getExternalDirectory(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
@@ -664,7 +611,6 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         lastActiveUserInfo.set(Some(newUser))
         AnyBase.runOnUiThread {
           try {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             val position = (UserAdapter.list :+ newUser).sortBy(_.name).indexOf(newUser)
             adapter.insert(newUser, position)
             UserFragment.this.getListView.setSelectionFromTop(position, 5)
@@ -673,7 +619,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
               log.error(e.getMessage, e)
           }
         }
-        updateFieldsState()
+        updateFieldsState
       }
     }
   }
@@ -761,12 +707,21 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         false
       else
         userName.getText.toString.trim.nonEmpty && userPassword.getText.toString.trim.nonEmpty
-    } else {
+    } else
       userName.getText.toString.trim.nonEmpty && userPassword.getText.toString.trim.nonEmpty
-    }
     var userNameState = !lastActiveUserInfo.get.exists(_.name == "android")
     var userPasswordState = userPasswordEnabledCheckbox.isChecked
-    if (!UserAdapter.isMultiUser(getSherlockActivity)) {
+    if (UserAdapter.isMultiUser(getSherlockActivity)) {
+      var blockAllState = UserAdapter.list.exists(_.enabled)
+      var deleteAllState = UserAdapter.list.exists(_.name != "android")
+      AnyBase.runOnUiThread {
+        apply.setEnabled(applyState)
+        userName.setEnabled(userNameState)
+        userPassword.setEnabled(userPasswordState)
+        blockAll.setEnabled(blockAllState)
+        deleteAll.setEnabled(deleteAllState)
+      }
+    } else {
       AnyBase.runOnUiThread {
         apply.setEnabled(applyState)
         userName.setEnabled(false)
@@ -774,16 +729,6 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         blockAll.setEnabled(false)
         deleteAll.setEnabled(false)
       }
-      return
-    }
-    var blockAllState = UserAdapter.list.exists(_.enabled)
-    var deleteAllState = UserAdapter.list.exists(_.name != "android")
-    AnyBase.runOnUiThread {
-      apply.setEnabled(applyState)
-      userName.setEnabled(userNameState)
-      userPassword.setEnabled(userPasswordState)
-      blockAll.setEnabled(blockAllState)
-      deleteAll.setEnabled(deleteAllState)
     }
   }
 }

@@ -28,6 +28,7 @@ import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -43,7 +44,6 @@ import org.digimead.digi.ctrl.lib.message.IAmReady
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabContent
@@ -59,6 +59,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.Menu
@@ -76,65 +77,61 @@ object DefaultUser extends CheckBoxItem with Logging {
   @volatile private var android: UserInfo = AppComponent.Context.flatMap(c => UserAdapter.find(c, "android")) getOrElse { log.fatal("unable to find 'android' user"); null }
 
   @Loggable
-  def onCheckboxClick(view: CheckBox, lastState: Boolean) = TabContent.fragment.map {
+  def onCheckboxClick(view: CheckBox, lastState: Boolean): Unit = TabContent.fragment.map {
     fragment =>
       val context = fragment.getSherlockActivity
       if (UserAdapter.isSingleUser(context))
         AnyBase.runOnUiThread {
           updateCheckbox(view)
-          Toast.makeText(view.getContext, "\"android\" is always enabled in single user mode", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, Html.fromHtml(XResource.getString(context, "users_android_enabled_singleuser").
+            getOrElse("<b>android</b> is always enabled in single user mode")), Toast.LENGTH_SHORT).show()
         }
       else
-        //AppComponent.Inner.showDialogSafe(context, "android_user_state", () => {
-        //          val dialog = if (android.enabled)
-        //            SSHDUsers.Dialog.createDialogUserDisable(context, android, (user) => {
-        //              android = user
-        //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-        //            })
-        //          else
-        //            SSHDUsers.Dialog.createDialogUserEnable(context, android, (user) => {
-        //              android = user
-        //              AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-        //            })
-        //          dialog.show
-        //          dialog
-        null
-    //})
+        (if (android.enabled) UserDialog.disable else UserDialog.enable) foreach {
+          case dialog =>
+            SafeDialog(fragment.getActivity, dialog, () => dialog.asInstanceOf[UserDialog.ChangeState]).
+              target(R.id.main_topPanel).before {
+                (dialog) =>
+                  dialog.user = Some(android)
+                  dialog.onOkCallback = Some((user) => {
+                    android = user
+                    AnyBase.runOnUiThread { view.setChecked(user.enabled) }
+                  })
+              }.show()
+        }
   }
-  def updateCheckbox(view: CheckBox) =
-    view.setChecked(getState[Boolean](view.getContext))
+  def updateCheckbox(view: CheckBox) = {
+    val newState = getState[Boolean](view.getContext)
+    if (view.isChecked != newState)
+      view.setChecked(newState)
+  }
+  def updateAndroidUser(user: UserInfo) = for {
+    view <- view.get
+    checkbox <- Option(view.findViewById(_root_.android.R.id.checkbox))
+  } {
+    assert(user.name == "android")
+    android = user
+    DefaultUser.updateCheckbox(checkbox.asInstanceOf[CheckBox])
+  }
   @Loggable
   override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
     dialog <- UserDialog.changePassword
-  } if (dialog.isShowing) {
-    dialog.setOnUserUpdateListener(Some(onUserUpdate))
-    //AnyBase.runOnUiThread { dialog.updateContent(info) }
-  } else {
-    val bundle = new Bundle
-    bundle.putString("username", android.name)
+  } if (!dialog.isShowing) {
     val context = fragment.getSherlockActivity
-    dialog.setOnUserUpdateListener(Some(onUserUpdate))
-    SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
+    SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).before {
+      (dialog) =>
+        dialog.user = Some(android)
+        dialog.onOkCallback = Some(onDialogUserUpdate(context, _: UserInfo))
+    }.show()
   }
   @Loggable
-  def onUserUpdate(dialog: UserDialog.ChangePassword, newUser: UserInfo) {
-    if (UserAdapter.isSingleUser(dialog.getActivity) && AppComponent.Inner.state.get.value == DState.Active) for {
+  def onDialogUserUpdate(context: Context, newUser: UserInfo) = {
+    if (UserAdapter.isSingleUser(context) && AppComponent.Inner.state.get.value == DState.Active) for {
       fragment <- TabContent.fragment
       dialog <- DefaultUser.Dialog.restartRequired
-    } if (dialog.isShowing) {
-      //AnyBase.runOnUiThread { dialog.updateContent(info) }
-    } else {
-      val context = fragment.getSherlockActivity
-      SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
-    }
-    // update SSHDUsers
-    /*activity.foreach {
-                  activity =>
-                    activity.updateFieldsState()
-                    if (activity.lastActiveUserInfo.get.exists(_ == user))
-                      activity.lastActiveUserInfo.set(Some(newUser))
-                }*/
+    } if (!dialog.isShowing)
+      SafeDialog(fragment.getSherlockActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
     android = newUser
   }
   @Loggable

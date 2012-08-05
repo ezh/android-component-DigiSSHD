@@ -62,7 +62,7 @@
     <string name="dialog_help_message">Most elements has additional actions that are available by long tap. Some elements labeled with experience level mark. You may toggle highlight of controls in options menu.&lt;br/&gt;&lt;br/&gt;There are three levels:</string>
     <string name="dialog_help_title">Help</string>
     <string name="dialog_interfaces_legend_title">Interface legend</string>
-    <string name="dialog_password_title">\'%1$s\' user password</string>
+    <string name="dialog_password_title">&lt;b>%1$s&lt;/b> user password</string>
     <string name="dialog_port_message">Select new TCP port at range from 1 to 65535. The standard TCP port 22 has been assigned for contacting SSH servers, though administrators frequently change it to a non-standard port as an additional security measure.&lt;br/>&lt;br/>Please select &lt;b>unprivileged&lt;/b> port values (above 1023)  for restricted environments</string>
     <string name="dialog_port_title">Select network port</string>
     <string name="dialog_recovery_message">Do you want to start automatic recovery sequence? It will try to shutdown all started components, reinitialize internals and reset error state. If automatic recovery wouldn\'t help, please, let us know with error report that available in the options menu.</string>
@@ -156,7 +156,7 @@
     <string name="users_name">Login</string>
     <string name="users_password">Password</string>
     <string name="users_update_user_message">Do you want to save the changes?</string>
-    <string name="users_update_user_title">Update user \"%1$s\"</string>
+    <string name="users_update_user_title">Update user &lt;b>%1$s&lt;/b></string>
     <string name="default_value">default</string>
 
 </resources>

@@ -22,6 +22,7 @@
 package org.digimead.digi.ctrl.sshd.user
 
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.Option.option2Iterable
 import scala.actors.Futures
@@ -39,13 +40,8 @@ import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
 
-import android.app.AlertDialog
-import android.app.Dialog
 import android.content.Context
-import android.content.DialogInterface
-import android.os.Bundle
 import android.support.v4.app.Fragment
 import android.text.Editable
 import android.text.Html
@@ -125,177 +121,128 @@ object UserDialog extends Logging {
   lazy val showDetails = AppComponent.Context.map(context =>
     Fragment.instantiate(context.getApplicationContext, classOf[ShowDetails].getName, null).asInstanceOf[ShowDetails])
 
-  class ChangePassword extends SSHDDialog with Logging {
-    @volatile private var dirtyHackForDirtyFramework = false
-    @volatile private var onUserUpdateCallback: Option[(ChangePassword, UserInfo) => Any] = None
-    @volatile private var cachedDialog: Option[AlertDialog] = None
-    @volatile private var initialUser: Option[UserInfo] = None
+  class ChangePassword
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    @volatile var user: Option[UserInfo] = None
+    @volatile var onOkCallback: Option[UserInfo => Unit] = None
+    private val (innerContent, enablePasswordButton, togglePasswordButton, passwordField) = {
+      val customView = ChangePassword.customView()
+      (customView.map(_._1), customView.map(_._2), customView.map(_._3), customView.map(_._4))
+    }
+    override val extContent = innerContent
+    override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
+      Some((dialog: ChangePassword) => onPositiveButtonClick))))
+    override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
+      Some(defaultNegativeButtonCallback))))
+    for {
+      enablePasswordButton <- enablePasswordButton
+      togglePasswordButton <- togglePasswordButton
+      passwordField <- passwordField
+    } {
+      passwordField.addTextChangedListener(new ChangePassword.PasswordFieldTextChangedListener(positiveView, new WeakReference(this)))
+      togglePasswordButton.setOnClickListener(new ChangePassword.TogglePasswordButtonOnClickListener(passwordField))
+      enablePasswordButton.setOnCheckedChangeListener(new ChangePassword.EnablePasswordButtonOnCheckedChangeListener(positiveView,
+        togglePasswordButton, passwordField, new WeakReference(this)))
+    }
 
     def tag = "dialog_user_changepassword"
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "dialog_password_title").
+      getOrElse("<b>%s</b> user password").format(user.map(_.name).getOrElse("unknown")))
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "dialog_password_message").
+      getOrElse("Please select a password. User password must be at least 1 characters long." +
+        "Password cannot be more than 16 characters. Only standard unix password characters are allowed.")))
     @Loggable
-    override def onCreate(savedInstanceState: Bundle) = {
-      super.onCreate(savedInstanceState)
-    }
-    @Loggable
-    override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
-      if (dirtyHackForDirtyFramework && inflater != null) {
-        log.warn("workaround for \"requestFeature() must be called before adding content\"")
-        dirtyHackForDirtyFramework = false
-        return super.onCreateView(inflater, container, savedInstanceState)
-      } else if (inflater == null)
-        dirtyHackForDirtyFramework = true
-      if (cachedDialog.nonEmpty)
-        return null
-      val context = getSherlockActivity
-      initialUser = UserAdapter.find(context, getArguments.getString("username"))
-      val view = for { user <- initialUser } yield ChangePassword.customView match {
-        case Some((view, enablePasswordButton, togglePasswordButton, passwordField)) =>
-          val isUserPasswordEnabled = UserAdapter.isPasswordEnabled(context, user)
-          enablePasswordButton.setChecked(isUserPasswordEnabled)
-          togglePasswordButton.setEnabled(isUserPasswordEnabled)
-          passwordField.setEnabled(isUserPasswordEnabled)
-          passwordField.setText(user.password)
-          view
-        case _ =>
-          log.fatal("unable to get ChangePassword content view")
-          super.onCreateView(inflater, container, savedInstanceState)
-      }
-      view getOrElse {
-        log.fatal("unable to get ChangePassword content view")
-        super.onCreateView(inflater, container, savedInstanceState)
-      }
-    }
-    @Loggable
-    override def onCreateDialog(savedInstanceState: Bundle): Dialog = cachedDialog match {
-      case Some(dialog) =>
+    override def onResume() {
+      for {
+        user <- user
+        enablePasswordButton <- enablePasswordButton
+        togglePasswordButton <- togglePasswordButton
+        passwordField <- passwordField
+        ok <- positiveView.get
+      } {
         val context = getSherlockActivity
-        initialUser = UserAdapter.find(context, getArguments.getString("username"))
-        initialUser match {
-          case Some(user) =>
-            dialog.setTitle(XResource.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name))
-            dialog.show
-            dialog
-          case None =>
-            log.fatal("unable to get ChangePassword custom dialog, user %s not found".format(getArguments.getString("username")))
-            super.onCreateDialog(savedInstanceState)
-        }
-      case None =>
+        val isUserPasswordEnabled = UserAdapter.isPasswordEnabled(context, user)
+        enablePasswordButton.setChecked(isUserPasswordEnabled)
+        passwordField.setEnabled(isUserPasswordEnabled)
+        passwordField.setText(user.password)
+        ok.setEnabled(false)
+      }
+      super.onResume
+    }
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
+      onOkCallback = None
+    }
+    @Loggable
+    private def onPositiveButtonClick() = for {
+      user <- user
+      callback <- onOkCallback
+      passwordField <- passwordField
+      enablePasswordButton <- enablePasswordButton
+    } Futures.future {
+      try {
         val context = getSherlockActivity
-        initialUser = UserAdapter.find(context, getArguments.getString("username"))
-        val dialog = for { user <- initialUser } yield ChangePassword.customView match {
-          case Some((view, enablePasswordButton, togglePasswordButton, passwordField)) =>
-            val dialog = new AlertDialog.Builder(context).
-              setTitle(XResource.getString(context, "dialog_password_title").getOrElse("'%s' user password").format(user.name)).
-              setMessage(Html.fromHtml(XResource.getString(context, "dialog_password_message").
-                getOrElse("Please select a password. User password must be at least 1 characters long. Password cannot be more than 16 characters. Only standard unix password characters are allowed."))).
-              setView(onCreateView(null, null, null)).
-              setPositiveButton(android.R.string.ok, ChangePassword.PositiveButtonListener).
-              setNegativeButton(android.R.string.cancel, ChangePassword.NegativeButtonListener).
-              setIcon(android.R.drawable.ic_dialog_info).
-              create()
-            /*
-             * ABSOLUTELY CRAZY BEHAVIOR, emulator, API 10
-             * without dialog.show most of the time (sometimes, rarely not)
-             * 
-             * android.util.AndroidRuntimeException: requestFeature() must be called before adding content
-             * at com.android.internal.policy.impl.PhoneWindow.requestFeature(PhoneWindow.java:181)
-             * at com.android.internal.app.AlertController.installContent(AlertController.java:199)
-             * at android.app.AlertDialog.onCreate(AlertDialog.java:251)
-             * at android.app.Dialog.dispatchOnCreate(Dialog.java:307)
-             * at android.app.Dialog.show(Dialog.java:225)
-             * at android.support.v4.app.DialogFragment.onStart(DialogFragment.java:385)
-             */
-            dialog.show
-            val ok = dialog.findViewById(android.R.id.button1)
-            ok.setEnabled(false)
-            passwordField.addTextChangedListener(new ChangePassword.PasswordFieldTextChangedListener(ok, new WeakReference(this)))
-            togglePasswordButton.setOnClickListener(new ChangePassword.TogglePasswordButtonOnClickListener(passwordField))
-            enablePasswordButton.setOnCheckedChangeListener(new ChangePassword.EnablePasswordButtonOnCheckedChangeListener(ok,
-              togglePasswordButton, passwordField, new WeakReference(this)))
-            cachedDialog = Some(dialog)
-            dialog
-          case None =>
-            log.fatal("unable to get ChangePassword custom dialog")
-            super.onCreateDialog(savedInstanceState)
+        val notification = XResource.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(user.name)
+        IAmWarn(notification.format(user.name))
+        val newUser = user.copy(password = passwordField.getText.toString)
+        UserAdapter.save(context, newUser)
+        UserAdapter.setPasswordEnabled(enablePasswordButton.isChecked, context, newUser)
+        UserFragment.fragment.foreach {
+          fragment =>
+            if (fragment.lastActiveUserInfo.get.exists(_ == user))
+              fragment.lastActiveUserInfo.set(Some(newUser))
+            fragment.updateFieldsState()
         }
-        dialog getOrElse {
-          log.fatal("unable to get ChangePassword custom dialog")
-          super.onCreateDialog(savedInstanceState)
+        AnyBase.runOnUiThread {
+          UserAdapter.adapter.foreach {
+            adapter =>
+              val position = adapter.getPosition(user)
+              if (position >= 0) {
+                adapter.remove(user)
+                adapter.insert(newUser, position)
+              }
+          }
+          Toast.makeText(context, notification.format(user.name), Toast.LENGTH_SHORT).show()
         }
-    }
-    def setOnUserUpdateListener(callback: Option[(ChangePassword, UserInfo) => Any]) = {
-      onUserUpdateCallback = callback
-    }
-    override def onDismiss(dialog: DialogInterface) {
-      super.onDismiss(dialog)
-      initialUser = None
+        callback(newUser)
+      } catch {
+        case e =>
+          log.error(e.getMessage, e)
+      } finally {
+        onOkCallback = None
+      }
     }
   }
   object ChangePassword {
-    private lazy val customView = AppComponent.Context.flatMap { context =>
-      val view = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+    private val maxLengthFilter = new InputFilter.LengthFilter(5)
+
+    def customView(): Option[(LinearLayout, CheckBox, ImageButton, EditText)] = AppComponent.AppContext.flatMap { context =>
+      val view = new LinearLayout(context)
+      view.setOrientation(LinearLayout.VERTICAL)
+      view.setId(android.R.id.custom)
+      val inner = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
         inflate(R.layout.dialog_edittext, null).asInstanceOf[LinearLayout]
       val enablePasswordButton = new CheckBox(context)
       enablePasswordButton.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
-      view.addView(enablePasswordButton, 0)
+      inner.addView(enablePasswordButton, 0)
       val togglePasswordButton = new ImageButton(context)
       togglePasswordButton.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
       togglePasswordButton.setImageResource(R.drawable.btn_eye)
       togglePasswordButton.setBackgroundResource(_root_.android.R.color.transparent)
-      view.addView(togglePasswordButton)
-      val passwordField = view.findViewById(_root_.android.R.id.edit).asInstanceOf[EditText]
+      inner.addView(togglePasswordButton)
+      val passwordField = inner.findViewById(_root_.android.R.id.edit).asInstanceOf[EditText]
       passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
       passwordField.setFilters(Array(userPasswordFilter))
+      view.addView(inner, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
       Some(view, enablePasswordButton, togglePasswordButton, passwordField)
     }
-    private val maxLengthFilter = new InputFilter.LengthFilter(5)
-    object PositiveButtonListener extends DialogInterface.OnClickListener {
-      def onClick(dialog: DialogInterface, whichButton: Int) = Futures.future {
-        dialog match {
-          case alertDialog: AlertDialog =>
-            val context = alertDialog.getContext
-            val positiveButtonListenerResult = for {
-              dialog <- changePassword
-              user <- UserAdapter.find(context, dialog.getArguments.getString("username"))
-              (view, enablePasswordButton, togglePasswordButton, passwordField) <- customView
-            } yield try {
-              val notification = XResource.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(user.name)
-              IAmWarn(notification.format(user.name))
-              AnyBase.runOnUiThread { Toast.makeText(context, notification.format(user.name), Toast.LENGTH_SHORT).show() }
-              val newUser = user.copy(password = passwordField.getText.toString)
-              UserAdapter.save(context, newUser)
-              UserAdapter.setPasswordEnabled(enablePasswordButton.isChecked, context, newUser)
-              UserAdapter.adapter.foreach {
-                adapter =>
-                  val position = adapter.getPosition(user)
-                  if (position >= 0) {
-                    adapter.remove(user)
-                    adapter.insert(newUser, position)
-                  }
-              }
-              dialog.onUserUpdateCallback.foreach(_(dialog, newUser))
-            } catch {
-              case e =>
-                log.error(e.getMessage, e)
-            } finally {
-              dialog.onUserUpdateCallback = None
-            }
-            positiveButtonListenerResult getOrElse {
-              log.fatal("unable to process positive button callback - invalid environment " + customView)
-            }
-          case dialog =>
-            log.fatal("unable to process positive button callback for invalid dialog " + dialog)
-        }
-      }
-    }
-    object NegativeButtonListener extends DialogInterface.OnClickListener {
-      def onClick(dialog: DialogInterface, whichButton: Int) =
-        changePassword.foreach(_.onUserUpdateCallback = None)
-    }
-    class PasswordFieldTextChangedListener(ok: View, dialog: WeakReference[ChangePassword]) extends TextWatcher {
+    class PasswordFieldTextChangedListener(ok: AtomicReference[Option[View]], dialog: WeakReference[ChangePassword]) extends TextWatcher {
       override def afterTextChanged(s: Editable) = for {
         dialog <- dialog.get
-        initialUser <- dialog.initialUser
+        initialUser <- dialog.user
+        ok <- ok.get
       } try {
         val newPassword = s.toString
         if (newPassword.nonEmpty) {
@@ -324,12 +271,13 @@ object UserDialog extends Logging {
         }
       }
     }
-    class EnablePasswordButtonOnCheckedChangeListener(ok: View, togglePasswordButton: ImageButton,
+    class EnablePasswordButtonOnCheckedChangeListener(ok: AtomicReference[Option[View]], togglePasswordButton: ImageButton,
       passwordField: EditText, dialog: WeakReference[ChangePassword])
       extends CompoundButton.OnCheckedChangeListener() {
       def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = for {
         dialog <- dialog.get
-        initialUser <- dialog.initialUser
+        initialUser <- dialog.user
+        ok <- ok.get
       } {
         val context = buttonView.getContext
         if (isChecked != UserAdapter.isPasswordEnabled(context, initialUser)) {
@@ -340,12 +288,10 @@ object UserDialog extends Logging {
             ok.setEnabled(false)
         }
         if (isChecked) {
-          togglePasswordButton.setEnabled(true)
           passwordField.setEnabled(true)
           Toast.makeText(context, XResource.getString(context, "enable_password_authentication").
             getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
         } else {
-          togglePasswordButton.setEnabled(false)
           passwordField.setEnabled(false)
           Toast.makeText(context, XResource.getString(context, "disable_password_authentication").
             getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
@@ -354,6 +300,8 @@ object UserDialog extends Logging {
     }
   }
   class Enable extends ChangeState with Logging {
+    protected val newState = true
+
     def tag = "dialog_user_enable"
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_enable_title").
       getOrElse("Enable user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
@@ -361,6 +309,8 @@ object UserDialog extends Logging {
       getOrElse("Do you want to enable <b>%s</b> account?").format(user.map(_.name).getOrElse("unknown"))))
   }
   class Disable extends ChangeState with Logging {
+    protected val newState = false
+
     def tag = "dialog_user_disable"
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_disable_title").
       getOrElse("Disable user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
@@ -370,11 +320,37 @@ object UserDialog extends Logging {
   abstract class ChangeState
     extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
-    @volatile var onOkCallback: Option[UserInfo => Any] = None
+    @volatile var onOkCallback: Option[UserInfo => Unit] = None
+    protected val newState: Boolean
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
-      Some((dialog: ChangeState) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
+      Some((dialog: ChangeState) => user.foreach {
+        user =>
+          val context = getSherlockActivity
+          val newUser = user.copy(enabled = newState)
+          Futures.future { UserAdapter.save(context, newUser) }
+          // update UserAdapter if any
+          UserAdapter.adapter.foreach {
+            adapter =>
+              val position = adapter.getPosition(user)
+              if (position >= 0) {
+                adapter.remove(user)
+                adapter.insert(newUser, position)
+              }
+          }
+          // update UserFragment if any
+          UserFragment.fragment.foreach(_.onDialogChangeState(user, newUser))
+          // return result
+          dialog.onOkCallback.foreach(_(newUser))
+      }))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some(defaultNegativeButtonCallback))))
+
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
+      onOkCallback = None
+    }
   }
   class Delete
     extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
@@ -391,6 +367,12 @@ object UserDialog extends Logging {
     def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_delete_message").
       getOrElse("Do you want to delete <b>%s</b> account?").
       format(user.map(_.name).getOrElse("unknown"))))
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
+      onOkCallback = None
+    }
   }
   class SetGUID
     extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
@@ -400,7 +382,7 @@ object UserDialog extends Logging {
     @volatile var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
       Some((dialog: SetGUID) => {
-        dialog.customContent.foreach {
+        dialog.contentView.get.foreach {
           customContent =>
             val uidSpinner = customContent.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
             val uid = Option(uidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
@@ -419,9 +401,10 @@ object UserDialog extends Logging {
       getOrElse("Please provide new UID (user id) and GID (group id) for <b>%s</b>. " +
         "Those values affect ssh session only in <b>SUPER USER</b> environment, <b>MULTIUSER</b> mode").
       format(user.map(_.name).getOrElse("unknown"))))
+    @Loggable
     override def onResume() {
       for {
-        customContent <- customContent
+        contentView <- contentView.get
         userExt <- userExt
       } {
         val context = getSherlockActivity
@@ -429,7 +412,7 @@ object UserDialog extends Logging {
         val packages = pm.getInstalledPackages(0)
         val ids = SetGUID.Item(-1, XResource.getString(context, "default_value").getOrElse("default")) +:
           packages.flatMap(p => Option(p.applicationInfo).map(ai => SetGUID.Item(ai.uid, p.packageName))).toList.sortBy(_.packageName)
-        val uidSpinner = customContent.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
+        val uidSpinner = contentView.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
         val uidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
         uidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         uidSpinner.setAdapter(uidAdapter)
@@ -440,7 +423,7 @@ object UserDialog extends Logging {
           }
           case None => uidSpinner.setSelection(0)
         }
-        val gidSpinner = customContent.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
+        val gidSpinner = contentView.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
         val gidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
         gidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         gidSpinner.setAdapter(gidAdapter)
@@ -453,6 +436,13 @@ object UserDialog extends Logging {
         }
       }
       super.onResume
+    }
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
+      userExt = None
+      onOkCallback = None
     }
   }
   object SetGUID {
@@ -471,15 +461,21 @@ object UserDialog extends Logging {
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_details_title").
       getOrElse("<b>%s</b> details").format(user.map(_.name).getOrElse("unknown")))
     def message = None
+    @Loggable
     override def onResume() {
       super.onResume
       for {
-        customContent <- customContent
+        contentView <- contentView.get
         user <- user
       } {
-        val content = customContent.asInstanceOf[ViewGroup].getChildAt(0).asInstanceOf[TextView]
+        val content = contentView.asInstanceOf[ViewGroup].getChildAt(0).asInstanceOf[TextView]
         content.setText(Html.fromHtml(UserAdapter.getHtmlDetails(getSherlockActivity, user)))
       }
+    }
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
     }
   }
   object ShowDetails {
