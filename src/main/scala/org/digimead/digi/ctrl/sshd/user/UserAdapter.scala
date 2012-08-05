@@ -28,6 +28,7 @@ import scala.Option.option2Iterable
 import scala.actors.Futures
 import scala.collection.JavaConversions._
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -116,6 +117,39 @@ object UserAdapter extends Logging with Passwords {
     editor.commit
   }
   @Loggable
+  def updateUser(newUser: Option[UserInfo], oldUser: Option[UserInfo]) = for {
+    adapter <- adapter
+    context <- AppComponent.Context
+  } (newUser, oldUser) match {
+    case (Some(newUser), Some(oldUser)) =>
+      // update
+      val position = adapter.getPosition(oldUser)
+      if (position >= 0)
+        AnyBase.runOnUiThread {
+          adapter.remove(oldUser)
+          adapter.insert(newUser, position)
+        }
+      else
+        log.fatal("previous user " + oldUser + " not found")
+      if (newUser.name != oldUser.name)
+        remove(context, oldUser)
+      save(context, newUser)
+    case (None, Some(oldUser)) =>
+      // delete
+      val position = adapter.getPosition(oldUser)
+      if (position >= 0)
+        AnyBase.runOnUiThread { adapter.remove(oldUser) }
+      else
+        log.fatal("previous user " + oldUser + " not found")
+      remove(context, oldUser)
+    case (Some(newUser), None) =>
+      // create
+      AnyBase.runOnUiThread { adapter.add(newUser) }
+      save(context, newUser)
+    case (None, None) =>
+    // special action, 42
+  }
+  @Loggable
   def getUserUID(context: Context, user: UserInfo): Option[Int] = synchronized {
     UserInfoExt.get(context, user).flatMap(_.uid)
   }
@@ -179,23 +213,42 @@ object UserAdapter extends Logging with Passwords {
         """home: <font color='white'>%s</font><br/>""" +
         """UID: <font color='white'>%s</font><br/>""" +
         """GID: <font color='white'>%s</font><br/>""" +
-        """Public key: <font color='white'>%s</font> [%s]<br/>""" +
-        """Authorized keys: <font color='white'>%s</font> [%s]<br/>""" +
-        """Dropbear private key: <font color='white'>%s</font> [%s]<br/>""" +
-        """OpenSSH private key: <font color='white'>%s</font> [%s]<br/>""").format(user.name,
+        """Public key: <font color='white'>%s</font>%s<br/>""" +
+        """Authorized keys: <font color='white'>%s</font>%s<br/>""" +
+        """Dropbear private key: <font color='white'>%s</font>%s<br/>""" +
+        """OpenSSH private key: <font color='white'>%s</font>%s<br/>""").format(user.name,
         if (user.enabled) "<font color='green'>yes</font>" else "<font color='red'>no</font>",
         if (ext.passwordEnabled) "<font color='green'>yes</font>" else "<font color='red'>no</font>",
         Futures.awaitAll(DTimeout.normal, home).head.asInstanceOf[Option[String]] getOrElse "/",
         ext.uid.getOrElse("default"),
         ext.gid.getOrElse("default"),
         publicKey.map(_.toString).getOrElse(notexists),
-        if (publicKey.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>",
+        if (publicKey.isEmpty)
+          ""
+        else if (publicKey.map(_.exists) == Some(true))
+          " [<font color='green'>" + exists + "</font>]"
+        else
+          " [<font color='red'>" + notexists + "</font>]",
         authorizedKeys.map(_.toString).getOrElse(notexists),
-        if (authorizedKeys.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>",
+        if (authorizedKeys.isEmpty)
+          ""
+        else if (authorizedKeys.map(_.exists) == Some(true))
+          " [<font color='green'>" + exists + "</font>]"
+        else
+          " [<font color='red'>" + notexists + "</font>]",
         dropbearKey.map(_.toString).getOrElse(notexists),
-        if (dropbearKey.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>",
+        if (dropbearKey.isEmpty)
+          ""
+        else if (dropbearKey.map(_.exists) == Some(true))
+          " [<font color='green'>" + exists + "</font>]"
+        else " [<font color='red'>" + notexists + "</font>]",
         opensshKey.map(_.toString).getOrElse(notexists),
-        if (opensshKey.map(_.exists) == Some(true)) "<font color='green'>" + exists + "</font>" else "<font color='red'>" + notexists + "</font>")
+        if (opensshKey.isEmpty)
+          ""
+        else if (opensshKey.map(_.exists) == Some(true))
+          " [<font color='green'>" + exists + "</font>]"
+        else
+          " [<font color='red'>" + notexists + "</font>]")
   }
 
   @Loggable

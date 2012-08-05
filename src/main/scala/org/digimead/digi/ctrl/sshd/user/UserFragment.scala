@@ -333,7 +333,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
                       }
                     }
                     true
-                  case id if id == XResource.getId(getSherlockActivity, "users_show_details") =>
+                  case id if id == XResource.getId(context, "users_show_details") =>
                     UserDialog.showDetails.foreach(dialog =>
                       SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
                         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
@@ -456,32 +456,16 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
   }
   @Loggable
-  def onDialogChangeState(user: UserInfo, newUser: UserInfo) {
-    val context = getSherlockActivity
-    val notification = if (newUser.enabled)
-      XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
-    else
-      XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
-    IAmWarn(notification)
-    Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
-    if (lastActiveUserInfo.get.exists(_ == user))
-      lastActiveUserInfo.set(Some(newUser))
-    updateFieldsState()
-    // update service.option.DefaultUser
-    if (user.name == "android")
-      DefaultUser.updateAndroidUser(newUser)
-  }
-  @Loggable
   def onDialogDelete(user: UserInfo) = Futures.future {
     this.synchronized {
       try {
         val context = getSherlockActivity
-        val message = XResource.getString(context, "users_deleted_message").
-          getOrElse("deleted user <b>%s</b>").format(user.name)
-        IAmWarn(message)
+        val message = Html.fromHtml(XResource.getString(context, "users_deleted_message").
+          getOrElse("deleted user <b>%s</b>").format(user.name))
+        IAmWarn(message.toString)
         UserAdapter.remove(context, user)
         AnyBase.runOnUiThread {
-          Toast.makeText(context, Html.fromHtml(message), Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
           UserAdapter.adapter.foreach(_.remove(user))
         }
         updateFieldsState()
@@ -593,10 +577,10 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         val name = userName.getText.toString.trim
         val password = userPassword.getText.toString.trim
         val passwordEnabled = userPasswordEnabledCheckbox.isChecked
-        val message = XResource.getString(context, "users_create_message").
-          getOrElse("created user \"%s\"").format(name)
+        val message = Html.fromHtml(XResource.getString(context, "users_create_message").
+          getOrElse("created user <b>%s</b>").format(name))
         AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
-        IAmWarn(message)
+        IAmWarn(message.toString)
         // home
         val home = AppControl.Inner.getExternalDirectory(DTimeout.normal).flatMap(d => Option(d)).getOrElse({
           val sdcard = new File("/sdcard")
@@ -748,6 +732,24 @@ object UserFragment extends Logging {
       SSHDFragment.show(classOf[UserFragment], currentTabFragment)
     case None =>
       log.fatal("current tab fragment not found")
+  }
+  @Loggable
+  def updateUser(newUser: Option[UserInfo], oldUser: Option[UserInfo]) = for {
+    fragment <- fragment
+  } (newUser, oldUser) match {
+    case (Some(newUser), Some(oldUser)) =>
+      // update
+      if (fragment.lastActiveUserInfo.get.exists(_ == oldUser))
+        fragment.lastActiveUserInfo.set(Some(newUser))
+      fragment.updateFieldsState()
+    case (None, Some(oldUser)) =>
+      // delete
+      if (fragment.lastActiveUserInfo.get.exists(_ == oldUser))
+        fragment.lastActiveUserInfo.set(UserAdapter.find(fragment.getSherlockActivity, "android"))
+      fragment.updateFieldsState()
+    case _ =>
+      // create or none
+      fragment.updateFieldsState()
   }
   @Loggable
   def onClickGenerateNewUser(v: View) = fragment.foreach(_.onClickGenerateNewUser(v))

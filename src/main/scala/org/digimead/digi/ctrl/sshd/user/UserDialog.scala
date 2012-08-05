@@ -40,6 +40,7 @@ import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
+import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
 
 import android.content.Context
 import android.support.v4.app.Fragment
@@ -161,11 +162,11 @@ object UserDialog extends Logging {
         ok <- positiveView.get
       } {
         val context = getSherlockActivity
-        val isUserPasswordEnabled = UserAdapter.isPasswordEnabled(context, user)
-        enablePasswordButton.setChecked(isUserPasswordEnabled)
-        passwordField.setEnabled(isUserPasswordEnabled)
-        passwordField.setText(user.password)
+        val isUserPasswordEnabled = Futures.future { UserAdapter.isPasswordEnabled(context, user) }
         ok.setEnabled(false)
+        enablePasswordButton.setChecked(isUserPasswordEnabled())
+        passwordField.setEnabled(isUserPasswordEnabled())
+        passwordField.setText(user.password)
       }
       super.onResume
     }
@@ -177,36 +178,25 @@ object UserDialog extends Logging {
     }
     @Loggable
     private def onPositiveButtonClick() = for {
-      user <- user
+      oldUser <- user
       callback <- onOkCallback
       passwordField <- passwordField
       enablePasswordButton <- enablePasswordButton
     } Futures.future {
       try {
         val context = getSherlockActivity
-        val notification = XResource.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(user.name)
-        IAmWarn(notification.format(user.name))
-        val newUser = user.copy(password = passwordField.getText.toString)
-        UserAdapter.save(context, newUser)
+        val notification = XResource.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(oldUser.name)
+        IAmWarn(notification.format(oldUser.name))
+        val newUser = oldUser.copy(password = passwordField.getText.toString)
+        UserAdapter.updateUser(Some(newUser), Some(oldUser))
         UserAdapter.setPasswordEnabled(enablePasswordButton.isChecked, context, newUser)
-        UserFragment.fragment.foreach {
-          fragment =>
-            if (fragment.lastActiveUserInfo.get.exists(_ == user))
-              fragment.lastActiveUserInfo.set(Some(newUser))
-            fragment.updateFieldsState()
-        }
+        UserFragment.updateUser(Some(newUser), Some(oldUser))
+        if (oldUser.name == "android")
+          DefaultUser.updateUser(newUser)
         AnyBase.runOnUiThread {
-          UserAdapter.adapter.foreach {
-            adapter =>
-              val position = adapter.getPosition(user)
-              if (position >= 0) {
-                adapter.remove(user)
-                adapter.insert(newUser, position)
-              }
-          }
-          Toast.makeText(context, notification.format(user.name), Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, notification.format(oldUser.name), Toast.LENGTH_SHORT).show()
+          callback(newUser)
         }
-        callback(newUser)
       } catch {
         case e =>
           log.error(e.getMessage, e)
@@ -280,21 +270,24 @@ object UserDialog extends Logging {
         ok <- ok.get
       } {
         val context = buttonView.getContext
-        if (isChecked != UserAdapter.isPasswordEnabled(context, initialUser)) {
+        val passwordEnabled = Futures.future { UserAdapter.isPasswordEnabled(context, initialUser) }
+        // !(!ok.isEnabled && isChecked == passwordEnabled()) - skip initial toast when dialog appears 
+        if (!(!ok.isEnabled && isChecked == passwordEnabled()))
+          if (isChecked) {
+            passwordField.setEnabled(true)
+            Toast.makeText(context, XResource.getString(context, "enable_password_authentication").
+              getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
+          } else {
+            passwordField.setEnabled(false)
+            Toast.makeText(context, XResource.getString(context, "disable_password_authentication").
+              getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
+          }
+        if (isChecked != passwordEnabled()) {
           if ((isChecked && passwordField.getText.toString.nonEmpty) || !isChecked)
             ok.setEnabled(true)
         } else {
           if (passwordField.getText.toString == initialUser.password)
             ok.setEnabled(false)
-        }
-        if (isChecked) {
-          passwordField.setEnabled(true)
-          Toast.makeText(context, XResource.getString(context, "enable_password_authentication").
-            getOrElse("enable password authentication"), Toast.LENGTH_SHORT).show
-        } else {
-          passwordField.setEnabled(false)
-          Toast.makeText(context, XResource.getString(context, "disable_password_authentication").
-            getOrElse("disable password authentication"), Toast.LENGTH_SHORT).show
         }
       }
     }
@@ -324,23 +317,24 @@ object UserDialog extends Logging {
     protected val newState: Boolean
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some((dialog: ChangeState) => user.foreach {
-        user =>
-          val context = getSherlockActivity
-          val newUser = user.copy(enabled = newState)
-          Futures.future { UserAdapter.save(context, newUser) }
-          // update UserAdapter if any
-          UserAdapter.adapter.foreach {
-            adapter =>
-              val position = adapter.getPosition(user)
-              if (position >= 0) {
-                adapter.remove(user)
-                adapter.insert(newUser, position)
-              }
+        oldUser =>
+          Futures.future {
+            val context = getSherlockActivity
+            val newUser = oldUser.copy(enabled = newState)
+            val notification = if (newUser.enabled)
+              XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
+            else
+              XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
+            IAmWarn(notification)
+            UserAdapter.updateUser(Some(newUser), Some(oldUser))
+            UserFragment.updateUser(Some(newUser), Some(oldUser))
+            if (oldUser.name == "android")
+              DefaultUser.updateUser(newUser)
+            AnyBase.runOnUiThread {
+              Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
+              dialog.onOkCallback.foreach(_(newUser))
+            }
           }
-          // update UserFragment if any
-          UserFragment.fragment.foreach(_.onDialogChangeState(user, newUser))
-          // return result
-          dialog.onOkCallback.foreach(_(newUser))
       }))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some(defaultNegativeButtonCallback))))
@@ -357,7 +351,14 @@ object UserDialog extends Logging {
     @volatile var user: Option[UserInfo] = None
     @volatile var onOkCallback: Option[UserInfo => Any] = None
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(Delete.this),
-      Some((dialog: Delete) => user.foreach(user => dialog.onOkCallback.foreach(_(user)))))))
+      Some((dialog: Delete) => user.foreach {
+        oldUser =>
+          Futures.future {
+            UserAdapter.updateUser(None, Some(oldUser))
+            UserFragment.updateUser(None, Some(oldUser))
+            dialog.onOkCallback.foreach(_(oldUser))
+          }
+      }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(Delete.this),
       Some(defaultNegativeButtonCallback))))
 
@@ -459,7 +460,7 @@ object UserDialog extends Logging {
 
     def tag = "dialog_user_details"
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_details_title").
-      getOrElse("<b>%s</b> details").format(user.map(_.name).getOrElse("unknown")))
+      getOrElse("<b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
     def message = None
     @Loggable
     override def onResume() {

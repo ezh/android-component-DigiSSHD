@@ -23,11 +23,13 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import java.io.File
 
-import scala.Option.option2Iterable
 import scala.actors.Futures
+import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XAPI
+import org.digimead.digi.ctrl.lib.androidext.XDialog
 import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
@@ -41,10 +43,11 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.user.UserAdapter
@@ -53,12 +56,9 @@ import org.digimead.digi.ctrl.sshd.user.UserKeys
 
 import com.actionbarsherlock.app.SherlockFragmentActivity
 
-import android.app.AlertDialog
-import android.app.Dialog
 import android.content.Context
-import android.content.DialogInterface
-import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentTransaction
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -66,10 +66,8 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.ListView
-import android.widget.TextView
 import android.widget.Toast
 
 object DefaultUser extends CheckBoxItem with Logging {
@@ -100,18 +98,20 @@ object DefaultUser extends CheckBoxItem with Logging {
               }.show()
         }
   }
+  @Loggable
   def updateCheckbox(view: CheckBox) = {
     val newState = getState[Boolean](view.getContext)
     if (view.isChecked != newState)
       view.setChecked(newState)
   }
-  def updateAndroidUser(user: UserInfo) = for {
+  @Loggable
+  def updateUser(user: UserInfo) = for {
     view <- view.get
     checkbox <- Option(view.findViewById(_root_.android.R.id.checkbox))
   } {
     assert(user.name == "android")
     android = user
-    DefaultUser.updateCheckbox(checkbox.asInstanceOf[CheckBox])
+    AnyBase.runOnUiThread { updateCheckbox(checkbox.asInstanceOf[CheckBox]) }
   }
   @Loggable
   override def onListItemClick(l: ListView, v: View) = for {
@@ -138,7 +138,8 @@ object DefaultUser extends CheckBoxItem with Logging {
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {
     val context = v.getContext
     log.debug("create context menu for " + option.tag)
-    menu.setHeaderTitle(XResource.getString(context, "android_user_context_menu_title").getOrElse("Manage user \"android\""))
+    menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "android_user_context_menu_title").
+      getOrElse("Manage user <b>android</b>")))
     /*if (item.icon.nonEmpty)
       Android.getId(context, item.icon, "drawable") match {
         case i if i != 0 =>
@@ -153,11 +154,15 @@ object DefaultUser extends CheckBoxItem with Logging {
     val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, android) }
     val result = Futures.awaitAll(DTimeout.shortest + 500, dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
     result.head.foreach(_.foreach(file => if (file.exists)
-      menu.add(Menu.NONE, XResource.getId(context, "export_user_key_dropbear"), 2,
+      menu.add(Menu.NONE, XResource.getId(context, "export_user_key_dropbear"), 3,
       XResource.getString(context, "export_user_key_dropbear").getOrElse("Export private key (Dropbear)"))))
     result.last.foreach(_.foreach(file => if (file.exists)
-      menu.add(Menu.NONE, XResource.getId(context, "export_user_key_openssh"), 2,
+      menu.add(Menu.NONE, XResource.getId(context, "export_user_key_openssh"), 4,
       XResource.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))))
+    menu.add(Menu.NONE, XResource.getId(v.getContext, "users_copy_details"), 5,
+      XResource.getString(v.getContext, "users_copy_details").getOrElse("Copy details"))
+    menu.add(Menu.NONE, XResource.getId(v.getContext, "users_show_details"), 6,
+      XResource.getString(v.getContext, "users_show_details").getOrElse("Details"))
   }
   override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
     fragment =>
@@ -178,6 +183,34 @@ object DefaultUser extends CheckBoxItem with Logging {
           true
         case id if id == XResource.getId(context, "export_user_key_openssh") =>
           Futures.future { UserKeys.exportOpenSSHKey(context, android) }
+          true
+        case id if id == XResource.getId(context, "users_copy_details") =>
+          Futures.future {
+            try {
+              val message = XResource.getString(context, "users_copy_details").
+                getOrElse("Copy details about <b>%s</b> to clipboard").format(android.name)
+              val content = UserAdapter.getDetails(context, android)
+              AnyBase.runOnUiThread {
+                try {
+                  XAPI.clipboardManager(context).setText(content)
+                  Toast.makeText(context, Html.fromHtml(message), Toast.LENGTH_SHORT).show()
+                } catch {
+                  case e =>
+                    IAmYell("Unable to copy to clipboard information about \"" + android.name + "\"", e)
+                }
+              }
+            } catch {
+              case e =>
+                IAmYell("Unable to copy to clipboard details about \"" + android.name + "\"", e)
+            }
+          }
+          true
+        case id if id == XResource.getId(context, "users_show_details") =>
+          UserDialog.showDetails.foreach(dialog =>
+            SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
+              ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+              ft.addToBackStack(dialog)
+            }).before(dialog => dialog.user = Some(android)).show())
           true
         case item =>
           log.fatal("skip unknown menu! item " + item)
@@ -216,74 +249,40 @@ object DefaultUser extends CheckBoxItem with Logging {
   object Dialog {
     lazy val restartRequired = AppComponent.Context.map(context =>
       Fragment.instantiate(context.getApplicationContext, classOf[RestartRequired].getName, null).asInstanceOf[RestartRequired])
-    class RestartRequired extends SSHDDialog with Logging {
-      @volatile private var dirtyHackForDirtyFramework = false
-      @volatile private var cachedDialog: Option[AlertDialog] = None
+
+    class RestartRequired extends SSHDAlertDialog(Some(_root_.android.R.drawable.ic_dialog_alert)) with Logging {
+      override protected lazy val positive = Some((_root_.android.R.string.ok,
+        new XDialog.ButtonListener(new WeakReference(RestartRequired.this),
+          Some((dialog: RestartRequired) => onRestartRequired))))
+      override protected lazy val negative = Some((_root_.android.R.string.cancel,
+        new XDialog.ButtonListener(new WeakReference(RestartRequired.this),
+          Some(defaultNegativeButtonCallback))))
 
       def tag = "dialog_service_restartrequired"
-      @Loggable
-      override def onCreate(savedInstanceState: Bundle) {
-        super.onCreate(savedInstanceState)
-      }
-      @Loggable
-      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
-        if (dirtyHackForDirtyFramework && inflater != null) {
-          log.warn("workaround for \"requestFeature() must be called before adding content\"")
-          dirtyHackForDirtyFramework = false
-          return super.onCreateView(inflater, container, savedInstanceState)
-        } else if (inflater == null)
-          dirtyHackForDirtyFramework = true
-        if (cachedDialog.nonEmpty)
-          return null
-        val context = getSherlockActivity
-        val view = new TextView(context)
-        view.setText(content(context))
-        view
-      }
-      @Loggable
-      override def onCreateDialog(savedInstanceState: Bundle): Dialog = cachedDialog match {
-        case Some(dialog) =>
-          dialog.show
-          dialog
-        case None =>
-          val context = getSherlockActivity
-          val dialog = new AlertDialog.Builder(context).
-            setIcon(_root_.android.R.drawable.ic_dialog_alert).
-            setTitle(XResource.getString(context, "warning_singleusermode_restart_title").getOrElse("Apply new settings")).
-            setMessage(content(context)).
-            setPositiveButton(_root_.android.R.string.ok, RestartRequired.PositiveButtonListener).
-            setNegativeButton(_root_.android.R.string.cancel, null).
-            create()
-          dialog.show
-          cachedDialog = Some(dialog)
-          dialog
-      }
-      private def content(context: Context) = XResource.getString(context, "session_singleusermode_restart_content").
+      def title = XResource.getString(getSherlockActivity, "warning_singleusermode_restart_title").getOrElse("Apply new settings")
+      def message = Some(XResource.getString(getSherlockActivity, "session_singleusermode_restart_content").
         getOrElse("Single user/basic mode provide only restricted abilities of session control.\n\n" +
-          "You must restart SSH before the new settings will take effect. Do you want to restart service now?")
-    }
-    object RestartRequired {
-      object PositiveButtonListener extends DialogInterface.OnClickListener() {
-        def onClick(dialog: DialogInterface, whichButton: Int) = {
-          val context = dialog.asInstanceOf[AlertDialog].getContext
-          IAmBusy(DefaultUser, XResource.getString(context, "state_stopping_service").getOrElse("stopping service"))
-          Futures.future {
-            AppControl.Inner.callStop(context.getPackageName)() match {
-              case true =>
-                IAmMumble(XResource.getString(context, "state_stopped_service").getOrElse("stopped service"))
-                IAmMumble(XResource.getString(context, "state_starting_service").getOrElse("starting service"))
-                Futures.future {
-                  AppControl.Inner.callStart(context.getPackageName)() match {
-                    case true =>
-                      log.info(context.getPackageName + " started")
-                      IAmReady(DefaultUser, XResource.getString(context, "state_started_service").getOrElse("started service"))
-                    case false =>
-                      log.warn(context.getPackageName + " start failed")
-                      IAmReady(DefaultUser, XResource.getString(context, "state_started_service").getOrElse("started service"))
-                  }
-                } case false =>
-                IAmReady(DefaultUser, XResource.getString(context, "state_stopped_service").getOrElse("stopped service"))
-            }
+          "You must restart SSH before the new settings will take effect. Do you want to restart service now?"))
+      @Loggable
+      private def onRestartRequired() {
+        val context = getSherlockActivity
+        IAmBusy(DefaultUser, XResource.getString(context, "state_stopping_service").getOrElse("stopping service"))
+        Futures.future {
+          AppControl.Inner.callStop(context.getPackageName)() match {
+            case true =>
+              IAmMumble(XResource.getString(context, "state_stopped_service").getOrElse("stopped service"))
+              IAmMumble(XResource.getString(context, "state_starting_service").getOrElse("starting service"))
+              Futures.future {
+                AppControl.Inner.callStart(context.getPackageName)() match {
+                  case true =>
+                    log.info(context.getPackageName + " started")
+                    IAmReady(DefaultUser, XResource.getString(context, "state_started_service").getOrElse("started service"))
+                  case false =>
+                    log.warn(context.getPackageName + " start failed")
+                    IAmReady(DefaultUser, XResource.getString(context, "state_started_service").getOrElse("started service"))
+                }
+              } case false =>
+              IAmReady(DefaultUser, XResource.getString(context, "state_stopped_service").getOrElse("stopped service"))
           }
         }
       }

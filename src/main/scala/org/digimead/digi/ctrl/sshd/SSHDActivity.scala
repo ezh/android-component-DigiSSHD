@@ -58,6 +58,7 @@ import android.os.Handler
 import android.support.v4.app.Fragment
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 
 class SSHDActivity extends SherlockFragmentActivity with DActivity {
@@ -82,7 +83,8 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
     val bar = getSupportActionBar()
     val barState = getLayoutInflater().inflate(R.layout.menubar_state, null)
     bar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS)
-    bar.setCustomView(barState)
+    bar.setCustomView(barState, new ActionBar.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+      ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
     bar.setDisplayShowCustomEnabled(true)
     bar.setDisplayShowHomeEnabled(true)
     val display = getWindowManager.getDefaultDisplay()
