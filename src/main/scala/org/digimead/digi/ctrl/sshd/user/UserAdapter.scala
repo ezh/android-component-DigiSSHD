@@ -29,6 +29,7 @@ import scala.actors.Futures
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.XAPI
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -36,6 +37,7 @@ import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
@@ -51,6 +53,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.CheckedTextView
 import android.widget.TextView
+import android.widget.Toast
 
 object UserAdapter extends Logging with Passwords {
   private[user] val nameMaximumLength = 16
@@ -250,7 +253,24 @@ object UserAdapter extends Logging with Passwords {
         else
           " [<font color='red'>" + notexists + "</font>]")
   }
-
+  @Loggable
+  def copyDetails(context: Context, user: UserInfo) = try {
+    val message = XResource.getString(context, "users_copy_details").
+      getOrElse("Copy details about <b>%s</b> to clipboard").format(user.name)
+    val content = UserAdapter.getDetails(context, user)
+    AnyBase.runOnUiThread {
+      try {
+        XAPI.clipboardManager(context).setText(content)
+        Toast.makeText(context, Html.fromHtml(message), Toast.LENGTH_SHORT).show()
+      } catch {
+        case e =>
+          IAmYell("Unable to copy to clipboard information about \"" + user.name + "\"", e)
+      }
+    }
+  } catch {
+    case e =>
+      IAmYell("Unable to copy to clipboard details about \"" + user.name + "\"", e)
+  }
   @Loggable
   private def checkAndroidUserInfo(in: List[UserInfo]): List[UserInfo] = if (!in.exists(_.name == "android")) {
     log.debug("add default system user \"android\"")

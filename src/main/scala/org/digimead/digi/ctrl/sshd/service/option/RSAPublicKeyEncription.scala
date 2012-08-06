@@ -25,16 +25,13 @@ import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.declaration.DIntent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabContent
+import org.digimead.digi.ctrl.sshd.user.UserDialog
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.view.ContextMenu
 import android.view.Menu
 import android.view.MenuItem
@@ -96,18 +93,18 @@ object RSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
       val context = fragment.getSherlockActivity
       menuItem.getItemId match {
         case id if id == XResource.getId(context, "generate_host_key") =>
-          Futures.future {
+/*          Futures.future {
             getSourceKeyFile().foreach(file =>
-              OptionBlock.checkKeyAlreadyExists(context, "RSA host", file,
+              UserDialog.checkKeyAlreadyExists(context, "RSA host", file,
                 (activity) => generateHostKey(activity)))
-          }
+          }*/
           true
         case id if id == XResource.getId(context, "import_host_key") =>
-          Futures.future {
+/*          Futures.future {
             getSourceKeyFile().foreach(file =>
-              OptionBlock.checkKeyAlreadyExists(context, "RSA host", file,
+              UserDialog.checkKeyAlreadyExists(context, "RSA host", file,
                 (activity) => importHostKey(activity)))
-          }
+          }*/
           true
         case id if id == XResource.getId(context, "export_host_key") =>
           Futures.future { exportHostKey(context) }

@@ -158,5 +158,7 @@
     <string name="users_update_user_message">Do you want to save the changes?</string>
     <string name="users_update_user_title">Update user &lt;b>%1$s&lt;/b></string>
     <string name="default_value">default</string>
+    <string name="RSA">RSA</string>
+    <string name="DSA">DSA</string>
 
 </resources>

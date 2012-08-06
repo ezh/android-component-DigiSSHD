@@ -26,6 +26,7 @@ import java.util.Locale
 import scala.actors.Actor
 import scala.actors.threadpool.AtomicInteger
 import scala.collection.immutable.HashMap
+import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.DActivity
@@ -70,6 +71,7 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
   val origRegisterReceiver: (BroadcastReceiver, IntentFilter, String, Handler) => Intent = super.registerReceiver
   /** original unregisterReceiver */
   val origUnregisterReceiver: (BroadcastReceiver) => Unit = super.unregisterReceiver
+  lazy val resources = new SSHDResource(new WeakReference(this))
   ppLoading.stop()
 
   /**

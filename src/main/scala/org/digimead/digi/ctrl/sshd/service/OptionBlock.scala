@@ -107,27 +107,6 @@ object OptionBlock extends Logging {
   }
   private lazy val items: Seq[OptionBlock.Item] = Seq(DefaultUser, GrantSuperuserPermission, NetworkPort,
     RSAPublicKeyEncription, DSAPublicKeyEncription, AuthentificationMode)
-
-  private[service] def checkKeyAlreadyExists(activity: FragmentActivity, keyName: String, key: File, callback: (FragmentActivity) => Any) {
-    if (!key.exists || key.length == 0)
-      callback(activity)
-    else {
-      val affirmative = new AtomicBoolean(false)
-      /*      AppComponent.Inner.showDialogSafe(activity, "android_check_key", () => {
-        val dialog = new AlertDialog.Builder(activity).
-          setTitle(XResource.getString(activity, "key_already_exists_title").getOrElse("Key already exists")).
-          setMessage(XResource.getString(activity, "key_already_exists_message").getOrElse("%s key already exists. Do you want to replace it?").format(keyName)).
-          setIcon(android.R.drawable.ic_dialog_alert).
-          setPositiveButton(_root_.android.R.string.ok, new DialogInterface.OnClickListener() {
-            def onClick(dialog: DialogInterface, whichButton: Int) = affirmative.set(true)
-          }).
-          setNegativeButton(_root_.android.R.string.cancel, null).
-          create
-        dialog.show
-        dialog
-      }, () => Futures.future { if (affirmative.get) callback(activity) })*/
-    }
-  }
   private def updateItems = if (adapter.getItem(0) == null) {
     val newItems = SyncVar(items)
     AnyBase.runOnUiThread {

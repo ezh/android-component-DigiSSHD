@@ -21,14 +21,11 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
-import org.digimead.digi.ctrl.lib.androidext.XAlertDialog
+import org.digimead.digi.ctrl.lib.androidext.XListDialog
 
 import com.actionbarsherlock.app.SherlockDialogFragment
 
-import android.view.View
-
-abstract class SSHDAlertDialog(val icon: Option[Int]) extends SherlockDialogFragment with XAlertDialog {
-  lazy val extContent: Option[View] = None
+abstract class SSHDListDialog(val icon: Option[Int]) extends SherlockDialogFragment with XListDialog {
   def this() = this(None)
   def getDialogActivity() = getSherlockActivity()
 }

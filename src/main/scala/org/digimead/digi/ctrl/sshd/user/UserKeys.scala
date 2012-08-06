@@ -49,7 +49,6 @@ import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDService
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -77,21 +76,6 @@ object UserKeys extends Logging {
     getDropbearKeyFile(context, user).map(file => new File(file.getParentFile, "authorized_keys"))
   @Loggable def getOpenSSHKeyFile(context: Context, user: UserInfo): Option[File] =
     getDropbearKeyFile(context, user).map(file => new File(file.getParentFile, "openssh_user_key." + Uri.encode(user.name)))
-  @Loggable
-  def importKey(activity: Activity, user: UserInfo) {
-    /*AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
-      val dialog = FileChooser.createDialog(activity,
-        XResource.getString(activity, "dialog_import_key").getOrElse("Import public key"),
-        new File("/"),
-        importKeyOnResult,
-        new FileFilter { override def accept(file: File) = true },
-        importKeyOnClick,
-        false,
-        user)
-      dialog.show()
-      dialog
-    })*/
-  }
   def importKeyOnClick(context: Context, file: File): Boolean = try {
     val source = scala.io.Source.fromFile(file)
     if (source.getLines.filter(_.startsWith("ssh-")).isEmpty) {

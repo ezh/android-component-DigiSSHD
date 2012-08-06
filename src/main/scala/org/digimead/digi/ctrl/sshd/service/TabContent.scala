@@ -154,8 +154,11 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             log.debug("skip unknown context menu item " + info)
             false
         }
+      case null =>
+        log.warn("ignore issue #7139 for menuItem \"" + menuItem.getTitle + "\"")
+        false
       case info =>
-        log.fatal("unsupported menu info " + info)
+        log.fatal("unsupported menu info for menuItem \"" + menuItem.getTitle + "\"")
         false
     }
   } getOrElse false

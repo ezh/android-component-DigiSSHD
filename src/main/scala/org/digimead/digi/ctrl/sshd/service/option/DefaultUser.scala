@@ -28,7 +28,6 @@ import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
-import org.digimead.digi.ctrl.lib.androidext.XAPI
 import org.digimead.digi.ctrl.lib.androidext.XDialog
 import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
@@ -43,22 +42,18 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmBusy
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
-import org.digimead.digi.ctrl.sshd.service.OptionBlock
 import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.user.UserAdapter
 import org.digimead.digi.ctrl.sshd.user.UserDialog
 import org.digimead.digi.ctrl.sshd.user.UserKeys
 
-import com.actionbarsherlock.app.SherlockFragmentActivity
-
 import android.content.Context
 import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentTransaction
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -85,7 +80,7 @@ object DefaultUser extends CheckBoxItem with Logging {
             getOrElse("<b>android</b> is always enabled in single user mode")), Toast.LENGTH_SHORT).show()
         }
       else
-        (if (android.enabled) UserDialog.disable else UserDialog.enable) foreach {
+        (if (android.enabled) SSHDResource.userDisable else SSHDResource.userEnable) foreach {
           case dialog =>
             SafeDialog(fragment.getActivity, dialog, () => dialog.asInstanceOf[UserDialog.ChangeState]).
               target(R.id.main_topPanel).before {
@@ -116,7 +111,7 @@ object DefaultUser extends CheckBoxItem with Logging {
   @Loggable
   override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
-    dialog <- UserDialog.changePassword
+    dialog <- SSHDResource.userChangePassword
   } if (!dialog.isShowing) {
     val context = fragment.getSherlockActivity
     SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).before {
@@ -138,45 +133,51 @@ object DefaultUser extends CheckBoxItem with Logging {
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {
     val context = v.getContext
     log.debug("create context menu for " + option.tag)
-    menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "android_user_context_menu_title").
-      getOrElse("Manage user <b>android</b>")))
-    /*if (item.icon.nonEmpty)
-      Android.getId(context, item.icon, "drawable") match {
-        case i if i != 0 =>
-          menu.setHeaderIcon(i)
-        case _ =>
-      }*/
-    menu.add(Menu.NONE, XResource.getId(context, "generate_user_key"), 1,
-      XResource.getString(context, "generate_user_key").getOrElse("Generate user key"))
-    menu.add(Menu.NONE, XResource.getId(context, "import_user_key"), 2,
-      XResource.getString(context, "import_user_key").getOrElse("Import public key"))
+    val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, android) }
     val dropbearKeyFileFuture = Futures.future { UserKeys.getDropbearKeyFile(context, android) }
     val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, android) }
-    val result = Futures.awaitAll(DTimeout.shortest + 500, dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
-    result.head.foreach(_.foreach(file => if (file.exists)
-      menu.add(Menu.NONE, XResource.getId(context, "export_user_key_dropbear"), 3,
-      XResource.getString(context, "export_user_key_dropbear").getOrElse("Export private key (Dropbear)"))))
-    result.last.foreach(_.foreach(file => if (file.exists)
-      menu.add(Menu.NONE, XResource.getId(context, "export_user_key_openssh"), 4,
-      XResource.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))))
-    menu.add(Menu.NONE, XResource.getId(v.getContext, "users_copy_details"), 5,
-      XResource.getString(v.getContext, "users_copy_details").getOrElse("Copy details"))
-    menu.add(Menu.NONE, XResource.getId(v.getContext, "users_show_details"), 6,
-      XResource.getString(v.getContext, "users_show_details").getOrElse("Details"))
+    menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "android_user_context_menu_title").
+      getOrElse("user <b>android</b>")))
+    menu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
+    // keys
+    val keysMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_keys_menu"), 4,
+      XResource.getString(context, "users_keys_menu").getOrElse("Key management"))
+    keysMenu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
+    val generateKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "generate_user_key"), 1,
+      XResource.getString(context, "generate_user_key").getOrElse("Generate user key"))
+    val importKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "import_user_key"), 2,
+      XResource.getString(context, "import_user_key").getOrElse("Import public key"))
+    val exportDropbearKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "export_user_key_dropbear"), 3,
+      XResource.getString(context, "export_user_key_dropbear").getOrElse("Export private key (Dropbear)"))
+    val exportOpenSSHKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "export_user_key_openssh"), 4,
+      XResource.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))
+    // details
+    val detailsMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_details_menu"), 5,
+      XResource.getString(context, "users_details_menu").getOrElse("Details"))
+    detailsMenu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
+    detailsMenu.add(Menu.NONE, XResource.getId(context, "users_copy_details"), 1,
+      XResource.getString(context, "users_copy_details").getOrElse("Copy"))
+    detailsMenu.add(Menu.NONE, XResource.getId(context, "users_show_details"), 2,
+      XResource.getString(context, "users_show_details").getOrElse("Show"))
+    // disable unavailable items
+    val result = Futures.awaitAll(DTimeout.shortest + 500, publicKeyFileFuture,
+      dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
+    if (result(0).flatMap(f => f).isEmpty) {
+      generateKeyItem.setEnabled(false)
+      importKeyItem.setEnabled(false)
+    }
+    if (result(1).flatMap(_.map(_.exists)) != Some(true)) exportDropbearKeyItem.setEnabled(false)
+    if (result(2).flatMap(_.map(_.exists)) != Some(true)) exportOpenSSHKeyItem.setEnabled(false)
   }
   override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
     fragment =>
       val context = fragment.getActivity
       menuItem.getItemId match {
         case id if id == XResource.getId(context, "generate_user_key") =>
-          Futures.future {
-            UserKeys.getDropbearKeyFile(context, android).foreach(file =>
-              OptionBlock.checkKeyAlreadyExists(context, "User", file,
-                (activity) => generateUserKey(fragment.getSherlockActivity)))
-          }
+          Futures.future { UserDialog.generateUserKey(context, android, UserKeys.getDropbearKeyFile(context, android)) }
           true
         case id if id == XResource.getId(context, "import_user_key") =>
-          Futures.future { UserKeys.importKey(context, android) }
+          Futures.future { UserDialog.importKey(context, android) }
           true
         case id if id == XResource.getId(context, "export_user_key_dropbear") =>
           Futures.future { UserKeys.exportDropbearKey(context, android) }
@@ -185,32 +186,10 @@ object DefaultUser extends CheckBoxItem with Logging {
           Futures.future { UserKeys.exportOpenSSHKey(context, android) }
           true
         case id if id == XResource.getId(context, "users_copy_details") =>
-          Futures.future {
-            try {
-              val message = XResource.getString(context, "users_copy_details").
-                getOrElse("Copy details about <b>%s</b> to clipboard").format(android.name)
-              val content = UserAdapter.getDetails(context, android)
-              AnyBase.runOnUiThread {
-                try {
-                  XAPI.clipboardManager(context).setText(content)
-                  Toast.makeText(context, Html.fromHtml(message), Toast.LENGTH_SHORT).show()
-                } catch {
-                  case e =>
-                    IAmYell("Unable to copy to clipboard information about \"" + android.name + "\"", e)
-                }
-              }
-            } catch {
-              case e =>
-                IAmYell("Unable to copy to clipboard details about \"" + android.name + "\"", e)
-            }
-          }
+          Futures.future { UserAdapter.copyDetails(context, android) }
           true
         case id if id == XResource.getId(context, "users_show_details") =>
-          UserDialog.showDetails.foreach(dialog =>
-            SafeDialog(context, dialog, () => dialog).transaction((ft, fragment, target) => {
-              ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-              ft.addToBackStack(dialog)
-            }).before(dialog => dialog.user = Some(android)).show())
+          Futures.future { UserDialog.showDetails(context, android) }
           true
         case item =>
           log.fatal("skip unknown menu! item " + item)
@@ -223,14 +202,6 @@ object DefaultUser extends CheckBoxItem with Logging {
       true.asInstanceOf[T] // android user always enable in single user mode
     else
       android.enabled.asInstanceOf[T]
-  }
-  private def generateUserKey(activity: SherlockFragmentActivity) {
-    //AppComponent.Inner.showDialogSafe(activity, "android_user_gen_key", () => {
-    //      val dialog = SSHDUsers.Dialog.createDialogGenerateUserKey(activity, android)
-    //      dialog.show
-    //      dialog
-    //null
-    // })
   }
   override def getView(context: Context, inflater: LayoutInflater): View = {
     val view = super.getView(context, inflater)

@@ -21,6 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.user
 
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -30,20 +31,27 @@ import scala.collection.JavaConversions._
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.dialog.{ FileChooser => LibFileChooser }
 import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmWarn
+import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDListDialog
 import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
 
 import android.content.Context
-import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentTransaction
 import android.text.Editable
 import android.text.Html
 import android.text.InputFilter
@@ -56,12 +64,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
+import android.widget.AbsListView
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
@@ -109,18 +120,125 @@ object UserDialog extends Logging {
       return null
     }
   }
-  lazy val changePassword = AppComponent.Context.map(context =>
-    Fragment.instantiate(context.getApplicationContext, classOf[ChangePassword].getName, null).asInstanceOf[ChangePassword])
-  lazy val enable = AppComponent.Context.map(context =>
-    Fragment.instantiate(context.getApplicationContext, classOf[Enable].getName, null).asInstanceOf[Enable])
-  lazy val disable = AppComponent.Context.map(context =>
-    Fragment.instantiate(context.getApplicationContext, classOf[Disable].getName, null).asInstanceOf[Disable])
-  lazy val delete = AppComponent.Context.map(context =>
-    Fragment.instantiate(context.getApplicationContext, classOf[Delete].getName, null).asInstanceOf[Delete])
-  lazy val setGUID = AppComponent.Context.map(context =>
-    Fragment.instantiate(context.getApplicationContext, classOf[SetGUID].getName, null).asInstanceOf[SetGUID])
-  lazy val showDetails = AppComponent.Context.map(context =>
-    Fragment.instantiate(context.getApplicationContext, classOf[ShowDetails].getName, null).asInstanceOf[ShowDetails])
+
+  @Loggable
+  def enable(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userEnable.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => dialog.user = Some(user)).show())
+  @Loggable
+  def disable(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userDisable.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => dialog.user = Some(user)).show())
+  @Loggable
+  def delete(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userDelete.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => dialog.user = Some(user)).show())
+  @Loggable
+  def setGUID(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userSetGUID.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => {
+        dialog.user = Some(user)
+        dialog.userExt = UserInfoExt.get(dialog.getSherlockActivity, user)
+      }).show())
+  @Loggable
+  def showDetails(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userShowDetails.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => dialog.user = Some(user)).show())
+  @Loggable
+  def setHome(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userSetHome.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => {
+        dialog.user = Some(user)
+        dialog.setCallbackOnResult(setHomeCallback(activity, user, _, _))
+      }).show())
+  @Loggable
+  private def setHomeCallback(context: FragmentActivity, oldUser: UserInfo, selectedDirectory: File, selectedFiles: Seq[File]) = {
+    log.debug(oldUser.name + " new home is " + selectedDirectory)
+    val newUser = oldUser.copy(home = selectedDirectory.getAbsolutePath)
+    val message = Html.fromHtml(XResource.getString(context, "users_update_message").
+      getOrElse("update user <b>%s</b>").format(oldUser.name))
+    IAmWarn(message.toString)
+    Futures.future {
+      UserAdapter.updateUser(Some(newUser), Some(oldUser))
+      UserFragment.updateUser(Some(newUser), Some(oldUser))
+    }
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+  }
+  @Loggable
+  def generateUserKey(activity: FragmentActivity, user: UserInfo, file: Option[File]) = file match {
+    case Some(file) =>
+      checkKeyAlreadyExists(activity, user, "User", file, () => selectKeyType(activity, user))
+    case None =>
+      val message = Html.fromHtml(XResource.getString(activity, "users_unable_generate_key").
+        getOrElse("unable generate key for user <b>%s</b>").format(user.name))
+      IAmYell(message.toString)
+      Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
+  }
+  @Loggable
+  def checkKeyAlreadyExists(activity: FragmentActivity, user: UserInfo, keyName: String,
+    key: File, callback: () => Unit) = if (!key.exists || key.length == 0)
+    callback()
+  else
+    SSHDResource.userKeyReplace.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => {
+        dialog.user = Some(user)
+      }).show())
+  @Loggable
+  def selectKeyType(activity: FragmentActivity, user: UserInfo) =
+    SSHDResource.userKeyType.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => {
+        dialog.user = Some(user)
+      }).show())
+  //UserKeys.generateUserKey(fragment.getSherlockActivity)
+  /*
+   *   private def generateUserKey(activity: SherlockFragmentActivity) {
+    log.g_a_s_e("!!!")
+    SSHDResource.userGenerateKey.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+        ft.addToBackStack(dialog)
+      }).before(dialog => dialog.user = Some(android)).show())
+  }
+   */
+  @Loggable
+  def importKey(activity: FragmentActivity, user: UserInfo) {
+    /*AppComponent.Inner.showDialogSafe[Dialog](activity, "service_import_userkey_dialog", () => {
+      val dialog = FileChooser.createDialog(activity,
+        XResource.getString(activity, "dialog_import_key").getOrElse("Import public key"),
+        new File("/"),
+        importKeyOnResult,
+        new FileFilter { override def accept(file: File) = true },
+        importKeyOnClick,
+        false,
+        user)
+      dialog.show()
+      dialog
+    })*/
+  }
 
   class ChangePassword
     extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
@@ -130,7 +248,7 @@ object UserDialog extends Logging {
       val customView = ChangePassword.customView()
       (customView.map(_._1), customView.map(_._2), customView.map(_._3), customView.map(_._4))
     }
-    override val extContent = innerContent
+    override lazy val extContent = innerContent
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
       Some((dialog: ChangePassword) => onPositiveButtonClick))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
@@ -349,15 +467,18 @@ object UserDialog extends Logging {
   class Delete
     extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
-    @volatile var onOkCallback: Option[UserInfo => Any] = None
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(Delete.this),
       Some((dialog: Delete) => user.foreach {
         oldUser =>
+          val context = getSherlockActivity
           Futures.future {
             UserAdapter.updateUser(None, Some(oldUser))
             UserFragment.updateUser(None, Some(oldUser))
-            dialog.onOkCallback.foreach(_(oldUser))
           }
+          val message = Html.fromHtml(XResource.getString(context, "users_deleted_message").
+            getOrElse("deleted user <b>%s</b>").format(oldUser.name))
+          IAmWarn(message.toString)
+          Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
       }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(Delete.this),
       Some(defaultNegativeButtonCallback))))
@@ -372,24 +493,39 @@ object UserDialog extends Logging {
     override def onDestroyView() {
       super.onDestroyView
       user = None
-      onOkCallback = None
     }
   }
   class SetGUID
-    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
-      R.layout.dialog_users_guid) {
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
     @volatile var userExt: Option[UserInfoExt] = None
     @volatile var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
+    override lazy val extContent = Option(getSherlockActivity.getLayoutInflater.inflate(R.layout.dialog_users_guid, null))
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
       Some((dialog: SetGUID) => {
-        dialog.contentView.get.foreach {
+        dialog.customView.get.foreach {
           customContent =>
             val uidSpinner = customContent.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
             val uid = Option(uidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
             val gidSpinner = customContent.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
             val gid = Option(gidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
-            user.foreach(user => dialog.onOkCallback.foreach(_(user, uid, gid)))
+            user.foreach {
+              user =>
+                try {
+                  val context = getSherlockActivity
+                  UserAdapter.setUserUID(context, user, uid match {
+                    case r @ Some(uid) if uid >= 0 => r
+                    case _ => None
+                  })
+                  UserAdapter.setUserGID(context, user, gid match {
+                    case r @ Some(gid) if gid >= 0 => r
+                    case _ => None
+                  })
+                } catch {
+                  case e =>
+                    log.error(e.getMessage, e)
+                }
+            }
         }
       }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
@@ -405,7 +541,7 @@ object UserDialog extends Logging {
     @Loggable
     override def onResume() {
       for {
-        contentView <- contentView.get
+        customView <- customView.get
         userExt <- userExt
       } {
         val context = getSherlockActivity
@@ -413,7 +549,7 @@ object UserDialog extends Logging {
         val packages = pm.getInstalledPackages(0)
         val ids = SetGUID.Item(-1, XResource.getString(context, "default_value").getOrElse("default")) +:
           packages.flatMap(p => Option(p.applicationInfo).map(ai => SetGUID.Item(ai.uid, p.packageName))).toList.sortBy(_.packageName)
-        val uidSpinner = contentView.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
+        val uidSpinner = customView.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
         val uidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
         uidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         uidSpinner.setAdapter(uidAdapter)
@@ -424,7 +560,7 @@ object UserDialog extends Logging {
           }
           case None => uidSpinner.setSelection(0)
         }
-        val gidSpinner = contentView.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
+        val gidSpinner = customView.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
         val gidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
         gidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         gidSpinner.setAdapter(gidAdapter)
@@ -452,9 +588,9 @@ object UserDialog extends Logging {
     }
   }
   class ShowDetails
-    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable"))),
-      ShowDetails.customContent) {
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
+    override lazy val extContent = ShowDetails.customContent
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(ShowDetails.this),
       Some(defaultNegativeButtonCallback))))
 
@@ -466,10 +602,10 @@ object UserDialog extends Logging {
     override def onResume() {
       super.onResume
       for {
-        contentView <- contentView.get
+        customView <- customView.get
         user <- user
       } {
-        val content = contentView.asInstanceOf[ViewGroup].getChildAt(0).asInstanceOf[TextView]
+        val content = customView.asInstanceOf[ViewGroup].getChildAt(0).asInstanceOf[TextView]
         content.setText(Html.fromHtml(UserAdapter.getHtmlDetails(getSherlockActivity, user)))
       }
     }
@@ -490,9 +626,104 @@ object UserDialog extends Logging {
         view
     }
   }
+  class SetHome
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) with LibFileChooser {
+    @volatile var user: Option[UserInfo] = None
+    def tag = "dialog_user_choosehome"
+    def title = Html.fromHtml(XResource.getString(getDialogActivity, "users_choosehome_title").
+      getOrElse("Select home directory for <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+    def message = Some(Html.fromHtml(XResource.getString(getDialogActivity,
+      "users_choosehome_message").getOrElse("Choose home")))
+    def initialPath() = user.map(user => UserAdapter.homeDirectory(getSherlockActivity, user))
+    def setCallbackOnResult(arg: (File, Seq[File]) => Any) = callbackOnResult = arg
+  }
+  class KeyReplace
+    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    @volatile var user: Option[UserInfo] = None
+    @volatile var keyType: Option[String] = None
+    override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(KeyReplace.this),
+      Some((dialog: KeyReplace) => { log.g_a_s_e("AAAA") }))))
+    override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(KeyReplace.this),
+      Some(defaultNegativeButtonCallback))))
+
+    def tag = "dialog_user_key_replace"
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_key_replace_title").
+      getOrElse("Key already exists for user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_key_replace_message").
+      getOrElse("%s key already exists. Do you want to replace it?").
+      format(keyType.getOrElse("unknown").capitalize)))
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
+      keyType = None
+    }
+  }
+  class KeyType
+    extends SSHDListDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    @volatile var user: Option[UserInfo] = None
+    override protected lazy val positive = Some((R.string.RSA, new XDialog.ButtonListener(new WeakReference(KeyType.this),
+      Some((dialog: KeyType) => (dialog: KeyType) => {
+        customView.get.map {
+          case list: ListView =>
+            val context = getSherlockActivity
+            val length = list.getCheckedItemPosition match {
+              case 0 => 4096
+              case 1 => 2048
+              case 2 => 1024
+            }
+            user.foreach(user => Futures.future { UserKeys.generateRSAKey(context, user, length) })
+          case view =>
+            log.fatal("unexpected view " + view)
+        }
+      }))))
+    override protected lazy val neutral = Some((R.string.DSA, new XDialog.ButtonListener(new WeakReference(KeyType.this),
+      Some((dialog: KeyType) => {
+        val context = getSherlockActivity
+        user.foreach(user => Futures.future { UserKeys.generateDSAKey(context, user) })
+      }))))
+    override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(KeyType.this),
+      Some(defaultNegativeButtonCallback))))
+    val defaultLengthIndex = 2
+    val keyLength = Array[CharSequence]("4096 bits (only RSA)", "2048 bits (only RSA)", "1024 bits (RSA and DSA)")
+    protected lazy val adapter = new ArrayAdapter[CharSequence](getSherlockActivity, android.R.layout.simple_list_item_single_choice, keyLength.toList)
+    lazy val onClickListener = new AdapterView.OnItemClickListener {
+      def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) = KeyType.this.onItemClick(position)
+    }
+
+    def tag = "dialog_user_key_type"
+    def title = user match {
+      case Some(user) =>
+        Html.fromHtml(XResource.getString(getSherlockActivity, "users_user_key_type_title").
+          getOrElse("Select key type for <b>%s</b>").format(user.name))
+      case None =>
+        Html.fromHtml(XResource.getString(getSherlockActivity, "users_host_key_type_title").
+          getOrElse("Select <b>host</b> key type"))
+    }
+    def message = None
+    @Loggable
+    override def onResume() {
+      customView.get.map {
+        case list: ListView =>
+          log.debug("update list attributes")
+          list.setChoiceMode(AbsListView.CHOICE_MODE_SINGLE)
+          list.setItemChecked(defaultLengthIndex, true)
+          list.setOnItemClickListener(onClickListener)
+        case view =>
+          log.fatal("unexpected view " + view)
+      }
+      super.onResume
+    }
+    @Loggable
+    override def onDestroyView() {
+      super.onDestroyView
+      user = None
+    }
+    @Loggable
+    def onItemClick(n: Int) = neutralView.get.foreach {
+      neutralButton =>
+        neutralButton.setEnabled(n == defaultLengthIndex)
+    }
+  }
 }
-
-
-
-
 
