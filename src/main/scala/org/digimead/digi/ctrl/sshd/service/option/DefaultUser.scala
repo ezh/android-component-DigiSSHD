@@ -53,7 +53,8 @@ import org.digimead.digi.ctrl.sshd.user.UserDialog
 import org.digimead.digi.ctrl.sshd.user.UserKeys
 
 import android.content.Context
-import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentTransaction
 import android.text.Html
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -61,6 +62,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
+import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.Toast
@@ -68,6 +70,11 @@ import android.widget.Toast
 object DefaultUser extends CheckBoxItem with Logging {
   val option: DOption.OptVal = DOption.Value("android_user", classOf[Boolean], true: java.lang.Boolean)
   @volatile private var android: UserInfo = AppComponent.Context.flatMap(c => UserAdapter.find(c, "android")) getOrElse { log.fatal("unable to find 'android' user"); null }
+  /**
+   * Issue 7139: MenuItem.getMenuInfo() returns null for sub-menu items
+   * affected API 8 - API 16, blame for such 'quality', few years without reaction
+   */
+  @volatile private var hackForIssue7139: AdapterContextMenuInfo = null
 
   @Loggable
   def onCheckboxClick(view: CheckBox, lastState: Boolean): Unit = TabContent.fragment.map {
@@ -124,18 +131,15 @@ object DefaultUser extends CheckBoxItem with Logging {
   def onDialogUserUpdate(context: Context, newUser: UserInfo) = {
     if (UserAdapter.isSingleUser(context) && AppComponent.Inner.state.get.value == DState.Active) for {
       fragment <- TabContent.fragment
-      dialog <- DefaultUser.Dialog.restartRequired
+      dialog <- SSHDResource.serviceRestartRequired
     } if (!dialog.isShowing)
-      SafeDialog(fragment.getSherlockActivity, dialog, () => dialog).target(R.id.main_topPanel).show()
+      Dialog.restartRequired(fragment.getSherlockActivity)
     android = newUser
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo) {
     val context = v.getContext
     log.debug("create context menu for " + option.tag)
-    val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, android) }
-    val dropbearKeyFileFuture = Futures.future { UserKeys.getDropbearKeyFile(context, android) }
-    val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, android) }
     menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "android_user_context_menu_title").
       getOrElse("user <b>android</b>")))
     menu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
@@ -160,14 +164,24 @@ object DefaultUser extends CheckBoxItem with Logging {
     detailsMenu.add(Menu.NONE, XResource.getId(context, "users_show_details"), 2,
       XResource.getString(context, "users_show_details").getOrElse("Show"))
     // disable unavailable items
-    val result = Futures.awaitAll(DTimeout.shortest + 500, publicKeyFileFuture,
-      dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
-    if (result(0).flatMap(f => f).isEmpty) {
+    if (AppControl.isBound) {
+      val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, android) }
+      val dropbearKeyFileFuture = Futures.future { UserKeys.getDropbearKeyFile(context, android) }
+      val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, android) }
+      val result = Futures.awaitAll(DTimeout.shortest + 500, publicKeyFileFuture,
+        dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
+      if (result(0).flatMap(f => f).isEmpty) {
+        generateKeyItem.setEnabled(false)
+        importKeyItem.setEnabled(false)
+      }
+      if (result(1).flatMap(_.map(_.exists)) != Some(true)) exportDropbearKeyItem.setEnabled(false)
+      if (result(2).flatMap(_.map(_.exists)) != Some(true)) exportOpenSSHKeyItem.setEnabled(false)
+    } else {
       generateKeyItem.setEnabled(false)
       importKeyItem.setEnabled(false)
+      exportDropbearKeyItem.setEnabled(false)
+      exportOpenSSHKeyItem.setEnabled(false)
     }
-    if (result(1).flatMap(_.map(_.exists)) != Some(true)) exportDropbearKeyItem.setEnabled(false)
-    if (result(2).flatMap(_.map(_.exists)) != Some(true)) exportOpenSSHKeyItem.setEnabled(false)
   }
   override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
     fragment =>
@@ -218,8 +232,13 @@ object DefaultUser extends CheckBoxItem with Logging {
   }
 
   object Dialog {
-    lazy val restartRequired = AppComponent.Context.map(context =>
-      Fragment.instantiate(context.getApplicationContext, classOf[RestartRequired].getName, null).asInstanceOf[RestartRequired])
+    @Loggable
+    def restartRequired(activity: FragmentActivity) =
+      SSHDResource.serviceRestartRequired.foreach(dialog =>
+        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+          ft.addToBackStack(dialog)
+        }).show())
 
     class RestartRequired extends SSHDAlertDialog(Some(_root_.android.R.drawable.ic_dialog_alert)) with Logging {
       override protected lazy val positive = Some((_root_.android.R.string.ok,
@@ -227,7 +246,7 @@ object DefaultUser extends CheckBoxItem with Logging {
           Some((dialog: RestartRequired) => onRestartRequired))))
       override protected lazy val negative = Some((_root_.android.R.string.cancel,
         new XDialog.ButtonListener(new WeakReference(RestartRequired.this),
-          Some(defaultNegativeButtonCallback))))
+          Some(defaultButtonCallback))))
 
       def tag = "dialog_service_restartrequired"
       def title = XResource.getString(getSherlockActivity, "warning_singleusermode_restart_title").getOrElse("Apply new settings")

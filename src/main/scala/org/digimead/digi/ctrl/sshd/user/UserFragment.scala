@@ -108,7 +108,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   private var savedTitle: CharSequence = ""
   /**
    * Issue 7139: MenuItem.getMenuInfo() returns null for sub-menu items
-   * from API 8 to API 16
+   * affected API 8 - API 16, blame for such 'quality', few years without reaction
    */
   @volatile private var hackForIssue7139: AdapterContextMenuInfo = null
   log.debug("alive")
@@ -228,9 +228,6 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
           val context = v.getContext
           adapter.getItem(info.position) match {
             case item: UserInfo =>
-              val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, item) }
-              val dropbearKeyFileFuture = Futures.future { UserKeys.getDropbearKeyFile(context, item) }
-              val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, item) }
               menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "users_user").
                 getOrElse("user <b>%s</b>").format(item.name)))
               menu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
@@ -240,12 +237,13 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
               else
                 menu.add(Menu.NONE, XResource.getId(context, "users_enable"), 1,
                   XResource.getString(context, "users_enable").getOrElse("Enable"))
-              if (item.name != "android") {
+              val homeItem = if (item.name != "android") {
                 menu.add(Menu.NONE, XResource.getId(context, "users_set_gid_uid"), 2,
                   XResource.getString(context, "users_set_gid_uid").getOrElse("Set GID and UID"))
-                menu.add(Menu.NONE, XResource.getId(context, "users_set_home"), 3,
-                  XResource.getString(context, "users_set_home").getOrElse("Set home directory"))
-              }
+                Some(menu.add(Menu.NONE, XResource.getId(context, "users_set_home"), 3,
+                  XResource.getString(context, "users_set_home").getOrElse("Set home directory")))
+              } else
+                None
               // keys
               val keysMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_keys_menu"), 4,
                 XResource.getString(context, "users_keys_menu").getOrElse("Key management"))
@@ -267,19 +265,32 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
               detailsMenu.add(Menu.NONE, XResource.getId(context, "users_show_details"), 2,
                 XResource.getString(context, "users_show_details").getOrElse("Show"))
               // non android
-              if (item.name != "android") {
-                menu.add(Menu.NONE, XResource.getId(context, "users_delete"), 6,
-                  XResource.getString(context, "users_delete").getOrElse("Delete"))
-              }
+              val deleteItem = if (item.name != "android")
+                Some(menu.add(Menu.NONE, XResource.getId(context, "users_delete"), 6,
+                  XResource.getString(context, "users_delete").getOrElse("Delete")))
+              else
+                None
               // disable unavailable items
-              val result = Futures.awaitAll(DTimeout.shortest + 500, publicKeyFileFuture,
-                dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
-              if (result(0).flatMap(f => f).isEmpty) {
+              if (AppControl.isBound) {
+                val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, item) }
+                val dropbearKeyFileFuture = Futures.future { UserKeys.getDropbearKeyFile(context, item) }
+                val opensshKeyFileFuture = Futures.future { UserKeys.getOpenSSHKeyFile(context, item) }
+                val result = Futures.awaitAll(DTimeout.shortest + 500, publicKeyFileFuture,
+                  dropbearKeyFileFuture, opensshKeyFileFuture).asInstanceOf[List[Option[Option[File]]]]
+                if (result(0).flatMap(f => f).isEmpty) {
+                  generateKeyItem.setEnabled(false)
+                  importKeyItem.setEnabled(false)
+                }
+                if (result(1).flatMap(_.map(_.exists)) != Some(true)) exportDropbearKeyItem.setEnabled(false)
+                if (result(2).flatMap(_.map(_.exists)) != Some(true)) exportOpenSSHKeyItem.setEnabled(false)
+              } else {
                 generateKeyItem.setEnabled(false)
                 importKeyItem.setEnabled(false)
+                exportDropbearKeyItem.setEnabled(false)
+                exportOpenSSHKeyItem.setEnabled(false)
+                homeItem.foreach(_.setEnabled(false))
+                deleteItem.foreach(_.setEnabled(false))
               }
-              if (result(1).flatMap(_.map(_.exists)) != Some(true)) exportDropbearKeyItem.setEnabled(false)
-              if (result(2).flatMap(_.map(_.exists)) != Some(true)) exportOpenSSHKeyItem.setEnabled(false)
             case item =>
               log.fatal("unknown item " + item)
           }
@@ -620,6 +631,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     apply <- apply.get
     blockAll <- blockAll.get
     deleteAll <- deleteAll.get
+    userGenerateButton <- userGenerateButton.get
     userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
   } Futures.future {
     var applyState = if (lastActiveUserInfo.get.nonEmpty) {
@@ -637,6 +649,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
       var blockAllState = UserAdapter.list.exists(_.enabled)
       var deleteAllState = UserAdapter.list.exists(_.name != "android")
       AnyBase.runOnUiThread {
+        userGenerateButton.setEnabled(AppControl.isBound)
         apply.setEnabled(applyState)
         userName.setEnabled(userNameState)
         userPassword.setEnabled(userPasswordState)
@@ -645,6 +658,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
       }
     } else {
       AnyBase.runOnUiThread {
+        userGenerateButton.setEnabled(AppControl.isBound)
         apply.setEnabled(applyState)
         userName.setEnabled(false)
         userPassword.setEnabled(userPasswordState)
@@ -708,7 +722,7 @@ object UserFragment extends Logging {
           Some((dialog: CreateUser) => fragment.foreach(_.onDialogUserCreate)))))
       override protected lazy val negative = Some((android.R.string.cancel,
         new XDialog.ButtonListener(new WeakReference(CreateUser.this),
-          Some(defaultNegativeButtonCallback))))
+          Some(defaultButtonCallback))))
 
       def tag = "dialog_user_create"
       def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_create_user_title").
@@ -724,7 +738,7 @@ object UserFragment extends Logging {
           Some((dialog: UpdateUser) => fragment.foreach(_.onDialogUserUpdate())))))
       override protected lazy val negative = Some((android.R.string.cancel,
         new XDialog.ButtonListener(new WeakReference(UpdateUser.this),
-          Some(defaultNegativeButtonCallback))))
+          Some(defaultButtonCallback))))
 
       def tag = "dialog_user_update"
       def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_update_user_title").
@@ -739,7 +753,7 @@ object UserFragment extends Logging {
           Some((dialog: DisableAllUsers) => fragment.foreach(_.onDialogDisableAllUsers)))))
       override protected lazy val negative = Some((android.R.string.cancel,
         new XDialog.ButtonListener(new WeakReference(DisableAllUsers.this),
-          Some(defaultNegativeButtonCallback))))
+          Some(defaultButtonCallback))))
 
       def tag = "dialog_user_disable_all"
       def title = XResource.getString(getSherlockActivity, "users_disable_all_title").
@@ -754,7 +768,7 @@ object UserFragment extends Logging {
           Some((dialog: DeleteAllUsers) => fragment.foreach(_.onDialogDeleteAllUsers)))))
       override protected lazy val negative = Some((android.R.string.cancel,
         new XDialog.ButtonListener(new WeakReference(DeleteAllUsers.this),
-          Some(defaultNegativeButtonCallback))))
+          Some(defaultButtonCallback))))
 
       def tag = "dialog_user_delete_all"
       def title = XResource.getString(getSherlockActivity, "users_delete_all_title").

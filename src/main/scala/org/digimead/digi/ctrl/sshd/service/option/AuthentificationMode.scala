@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.actors.Futures
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -33,25 +36,20 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.SSHDResource
+import org.digimead.digi.ctrl.sshd.ext.SSHDListDialog
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
-import android.app.AlertDialog
-import android.app.Dialog
 import android.content.Context
-import android.content.DialogInterface
-import android.os.Bundle
-import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentManager
+import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentTransaction
+import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.AbsListView
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.CheckBox
-import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 
@@ -61,11 +59,9 @@ object AuthentificationMode extends TextViewItem with Logging {
   @Loggable
   override def onListItemClick(l: ListView, v: View) = for {
     fragment <- TabContent.fragment
-    dialog <- AuthentificationMode.Dialog.selectAuth
-  } if (dialog.isShowing)
-    log.debug(dialog + " already shown")
-  else
-    dialog.show(fragment)
+    dialog <- SSHDResource.serviceSelectAuth
+  } if (!dialog.isShowing)
+    Dialog.selectPort(fragment.getSherlockActivity)
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
     SSHDPreferences.AuthentificationMode.get(context).id.asInstanceOf[T]
@@ -83,147 +79,80 @@ object AuthentificationMode extends TextViewItem with Logging {
     }
     view
   }
-  object Dialog {
-    lazy val selectAuth = AppComponent.Context.map(context =>
-      Fragment.instantiate(context.getApplicationContext, classOf[SelectAuth].getName, null).asInstanceOf[SelectAuth])
-    class SelectAuth extends SSHDDialog with Logging {
-      private lazy val currentValue = new AtomicInteger(getState[Int](getSherlockActivity))
-      @volatile private var initialValue: Option[Int] = None
-      @volatile private var ok = new WeakReference[Button](null)
-      private lazy val cachedDialog = {
-        val dialog = new AlertDialog.Builder(getSherlockActivity).
-          setIcon(android.R.drawable.ic_menu_preferences).
-          setTitle(R.string.dialog_auth_title).
-          setSingleChoiceItems(R.array.auth_type, defaultSelection, onChoiseListener).
-          setPositiveButton(android.R.string.ok, positiveButtonListener).
-          setNegativeButton(android.R.string.cancel, negativeButtonListener).
-          create()
-        dialog.show
-        dialog
-      }
-      private lazy val cachedEmbedded = {
-        val context = getSherlockActivity
-        val view = LayoutInflater.from(context).inflate(R.layout.fragment_dialog_list, null)
-        val list = view.findViewById(android.R.id.custom).asInstanceOf[ListView]
-        list.setAdapter(ArrayAdapter.createFromResource(context, R.array.auth_type, android.R.layout.simple_list_item_single_choice))
-        list.setChoiceMode(AbsListView.CHOICE_MODE_SINGLE)
-        list.setOnItemClickListener(new AdapterView.OnItemClickListener {
-          def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) =
-            onChoiseListener.onClick(null, position)
-        })
-        val title = view.findViewById(android.R.id.title).asInstanceOf[TextView]
-        title.setText(R.string.dialog_auth_title)
-        val icon = view.findViewById(android.R.id.icon).asInstanceOf[ImageView]
-        icon.setImageResource(android.R.drawable.ic_menu_preferences)
-        icon.setVisibility(View.VISIBLE)
-        view.findViewById(android.R.id.summary).setVisibility(View.VISIBLE)
-        val cancel = view.findViewById(android.R.id.button1).asInstanceOf[Button]
-        cancel.setVisibility(View.VISIBLE)
-        cancel.setText(android.R.string.cancel)
-        cancel.setOnClickListener(new View.OnClickListener {
-          def onClick(v: View) = negativeButtonListener.onClick(null, 0)
-        })
-        val ok = view.findViewById(android.R.id.button2).asInstanceOf[Button]
-        ok.setOnClickListener(new View.OnClickListener {
-          def onClick(v: View) = positiveButtonListener.onClick(null, 0)
-        })
-        ok.setVisibility(View.VISIBLE)
-        ok.setText(android.R.string.ok)
-        view
-      }
-      private lazy val cachedEmbeddedAttr = XResource.getAttributeSet(getSherlockActivity, R.layout.fragment_dialog_list)
-      private lazy val positiveButtonListener = new SelectAuth.PositiveButtonListener(new WeakReference(this))
-      private lazy val negativeButtonListener = new SelectAuth.NegativeButtonListener(new WeakReference(this))
-      private lazy val onChoiseListener = new SelectAuth.OnChoiceListener(new WeakReference(this))
 
-      def tag = "dialog_authmode"
+  object Dialog {
+    @Loggable
+    def selectPort(activity: FragmentActivity) =
+      SSHDResource.serviceSelectAuth.foreach(dialog =>
+        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+          ft.addToBackStack(dialog)
+        }).show())
+
+    class SelectAuth
+      extends SSHDListDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+      @volatile private var authInitialValue: Option[Int] = None
+      private lazy val currentValue = new AtomicInteger()
+      override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(SelectAuth.this),
+        Some((dialog: SelectAuth) => {
+          defaultButtonCallback(dialog)
+          onPositiveClick
+        }))))
+      override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(SelectAuth.this),
+        Some(defaultButtonCallback))))
+      protected lazy val adapter = ArrayAdapter.createFromResource(getSherlockActivity, R.array.auth_type, android.R.layout.simple_list_item_single_choice)
+      lazy val onClickListener = new AdapterView.OnItemClickListener {
+        def onItemClick(parent: AdapterView[_], view: View, position: Int, id: Long) = SelectAuth.this.onItemClick(position)
+      }
+
+      def tag = "dialog_service_authmode"
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "service_authmode_title").
+        getOrElse("Authentification mode"))
+      def message = None
       @Loggable
-      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = if (getShowsDialog) {
-        null
-      } else {
-        val context = getSherlockActivity
-        Option(cachedEmbedded.getParent).foreach(_.asInstanceOf[ViewGroup].removeView(cachedEmbedded))
-        cachedEmbeddedAttr.foreach(attr => cachedEmbedded.setLayoutParams(container.generateLayoutParams(attr)))
-        val currentValue = SSHDPreferences.AuthentificationMode.get(getSherlockActivity).id
-        initialValue = Some(currentValue)
-        cachedEmbedded.findViewById(android.R.id.custom).asInstanceOf[ListView].
-          setItemChecked(defaultSelection, true)
-        ok = new WeakReference(cachedEmbedded.findViewById(android.R.id.button2).asInstanceOf[Button])
-        ok.get.foreach(_.setEnabled(false))
-        cachedEmbedded
+      override def onResume() {
+        authInitialValue = Option(defaultSelection)
+        authInitialValue.foreach {
+          authInitialValue =>
+            currentValue.set(authInitialValue)
+            customView.get.map {
+              case list: ListView =>
+                log.debug("update list attributes")
+                list.setChoiceMode(AbsListView.CHOICE_MODE_SINGLE)
+                list.setItemChecked(authInitialValue, true)
+                list.setOnItemClickListener(onClickListener)
+              case view =>
+                log.fatal("unexpected view " + view)
+            }
+        }
+        positiveView.get.foreach(_.setEnabled(false))
+        super.onResume
       }
       @Loggable
-      override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
-        cachedDialog.show
-        val currentValue = SSHDPreferences.AuthentificationMode.get(getSherlockActivity).id
-        initialValue = Some(currentValue)
-        cachedDialog.getListView.setItemChecked(defaultSelection, true)
-        ok = new WeakReference(cachedDialog.findViewById(android.R.id.button1).asInstanceOf[Button])
-        ok.get.foreach(_.setEnabled(false))
-        cachedDialog
+      def onItemClick(n: Int) = positiveView.get.foreach {
+        positiveButton =>
+          positiveButton.setEnabled(!authInitialValue.exists(_ == n))
+          currentValue.set(n)
       }
-      private def innerView(context: Context) = {
+      @Loggable
+      def onPositiveClick() {
         val context = getSherlockActivity
-        val view = new ListView(context)
-        view.setId(android.R.id.list)
-        view.setAdapter(ArrayAdapter.createFromResource(context, R.array.auth_type, android.R.layout.simple_list_item_single_choice))
-        view.setChoiceMode(AbsListView.CHOICE_MODE_SINGLE)
-        view
-      }
-      private def defaultSelection =
-        SSHDPreferences.AuthentificationMode.get(getSherlockActivity).id - 1
-    }
-    object SelectAuth {
-      class PositiveButtonListener(dialog: WeakReference[SelectAuth]) extends DialogInterface.OnClickListener() {
-        def onClick(dialogInterface: DialogInterface, whichButton: Int) = try {
-          dialog.get.foreach {
-            dialog =>
-              log.debug("change authentification mode")
-              val context = dialog.getSherlockActivity
-              val authType = SSHDPreferences.AuthentificationType(dialog.currentValue.get)
-              Futures.future { SSHDPreferences.AuthentificationMode.set(authType, context, true) }
-              AuthentificationMode.view.get.foreach(view => {
-                val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
-                XResource.getString(dialog.getSherlockActivity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
-                  case Some(string) =>
-                    text.setText(string)
-                  case None =>
-                    text.setText(authType.toString.toLowerCase.replaceAll(""" """, "\n"))
-                }
-              })
-              // update DefaultUser enable/disable flag
-              DefaultUser.view.get.foreach(v => DefaultUser.updateCheckbox(v.findViewById(_root_.android.R.id.checkbox).asInstanceOf[CheckBox]))
-              if (!dialog.getShowsDialog)
-                dialog.getSherlockActivity.getSupportFragmentManager.
-                  popBackStackImmediate(dialog, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        val authType = SSHDPreferences.AuthentificationType(currentValue.get + 1)
+        Futures.future { SSHDPreferences.AuthentificationMode.set(authType, context, true) }
+        AuthentificationMode.view.get.foreach(view => {
+          val text = view.findViewById(android.R.id.content).asInstanceOf[TextView]
+          XResource.getString(getSherlockActivity, "option_auth_" + authType.toString.replaceAll(""" """, """_""")) match {
+            case Some(string) =>
+              text.setText(string)
+            case None =>
+              text.setText(authType.toString.toLowerCase.replaceAll(""" """, "\n"))
           }
-        } catch {
-          case e =>
-            log.error(e.getMessage, e)
-        }
+        })
+        // update DefaultUser enable/disable flag
+        DefaultUser.view.get.foreach(v => DefaultUser.updateCheckbox(v.findViewById(_root_.android.R.id.checkbox).asInstanceOf[CheckBox]))
       }
-      class NegativeButtonListener(dialog: WeakReference[SelectAuth]) extends DialogInterface.OnClickListener() {
-        def onClick(dialogInterface: DialogInterface, whichButton: Int) = try {
-          dialog.get.foreach(dialog => if (!dialog.getShowsDialog)
-            dialog.getSherlockActivity.getSupportFragmentManager.
-            popBackStackImmediate(dialog, FragmentManager.POP_BACK_STACK_INCLUSIVE))
-        } catch {
-          case e =>
-            log.error(e.getMessage, e)
-        }
-      }
-      class OnChoiceListener(dialog: WeakReference[SelectAuth]) extends DialogInterface.OnClickListener() {
-        def onClick(dialogInterface: DialogInterface, which: Int) = try {
-          dialog.get.foreach {
-            dialog =>
-              dialog.currentValue.set(which + 1)
-              dialog.ok.get.foreach(_.setEnabled(!dialog.initialValue.exists(_ == dialog.currentValue.get)))
-          }
-        } catch {
-          case e =>
-            log.error(e.getMessage, e)
-        }
-      }
+      private def defaultSelection: Int =
+        Futures.future { SSHDPreferences.AuthentificationMode.get(getSherlockActivity).id - 1 }()
     }
   }
 }

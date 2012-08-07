@@ -80,7 +80,7 @@ class SSHDService extends Service with DService {
     super.onCreate()
     onCreateExt(this)
     SSHDPreferences.initServicePersistentOptions(this)
-    if (AppControl.Inner.isAvailable != Some(true))
+    if (AppControl.Inner.isBound != Some(true))
       Futures.future {
         log.debug("try to bind " + DConstant.controlPackage)
         AppComponent.Inner.minVersionRequired(DConstant.controlPackage) match {

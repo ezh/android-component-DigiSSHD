@@ -252,7 +252,7 @@ object UserDialog extends Logging {
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
       Some((dialog: ChangePassword) => onPositiveButtonClick))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
     for {
       enablePasswordButton <- enablePasswordButton
       togglePasswordButton <- togglePasswordButton
@@ -326,12 +326,10 @@ object UserDialog extends Logging {
   object ChangePassword {
     private val maxLengthFilter = new InputFilter.LengthFilter(5)
 
-    def customView(): Option[(LinearLayout, CheckBox, ImageButton, EditText)] = AppComponent.AppContext.flatMap { context =>
-      val view = new LinearLayout(context)
-      view.setOrientation(LinearLayout.VERTICAL)
-      view.setId(android.R.id.custom)
-      val inner = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(R.layout.dialog_edittext, null).asInstanceOf[LinearLayout]
+    def customView(): Option[(ViewGroup, CheckBox, ImageButton, EditText)] = AppComponent.AppContext.flatMap { context =>
+      val view = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
+        inflate(R.layout.dialog_edittext, null).asInstanceOf[ViewGroup]
+      val inner = view.findViewById(android.R.id.edit).getParent.asInstanceOf[LinearLayout]
       val enablePasswordButton = new CheckBox(context)
       enablePasswordButton.setLayoutParams(new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
       inner.addView(enablePasswordButton, 0)
@@ -343,7 +341,6 @@ object UserDialog extends Logging {
       val passwordField = inner.findViewById(_root_.android.R.id.edit).asInstanceOf[EditText]
       passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
       passwordField.setFilters(Array(userPasswordFilter))
-      view.addView(inner, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
       Some(view, enablePasswordButton, togglePasswordButton, passwordField)
     }
     class PasswordFieldTextChangedListener(ok: AtomicReference[Option[View]], dialog: WeakReference[ChangePassword]) extends TextWatcher {
@@ -455,7 +452,7 @@ object UserDialog extends Logging {
           }
       }))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
 
     @Loggable
     override def onDestroyView() {
@@ -481,7 +478,7 @@ object UserDialog extends Logging {
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
       }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(Delete.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
 
     def tag = "dialog_user_delete"
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_delete_title").
@@ -529,7 +526,7 @@ object UserDialog extends Logging {
         }
       }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
 
     def tag = "dialog_user_set_guid"
     def title = XResource.getString(getSherlockActivity, "users_set_guid_title").
@@ -592,7 +589,7 @@ object UserDialog extends Logging {
     @volatile var user: Option[UserInfo] = None
     override lazy val extContent = ShowDetails.customContent
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(ShowDetails.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
 
     def tag = "dialog_user_details"
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_details_title").
@@ -644,7 +641,7 @@ object UserDialog extends Logging {
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(KeyReplace.this),
       Some((dialog: KeyReplace) => { log.g_a_s_e("AAAA") }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(KeyReplace.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
 
     def tag = "dialog_user_key_replace"
     def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_key_replace_title").
@@ -663,7 +660,7 @@ object UserDialog extends Logging {
     extends SSHDListDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
     @volatile var user: Option[UserInfo] = None
     override protected lazy val positive = Some((R.string.RSA, new XDialog.ButtonListener(new WeakReference(KeyType.this),
-      Some((dialog: KeyType) => (dialog: KeyType) => {
+      Some((dialog: KeyType) => {
         customView.get.map {
           case list: ListView =>
             val context = getSherlockActivity
@@ -683,7 +680,7 @@ object UserDialog extends Logging {
         user.foreach(user => Futures.future { UserKeys.generateDSAKey(context, user) })
       }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(KeyType.this),
-      Some(defaultNegativeButtonCallback))))
+      Some(defaultButtonCallback))))
     val defaultLengthIndex = 2
     val keyLength = Array[CharSequence]("4096 bits (only RSA)", "2048 bits (only RSA)", "1024 bits (RSA and DSA)")
     protected lazy val adapter = new ArrayAdapter[CharSequence](getSherlockActivity, android.R.layout.simple_list_item_single_choice, keyLength.toList)

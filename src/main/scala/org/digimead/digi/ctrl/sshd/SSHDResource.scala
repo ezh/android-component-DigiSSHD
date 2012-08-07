@@ -58,10 +58,20 @@ class SSHDResource(activity: WeakReference[Activity]) {
   lazy val userCreate = activity.get.map(a => Fragment.instantiate(a, classOf[UserFragment.Dialog.CreateUser].getName, null).asInstanceOf[UserFragment.Dialog.CreateUser])
   lazy val userDisableAll = activity.get.map(a => Fragment.instantiate(a, classOf[UserFragment.Dialog.DisableAllUsers].getName, null).asInstanceOf[UserFragment.Dialog.DisableAllUsers])
   lazy val userDeleteAll = activity.get.map(a => Fragment.instantiate(a, classOf[UserFragment.Dialog.DeleteAllUsers].getName, null).asInstanceOf[UserFragment.Dialog.DeleteAllUsers])
+  // service.option
+  lazy val serviceRestartRequired = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.option.DefaultUser.Dialog.RestartRequired].getName, null).asInstanceOf[service.option.DefaultUser.Dialog.RestartRequired])
+  lazy val serviceRootRequest = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.option.GrantSuperuserPermission.Dialog.RootRequest].getName, null).asInstanceOf[service.option.GrantSuperuserPermission.Dialog.RootRequest])
+  lazy val serviceSelectPort = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.option.NetworkPort.Dialog.SelectPort].getName, null).asInstanceOf[service.option.NetworkPort.Dialog.SelectPort])
+  lazy val serviceSelectAuth = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.option.AuthentificationMode.Dialog.SelectAuth].getName, null).asInstanceOf[service.option.AuthentificationMode.Dialog.SelectAuth])
 }
 
 object SSHDResource {
   // implicit conversion broken in 2.8 :-/
+
   // UserDialog
   def userChangePassword = SSHDActivity.activity.flatMap(_.resources.userChangePassword)
   def userEnable = SSHDActivity.activity.flatMap(_.resources.userEnable)
@@ -77,4 +87,9 @@ object SSHDResource {
   def userCreate = SSHDActivity.activity.flatMap(_.resources.userCreate)
   def userDisableAll = SSHDActivity.activity.flatMap(_.resources.userDisableAll)
   def userDeleteAll = SSHDActivity.activity.flatMap(_.resources.userDeleteAll)
+  // service.option
+  def serviceRestartRequired = SSHDActivity.activity.flatMap(_.resources.serviceRestartRequired)
+  def serviceRootRequest = SSHDActivity.activity.flatMap(_.resources.serviceRootRequest)
+  def serviceSelectPort = SSHDActivity.activity.flatMap(_.resources.serviceSelectPort)
+  def serviceSelectAuth = SSHDActivity.activity.flatMap(_.resources.serviceSelectAuth)
 }

@@ -25,11 +25,11 @@ import scala.actors.Futures
 
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppControl
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.service.TabContent
-import org.digimead.digi.ctrl.sshd.user.UserDialog
 
 import android.content.Context
 import android.view.ContextMenu
@@ -75,32 +75,33 @@ object RSAPublicKeyEncription extends CheckBoxItem with PublicKey with Logging {
     val context = v.getContext
     log.debug("create context menu for " + option.tag)
     menu.setHeaderTitle(option.tag.toUpperCase)
-    /*if (item.icon.nonEmpty)
-      XResource.getId(context, item.icon, "drawable") match {
-        case i if i != 0 =>
-          menu.setHeaderIcon(i)
-        case _ =>
-      }*/
-    menu.add(Menu.NONE, XResource.getId(context, "generate_host_key"), 1,
+    menu.setHeaderIcon(android.R.drawable.ic_menu_preferences)
+    val generateKeyItem = menu.add(Menu.NONE, XResource.getId(context, "generate_host_key"), 1,
       XResource.getString(context, "generate_host_key").getOrElse("Generate host key"))
-    menu.add(Menu.NONE, XResource.getId(context, "import_host_key"), 2,
+    val importKeyItem = menu.add(Menu.NONE, XResource.getId(context, "import_host_key"), 2,
       XResource.getString(context, "import_host_key").getOrElse("Import host key"))
-    menu.add(Menu.NONE, XResource.getId(context, "export_host_key"), 2,
+    val exportKeyItem = menu.add(Menu.NONE, XResource.getId(context, "export_host_key"), 2,
       XResource.getString(context, "export_host_key").getOrElse("Export host key"))
+    // disable unavailable items
+    if (!AppControl.isBound) {
+      generateKeyItem.setEnabled(false)
+      importKeyItem.setEnabled(false)
+      exportKeyItem.setEnabled(false)
+    }
   }
   override def onContextItemSelected(menuItem: MenuItem): Boolean = TabContent.fragment.map {
     fragment =>
       val context = fragment.getSherlockActivity
       menuItem.getItemId match {
         case id if id == XResource.getId(context, "generate_host_key") =>
-/*          Futures.future {
+          /*          Futures.future {
             getSourceKeyFile().foreach(file =>
               UserDialog.checkKeyAlreadyExists(context, "RSA host", file,
                 (activity) => generateHostKey(activity)))
           }*/
           true
         case id if id == XResource.getId(context, "import_host_key") =>
-/*          Futures.future {
+          /*          Futures.future {
             getSourceKeyFile().foreach(file =>
               UserDialog.checkKeyAlreadyExists(context, "RSA host", file,
                 (activity) => importHostKey(activity)))

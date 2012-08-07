@@ -56,6 +56,11 @@ import android.widget.ListView
 import android.widget.TextView
 
 class TabContent extends SherlockListFragment with TabInterface with Logging {
+  /**
+   * Issue 7139: MenuItem.getMenuInfo() returns null for sub-menu items
+   * affected API 8 - API 16, blame for such 'quality', few years without reaction
+   */
+  @volatile private var hackForIssue7139: AdapterContextMenuInfo = null
   TabContent.fragment = Some(this)
   log.debug("alive")
 
@@ -150,6 +155,10 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             environmentBlock.onContextItemSelected(menuItem, item)
           case item: ComponentBlock.Item =>
             componentBlock.onContextItemSelected(menuItem, item)
+          case id if id == XResource.getId(getSherlockActivity, "users_keys_menu") ||
+            id == XResource.getId(getSherlockActivity, "users_details_menu") =>
+            hackForIssue7139 = info
+            true
           case item =>
             log.debug("skip unknown context menu item " + info)
             false
@@ -169,7 +178,7 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
     environmentBlock <- TabContent.environmentBlock
     componentBlock <- TabContent.componentBlock
   } {
-    TabContent.adapter.getItem(position) match {
+    Option(TabContent.adapter.getItem(position)).getOrElse(hackForIssue7139) match {
       case filterItem: FilterBlock.Item =>
         TabContent.filterBlock.foreach(_.onListItemClick(l, v, filterItem))
       case optionItem: OptionBlock.Item =>
