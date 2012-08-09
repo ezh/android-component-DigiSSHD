@@ -174,6 +174,9 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       thanksBlock <- TabContent.thanksBlock
       legalBlock <- TabContent.legalBlock
     } yield menuItem.getMenuInfo match {
+      case null =>
+        log.warn("ignore issue #7139 for menuItem \"" + menuItem.getTitle + "\"")
+        false
       case info: AdapterContextMenuInfo =>
         if (getListView.getPositionForView(info.targetView) == -1)
           return false
@@ -217,9 +220,6 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             log.fatal("unknown item " + item)
             false
         }
-      case null =>
-        log.warn("ignore issue #7139 for menuItem \"" + menuItem.getTitle + "\"")
-        false
       case info =>
         log.fatal("unsupported menu info for menuItem \"" + menuItem.getTitle + "\"")
         false

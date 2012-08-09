@@ -21,11 +21,10 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
+import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
-
-import com.actionbarsherlock.app.SherlockFragmentActivity
 
 import android.support.v4.app.Fragment
 import android.view.View
@@ -42,23 +41,27 @@ trait SSHDFragment {
       activity.findViewById(R.id.main_primary).setVisibility(View.VISIBLE)
       activity.findViewById(R.id.main_secondary).setVisibility(View.GONE)
   }
+  def tag(): String
 }
 
 object SSHDFragment extends Logging {
   type Sherlock = { def getSherlockActivity(): SherlockFragmentActivity }
+
+  @Loggable
   def show(fragment: Class[_ <: SSHDFragment], tab: TabInterface) {
     val manager = tab.getSherlockActivity.getSupportFragmentManager
-    val userFragment = Fragment.instantiate(tab.getSherlockActivity, fragment.getName, null)
+    val fragmentInstance = Fragment.instantiate(tab.getSherlockActivity, fragment.getName, null)
+    val tag = fragmentInstance.asInstanceOf[SSHDFragment].tag
     val target = if (tab.isTopPanelAvailable) {
-      log.debug("show embedded user fragment")
+      log.debug("show embedded fragment " + tag)
       R.id.main_topPanel
     } else {
-      log.debug("show modal user fragment")
+      log.debug("show modal fragment " + tag)
       R.id.main_secondary
     }
     val ft = manager.beginTransaction()
-    ft.replace(target, userFragment)
-    ft.addToBackStack(userFragment.toString)
+    ft.replace(target, fragmentInstance)
+    ft.addToBackStack(tag)
     ft.commit()
   }
 }

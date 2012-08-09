@@ -35,7 +35,6 @@
     <string name="copy_to_clipboard">копировать в буфер обмена</string>
     <string name="dialog_help_title">Помощь</string>
     <string name="dialog_interfaces_legend_title">Легенда интерфейсов</string>
-    <string name="dialog_port_title">Установить сетевой порт</string>
     <string name="dialog_recovery_title">Автоматическое восстановление</string>
     <string name="info_interfaces">интерфейсы</string>
     <string name="info_support">инфраструктура</string>

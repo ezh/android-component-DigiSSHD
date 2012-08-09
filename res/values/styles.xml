@@ -81,11 +81,6 @@
         <item name="android:clickable">true</item>
     </style>
 
-    <style name="ButtonNormalTextWithIcon" parent="ButtonNormalText">
-        <item name="android:drawableTop">@drawable/ic_on</item>
-        <!-- <item name="android:drawableLeft">@drawable/ic_on</item> -->
-    </style>
-
     <style name="HeaderWithDivider">
         <item name="android:background">@drawable/divider_h</item>
     </style>

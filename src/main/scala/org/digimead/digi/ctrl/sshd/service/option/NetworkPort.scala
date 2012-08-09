@@ -62,7 +62,7 @@ object NetworkPort extends TextViewItem with Logging {
     fragment <- TabContent.fragment
     dialog <- SSHDResource.serviceSelectPort
   } if (!dialog.isShowing)
-    Dialog.selectPort(fragment.getSherlockActivity)
+    Dialog.showSelectPort(fragment.getSherlockActivity)
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
     SSHDPreferences.NetworkPort.get(context).asInstanceOf[T]
@@ -76,7 +76,7 @@ object NetworkPort extends TextViewItem with Logging {
 
   object Dialog {
     @Loggable
-    def selectPort(activity: FragmentActivity) =
+    def showSelectPort(activity: FragmentActivity) =
       SSHDResource.serviceSelectPort.foreach(dialog =>
         SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
           ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)

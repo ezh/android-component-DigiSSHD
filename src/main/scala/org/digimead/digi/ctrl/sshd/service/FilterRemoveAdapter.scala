@@ -33,7 +33,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
 
-class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemoveActivity.FilterItem],
+/*class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemoveActivity.FilterItem],
   private val resource: Int = android.R.layout.simple_list_item_1,
   private val fieldId: Int = android.R.id.text1)
   extends ArrayAdapter[String](context, resource, fieldId) with Logging {
@@ -119,4 +119,4 @@ class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemov
 
     view
   }
-}
+}*/

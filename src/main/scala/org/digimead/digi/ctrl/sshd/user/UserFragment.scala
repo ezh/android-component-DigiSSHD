@@ -82,25 +82,25 @@ import android.widget.Toast
 class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   UserFragment.fragment = Some(this)
   private lazy val dynamicHeader = new WeakReference({
-    getSherlockActivity.findViewById(R.id.element_users_header).asInstanceOf[LinearLayout]
+    getSherlockActivity.findViewById(R.id.element_user_header).asInstanceOf[LinearLayout]
   })
   private lazy val dynamicFooter = new WeakReference({
-    getSherlockActivity.findViewById(R.id.element_users_footer).asInstanceOf[LinearLayout].
-      findViewById(R.id.users_footer_dynamic).asInstanceOf[LinearLayout]
+    getSherlockActivity.findViewById(R.id.element_user_footer).asInstanceOf[LinearLayout].
+      findViewById(R.id.user_footer_dynamic).asInstanceOf[LinearLayout]
   })
-  private lazy val apply = new WeakReference(getSherlockActivity.findViewById(R.id.element_users_footer).
-    findViewById(R.id.users_apply).asInstanceOf[TextView])
-  private lazy val blockAll = new WeakReference(getSherlockActivity.findViewById(R.id.element_users_footer).
-    findViewById(R.id.users_footer_toggle_all).asInstanceOf[TextView])
-  private lazy val deleteAll = new WeakReference(getSherlockActivity.findViewById(R.id.element_users_footer).
-    findViewById(R.id.users_footer_delete_all).asInstanceOf[TextView])
-  private lazy val userName = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_name).
+  private lazy val apply = new WeakReference(getSherlockActivity.findViewById(R.id.element_user_footer).
+    findViewById(R.id.user_apply).asInstanceOf[TextView])
+  private lazy val blockAll = new WeakReference(getSherlockActivity.findViewById(R.id.element_user_footer).
+    findViewById(R.id.user_footer_toggle_all).asInstanceOf[TextView])
+  private lazy val deleteAll = new WeakReference(getSherlockActivity.findViewById(R.id.element_user_footer).
+    findViewById(R.id.user_footer_delete_all).asInstanceOf[TextView])
+  private lazy val userName = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_name).
     asInstanceOf[TextView]).getOrElse(null))
-  private lazy val userGenerateButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_add).
+  private lazy val userGenerateButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_add).
     asInstanceOf[ImageButton]).getOrElse(null))
-  private lazy val userPassword = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_password).
+  private lazy val userPassword = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_password).
     asInstanceOf[TextView]).getOrElse(null))
-  private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.users_show_password).
+  private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_show_password).
     asInstanceOf[ImageButton]).getOrElse(null))
   private lazy val userPasswordEnabledCheckbox = new WeakReference(dynamicFooter.get.map(_.findViewById(android.R.id.checkbox).
     asInstanceOf[CheckBox]).getOrElse(null))
@@ -113,7 +113,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   @volatile private var hackForIssue7139: AdapterContextMenuInfo = null
   log.debug("alive")
 
-  override def toString = "fragment_users"
+  def tag = "fragment_users"
   @Loggable
   override def onAttach(activity: Activity) {
     super.onAttach(activity)
@@ -215,7 +215,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         userPasswordEnabledCheckbox.setChecked(isPasswordEnabled())
         updateFieldsState()
       } else
-        Toast.makeText(context, XResource.getString(context, "users_in_single_user_mode").getOrElse("only android user available in single user mode"), Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, XResource.getString(context, "user_in_single_user_mode").getOrElse("only android user available in single user mode"), Toast.LENGTH_SHORT).show()
     case item =>
       log.fatal("unknown item " + item)
   }
@@ -228,25 +228,25 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
           val context = v.getContext
           adapter.getItem(info.position) match {
             case item: UserInfo =>
-              menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "users_user").
+              menu.setHeaderTitle(Html.fromHtml(XResource.getString(context, "user_user").
                 getOrElse("user <b>%s</b>").format(item.name)))
               menu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
               if (item.enabled)
-                menu.add(Menu.NONE, XResource.getId(context, "users_disable"), 1,
-                  XResource.getString(context, "users_disable").getOrElse("Disable"))
+                menu.add(Menu.NONE, XResource.getId(context, "user_disable"), 1,
+                  XResource.getString(context, "user_disable").getOrElse("Disable"))
               else
-                menu.add(Menu.NONE, XResource.getId(context, "users_enable"), 1,
-                  XResource.getString(context, "users_enable").getOrElse("Enable"))
+                menu.add(Menu.NONE, XResource.getId(context, "user_enable"), 1,
+                  XResource.getString(context, "user_enable").getOrElse("Enable"))
               val homeItem = if (item.name != "android") {
-                menu.add(Menu.NONE, XResource.getId(context, "users_set_gid_uid"), 2,
-                  XResource.getString(context, "users_set_gid_uid").getOrElse("Set GID and UID"))
-                Some(menu.add(Menu.NONE, XResource.getId(context, "users_set_home"), 3,
-                  XResource.getString(context, "users_set_home").getOrElse("Set home directory")))
+                menu.add(Menu.NONE, XResource.getId(context, "user_set_gid_uid"), 2,
+                  XResource.getString(context, "user_set_gid_uid").getOrElse("Set GID and UID"))
+                Some(menu.add(Menu.NONE, XResource.getId(context, "user_set_home"), 3,
+                  XResource.getString(context, "user_set_home").getOrElse("Set home directory")))
               } else
                 None
               // keys
-              val keysMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_keys_menu"), 4,
-                XResource.getString(context, "users_keys_menu").getOrElse("Key management"))
+              val keysMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "user_keys_menu"), 4,
+                XResource.getString(context, "user_keys_menu").getOrElse("Key management"))
               keysMenu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
               val generateKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "generate_user_key"), 1,
                 XResource.getString(context, "generate_user_key").getOrElse("Generate user key"))
@@ -257,17 +257,17 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
               val exportOpenSSHKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "export_user_key_openssh"), 4,
                 XResource.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))
               // details
-              val detailsMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_details_menu"), 5,
-                XResource.getString(context, "users_details_menu").getOrElse("Details"))
+              val detailsMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "user_details_menu"), 5,
+                XResource.getString(context, "user_details_menu").getOrElse("Details"))
               detailsMenu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
-              detailsMenu.add(Menu.NONE, XResource.getId(context, "users_copy_details"), 1,
-                XResource.getString(context, "users_copy_details").getOrElse("Copy"))
-              detailsMenu.add(Menu.NONE, XResource.getId(context, "users_show_details"), 2,
-                XResource.getString(context, "users_show_details").getOrElse("Show"))
+              detailsMenu.add(Menu.NONE, XResource.getId(context, "user_copy_details"), 1,
+                XResource.getString(context, "user_copy_details").getOrElse("Copy"))
+              detailsMenu.add(Menu.NONE, XResource.getId(context, "user_show_details"), 2,
+                XResource.getString(context, "user_show_details").getOrElse("Show"))
               // non android
               val deleteItem = if (item.name != "android")
-                Some(menu.add(Menu.NONE, XResource.getId(context, "users_delete"), 6,
-                  XResource.getString(context, "users_delete").getOrElse("Delete")))
+                Some(menu.add(Menu.NONE, XResource.getId(context, "user_delete"), 6,
+                  XResource.getString(context, "user_delete").getOrElse("Delete")))
               else
                 None
               // disable unavailable items
@@ -310,29 +310,29 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
             adapter.getItem(info.position) match {
               case item: UserInfo =>
                 menuItem.getItemId match {
-                  case id if id == XResource.getId(context, "users_disable") =>
+                  case id if id == XResource.getId(context, "user_disable") =>
                     Futures.future { UserDialog.disable(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_enable") =>
+                  case id if id == XResource.getId(context, "user_enable") =>
                     Futures.future { UserDialog.enable(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_set_gid_uid") =>
+                  case id if id == XResource.getId(context, "user_set_gid_uid") =>
                     Futures.future { UserDialog.setGUID(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_set_home") =>
+                  case id if id == XResource.getId(context, "user_set_home") =>
                     Futures.future { UserDialog.setHome(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_delete") =>
+                  case id if id == XResource.getId(context, "user_delete") =>
                     Futures.future { UserDialog.delete(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_copy_details") =>
+                  case id if id == XResource.getId(context, "user_copy_details") =>
                     Futures.future { UserAdapter.copyDetails(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_show_details") =>
+                  case id if id == XResource.getId(context, "user_show_details") =>
                     Futures.future { UserDialog.showDetails(context, item) }
                     true
-                  case id if id == XResource.getId(context, "users_keys_menu") ||
-                    id == XResource.getId(context, "users_details_menu") =>
+                  case id if id == XResource.getId(context, "user_keys_menu") ||
+                    id == XResource.getId(context, "user_details_menu") =>
                     hackForIssue7139 = info
                     true
                   case id if id == XResource.getId(context, "generate_user_key") =>
@@ -390,7 +390,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
               ft.addToBackStack(dialog)
             }).before(dialog => dialog.userName = Some(name)).show())
         case _ =>
-          Toast.makeText(context, Html.fromHtml(XResource.getString(context, "users_unable_to_save").
+          Toast.makeText(context, Html.fromHtml(XResource.getString(context, "user_unable_to_save").
             getOrElse("unable to save <b>%s</b>, validation failed").format(name)), Toast.LENGTH_SHORT).show
       }
     }
@@ -490,7 +490,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
           None
         }) match {
           case Some(newUser) =>
-            val message = Html.fromHtml(XResource.getString(context, "users_update_message").
+            val message = Html.fromHtml(XResource.getString(context, "user_update_message").
               getOrElse("update user <b>%s</b>").format(user.name))
             AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
             IAmWarn(message.toString)
@@ -505,7 +505,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
             }
             updateFieldsState()
           case None =>
-            val message = XResource.getString(context, "users_update_fail_message").
+            val message = XResource.getString(context, "user_update_fail_message").
               getOrElse("update user \"%s\" failed").format(user.name)
             IAmYell(message)
             AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
@@ -526,7 +526,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         val name = userName.getText.toString.trim
         val password = userPassword.getText.toString.trim
         val passwordEnabled = userPasswordEnabledCheckbox.isChecked
-        val message = Html.fromHtml(XResource.getString(context, "users_create_message").
+        val message = Html.fromHtml(XResource.getString(context, "user_create_message").
           getOrElse("created user <b>%s</b>").format(name))
         AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
         IAmWarn(message.toString)
@@ -580,7 +580,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
             adapter.setNotifyOnChange(true)
             adapter.notifyDataSetChanged
           })
-          val message = XResource.getString(context, "users_all_disabled").getOrElse("all users are disabled")
+          val message = XResource.getString(context, "user_all_disabled").getOrElse("all users are disabled")
           IAmWarn(message)
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
@@ -612,7 +612,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
             adapter.setNotifyOnChange(true)
             adapter.notifyDataSetChanged
           })
-          val message = Html.fromHtml(XResource.getString(context, "users_all_deleted").
+          val message = Html.fromHtml(XResource.getString(context, "user_all_deleted").
             getOrElse("all users except <b>android</b> are deleted"))
           IAmWarn(message.toString)
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -725,10 +725,10 @@ object UserFragment extends Logging {
           Some(defaultButtonCallback))))
 
       def tag = "dialog_user_create"
-      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_create_user_title").
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_create_user_title").
         getOrElse("Create user <b>%s</b>").format(userName.getOrElse("unknown")))
       def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
-        "users_create_user_message").getOrElse("Do you want to add new user?")))
+        "user_create_user_message").getOrElse("Do you want to add new user?")))
     }
     class UpdateUser
       extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
@@ -741,10 +741,10 @@ object UserFragment extends Logging {
           Some(defaultButtonCallback))))
 
       def tag = "dialog_user_update"
-      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_update_user_title").
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_update_user_title").
         getOrElse("Update user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
       def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
-        "users_update_user_message").getOrElse("Do you want to save the changes?")))
+        "user_update_user_message").getOrElse("Do you want to save the changes?")))
     }
     class DisableAllUsers
       extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
@@ -756,10 +756,10 @@ object UserFragment extends Logging {
           Some(defaultButtonCallback))))
 
       def tag = "dialog_user_disable_all"
-      def title = XResource.getString(getSherlockActivity, "users_disable_all_title").
+      def title = XResource.getString(getSherlockActivity, "user_disable_all_title").
         getOrElse("Disable all users")
       def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
-        "users_disable_all_message").getOrElse("Are you sure you want to disable all users?")))
+        "user_disable_all_message").getOrElse("Are you sure you want to disable all users?")))
     }
     class DeleteAllUsers
       extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
@@ -771,10 +771,10 @@ object UserFragment extends Logging {
           Some(defaultButtonCallback))))
 
       def tag = "dialog_user_delete_all"
-      def title = XResource.getString(getSherlockActivity, "users_delete_all_title").
+      def title = XResource.getString(getSherlockActivity, "user_delete_all_title").
         getOrElse("Delete all users")
       def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity,
-        "users_delete_all_message").getOrElse("Are you sure you want to delete all users except <b>android</b>?")))
+        "user_delete_all_message").getOrElse("Are you sure you want to delete all users except <b>android</b>?")))
     }
   }
 }

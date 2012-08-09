@@ -32,13 +32,13 @@
     <item name="session_always_deny" type="id"/>
     <item name="session_always_allow_net" type="id"/>
     <item name="session_always_deny_net" type="id"/>
-    <item name="users_disable" type="id"/>
-    <item name="users_enable" type="id"/>
-    <item name="users_delete" type="id"/>
-    <item name="users_set_gid_uid" type="id"/>
-    <item name="users_set_home" type="id"/>
-    <item name="users_show_details" type="id"/>
-    <item name="users_copy_details" type="id"/>
+    <item name="user_disable" type="id"/>
+    <item name="user_enable" type="id"/>
+    <item name="user_delete" type="id"/>
+    <item name="user_set_gid_uid" type="id"/>
+    <item name="user_set_home" type="id"/>
+    <item name="user_show_details" type="id"/>
+    <item name="user_copy_details" type="id"/>
     <item name="history_menu_complex" type="id"/>
     <item name="history_menu_activity" type="id"/>
     <item name="history_menu_sessions" type="id"/>
@@ -51,7 +51,7 @@
     <item name="export_user_key_openssh" type="id"/>
     <item name="block_legal_coreutils" type="id"/>
     <item name="block_legal_grep" type="id"/>
-    <item name="users_keys_menu" type="id"/>
-    <item name="users_details_menu" type="id"/>
+    <item name="user_keys_menu" type="id"/>
+    <item name="user_details_menu" type="id"/>
 
 </resources>

@@ -32,6 +32,8 @@ import scala.ref.WeakReference
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.androidext.XAPI
+import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -45,24 +47,21 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.SyncVar
-import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.SSHDService
-import org.digimead.digi.ctrl.sshd.ext.SSHDDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 
 import com.commonsware.cwac.merge.MergeAdapter
 
-import android.app.AlertDialog
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
-import android.os.Bundle
-import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentTransaction
 import android.text.Html
 import android.text.method.LinkMovementMethod
-import android.text.util.Linkify
 import android.view.ContextMenu
 import android.view.LayoutInflater
 import android.view.Menu
@@ -92,14 +91,11 @@ class ComponentBlock(val context: Context)(implicit @transient val dispatcher: D
   @Loggable
   def onListItemClick(l: ListView, v: View, item: ComponentBlock.Item) = for {
     fragment <- TabContent.fragment
-    dialog <- ComponentBlock.Dialog.info
+    dialog <- SSHDResource.serviceShowDetails
   } item.updatedExecutableInfo {
     info =>
-      if (dialog.isShowing)
-        AnyBase.runOnUiThread { dialog.updateContent(Some(info)) }
-      else
-        SafeDialog(fragment.getSherlockActivity, dialog, () => dialog).target(R.id.main_topPanel).
-          before((dialog) => dialog.info = Some(info)).show()
+      if (!dialog.isShowing)
+        ComponentBlock.Dialog.showDetails(fragment.getSherlockActivity, info)
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo, item: ComponentBlock.Item) {
@@ -370,64 +366,62 @@ object ComponentBlock extends Logging {
     }
   }
   object Dialog {
-    lazy val info = AppComponent.Context.map(context =>
-      Fragment.instantiate(context.getApplicationContext, classOf[Info].getName, null).asInstanceOf[Info])
-    class Info extends SSHDDialog with Logging {
-      @volatile var info: Option[ExecutableInfo] = None
-      @volatile private var content = new WeakReference[TextView](null)
-      @volatile private var dirtyHackForDirtyFramework = false
+    @Loggable
+    def showDetails(activity: FragmentActivity, info: ExecutableInfo) =
+      SSHDResource.serviceShowDetails.foreach(dialog =>
+        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+          ft.addToBackStack(dialog)
+        }).before(dialog => {
+          dialog.info = Some(info)
+        }).show())
 
-      def tag = "dialog_service_components"
+    class ShowDetails
+      extends SSHDAlertDialog(Some(android.R.drawable.ic_menu_info_details)) {
+      @volatile var info: Option[ExecutableInfo] = None
+      override lazy val extContent = ShowDetails.customContent
+      override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(ShowDetails.this),
+        Some(defaultButtonCallback))))
+
+      def tag = "dialog_service_details"
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "service_details_title").
+        getOrElse("<b>%s</b>").format(info.map(_.name).getOrElse("unknown")))
+      def message = None
       @Loggable
-      override def onCreate(savedInstanceState: Bundle) {
-        super.onCreate(savedInstanceState)
+      override def onResume() {
+        super.onResume
+        for {
+          customView <- customView.get
+          info <- info
+        } {
+          val env = info.env.mkString("""<br/>""")
+          val content = customView.asInstanceOf[ViewGroup].getChildAt(0).asInstanceOf[TextView]
+          content.setText(Html.fromHtml(XResource.getString(getSherlockActivity, "dialog_component_info_message").get.format(info.name,
+            info.description,
+            info.project,
+            info.license,
+            info.version,
+            info.state,
+            info.port.getOrElse("-"),
+            info.commandLine.map(_.mkString(" ")).getOrElse("-"),
+            if (env.nonEmpty) env else "-")))
+        }
       }
       @Loggable
-      override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
-        super.onCreateView(inflater, container, savedInstanceState)
-        if (dirtyHackForDirtyFramework && inflater != null) {
-          log.warn("workaround for \"requestFeature() must be called before adding content\"")
-          dirtyHackForDirtyFramework = false
-          return super.onCreateView(inflater, container, savedInstanceState)
-        } else if (inflater == null)
-          dirtyHackForDirtyFramework = true
-        val context = getSherlockActivity
-        val view = new ScrollView(context)
-        val message = new TextView(context)
-        view.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        message.setMovementMethod(LinkMovementMethod.getInstance())
-        message.setId(Int.MaxValue)
-        content = new WeakReference(message)
-        updateContent()
-        view
+      override def onDestroyView() {
+        super.onDestroyView
+        info = None
       }
-      @Loggable
-      override def onCreateDialog(savedInstanceState: Bundle): Dialog = {
-        super.onCreateDialog(savedInstanceState)
-        new AlertDialog.Builder(getSherlockActivity).
-          setIcon(R.drawable.ic_launcher).
-          setTitle(R.string.dialog_component_info_title).
-          setPositiveButton(android.R.string.ok, null).
-          setView(onCreateView(null, null, null)).
-          create()
-      }
-      def updateContent(info: Option[ExecutableInfo] = info) = for {
-        content <- content.get
-        info <- info
-      } {
-        val context = getSherlockActivity
-        val env = info.env.mkString("""<br/>""")
-        val s = XResource.getString(context, "dialog_component_info_message").get.format(info.name,
-          info.description,
-          info.project,
-          info.license,
-          info.version,
-          info.state,
-          info.port.getOrElse("-"),
-          info.commandLine.map(_.mkString(" ")).getOrElse("-"),
-          if (env.nonEmpty) env else "-")
-        Linkify.addLinks(content, Linkify.ALL)
-        content.setText(Html.fromHtml(s))
+    }
+    object ShowDetails {
+      private lazy val customContent = AppComponent.Context.map {
+        context =>
+          val view = new ScrollView(context)
+          val message = new TextView(context)
+          view.addView(message, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+          message.setMovementMethod(LinkMovementMethod.getInstance())
+          message.setId(Int.MaxValue)
+          view
       }
     }
   }

@@ -70,11 +70,6 @@ import android.widget.Toast
 object DefaultUser extends CheckBoxItem with Logging {
   val option: DOption.OptVal = DOption.Value("android_user", classOf[Boolean], true: java.lang.Boolean)
   @volatile private var android: UserInfo = AppComponent.Context.flatMap(c => UserAdapter.find(c, "android")) getOrElse { log.fatal("unable to find 'android' user"); null }
-  /**
-   * Issue 7139: MenuItem.getMenuInfo() returns null for sub-menu items
-   * affected API 8 - API 16, blame for such 'quality', few years without reaction
-   */
-  @volatile private var hackForIssue7139: AdapterContextMenuInfo = null
 
   @Loggable
   def onCheckboxClick(view: CheckBox, lastState: Boolean): Unit = TabContent.fragment.map {
@@ -83,7 +78,7 @@ object DefaultUser extends CheckBoxItem with Logging {
       if (UserAdapter.isSingleUser(context))
         AnyBase.runOnUiThread {
           updateCheckbox(view)
-          Toast.makeText(context, Html.fromHtml(XResource.getString(context, "users_android_enabled_singleuser").
+          Toast.makeText(context, Html.fromHtml(XResource.getString(context, "user_android_enabled_singleuser").
             getOrElse("<b>android</b> is always enabled in single user mode")), Toast.LENGTH_SHORT).show()
         }
       else
@@ -133,7 +128,7 @@ object DefaultUser extends CheckBoxItem with Logging {
       fragment <- TabContent.fragment
       dialog <- SSHDResource.serviceRestartRequired
     } if (!dialog.isShowing)
-      Dialog.restartRequired(fragment.getSherlockActivity)
+      Dialog.showRestartRequired(fragment.getSherlockActivity)
     android = newUser
   }
   @Loggable
@@ -144,8 +139,8 @@ object DefaultUser extends CheckBoxItem with Logging {
       getOrElse("user <b>android</b>")))
     menu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
     // keys
-    val keysMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_keys_menu"), 4,
-      XResource.getString(context, "users_keys_menu").getOrElse("Key management"))
+    val keysMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "user_keys_menu"), 4,
+      XResource.getString(context, "user_keys_menu").getOrElse("Key management"))
     keysMenu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
     val generateKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "generate_user_key"), 1,
       XResource.getString(context, "generate_user_key").getOrElse("Generate user key"))
@@ -156,13 +151,13 @@ object DefaultUser extends CheckBoxItem with Logging {
     val exportOpenSSHKeyItem = keysMenu.add(Menu.NONE, XResource.getId(context, "export_user_key_openssh"), 4,
       XResource.getString(context, "export_user_key_openssh").getOrElse("Export private key (OpenSSH)"))
     // details
-    val detailsMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "users_details_menu"), 5,
-      XResource.getString(context, "users_details_menu").getOrElse("Details"))
+    val detailsMenu = menu.addSubMenu(Menu.NONE, XResource.getId(context, "user_details_menu"), 5,
+      XResource.getString(context, "user_details_menu").getOrElse("Details"))
     detailsMenu.setHeaderIcon(XResource.getId(context, "ic_users", "drawable"))
-    detailsMenu.add(Menu.NONE, XResource.getId(context, "users_copy_details"), 1,
-      XResource.getString(context, "users_copy_details").getOrElse("Copy"))
-    detailsMenu.add(Menu.NONE, XResource.getId(context, "users_show_details"), 2,
-      XResource.getString(context, "users_show_details").getOrElse("Show"))
+    detailsMenu.add(Menu.NONE, XResource.getId(context, "user_copy_details"), 1,
+      XResource.getString(context, "user_copy_details").getOrElse("Copy"))
+    detailsMenu.add(Menu.NONE, XResource.getId(context, "user_show_details"), 2,
+      XResource.getString(context, "user_show_details").getOrElse("Show"))
     // disable unavailable items
     if (AppControl.isBound) {
       val publicKeyFileFuture = Futures.future { UserKeys.getPublicKeyFile(context, android) }
@@ -199,10 +194,10 @@ object DefaultUser extends CheckBoxItem with Logging {
         case id if id == XResource.getId(context, "export_user_key_openssh") =>
           Futures.future { UserKeys.exportOpenSSHKey(context, android) }
           true
-        case id if id == XResource.getId(context, "users_copy_details") =>
+        case id if id == XResource.getId(context, "user_copy_details") =>
           Futures.future { UserAdapter.copyDetails(context, android) }
           true
-        case id if id == XResource.getId(context, "users_show_details") =>
+        case id if id == XResource.getId(context, "user_show_details") =>
           Futures.future { UserDialog.showDetails(context, android) }
           true
         case item =>
@@ -233,7 +228,7 @@ object DefaultUser extends CheckBoxItem with Logging {
 
   object Dialog {
     @Loggable
-    def restartRequired(activity: FragmentActivity) =
+    def showRestartRequired(activity: FragmentActivity) =
       SSHDResource.serviceRestartRequired.foreach(dialog =>
         SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
           ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)

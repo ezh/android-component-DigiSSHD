@@ -25,9 +25,9 @@
     android:orientation="vertical" >
 
     <include
-        android:id="@+id/element_users_header"
+        android:id="@+id/element_user_header"
         android:layout_weight="0"
-        layout="@layout/element_users_header" />
+        layout="@layout/element_user_header" />
 
     <ListView
         android:id="@android:id/list"
@@ -37,8 +37,8 @@
     </ListView>
 
     <include
-        android:id="@+id/element_users_footer"
+        android:id="@+id/element_user_footer"
         android:layout_weight="0"
-        layout="@layout/element_users_footer" />
+        layout="@layout/element_user_footer" />
 
 </LinearLayout>

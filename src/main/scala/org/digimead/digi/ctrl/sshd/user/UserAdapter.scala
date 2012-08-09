@@ -70,7 +70,7 @@ object UserAdapter extends Logging with Passwords {
             None
         }
       }).flatten.toList
-      Some(new ArrayAdapter[UserInfo](context, R.layout.element_users_row, android.R.id.text1,
+      Some(new ArrayAdapter[UserInfo](context, R.layout.element_user_row, android.R.id.text1,
         new ArrayList[UserInfo](checkAndroidUserInfo(users).sortBy(_.name))) {
         override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
           val item = getItem(position)
@@ -79,12 +79,12 @@ object UserAdapter extends Logging with Passwords {
           val text2 = view.findViewById(android.R.id.text2).asInstanceOf[TextView]
           val checkbox = view.findViewById(android.R.id.checkbox).asInstanceOf[CheckedTextView]
           text1.setText(item.name)
-          text2.setText(XResource.getString(view.getContext, "users_home_at").getOrElse("Home at '%s'").format(item.home))
+          text2.setText(XResource.getString(view.getContext, "user_home_at").getOrElse("Home at '%s'").format(item.home))
           checkbox.setChecked(item.enabled)
           view
         }
       })
-  } getOrElse { log.fatal("unable to create SSHDUsers adapter"); None }
+  } getOrElse { log.fatal("unable to create UserAdapter"); None }
 
   @Loggable
   def isMultiUser(context: Context): Boolean =
@@ -209,7 +209,7 @@ object UserAdapter extends Logging with Passwords {
     val opensshKey = keys(3).flatMap(file => file)
     val exists = XResource.getString(context, "str_exists").getOrElse("exists")
     val notexists = XResource.getString(context, "str_not_exists").getOrElse("not exists")
-    XResource.getString(context, "users_html_details_message").getOrElse(
+    XResource.getString(context, "user_html_details_message").getOrElse(
       """login: <font color='white'>%s</font><br/>""" +
         """enabled: %s<br/>""" +
         """password enabled: %s<br/>""" +
@@ -255,7 +255,7 @@ object UserAdapter extends Logging with Passwords {
   }
   @Loggable
   def copyDetails(context: Context, user: UserInfo) = try {
-    val message = XResource.getString(context, "users_copy_details").
+    val message = XResource.getString(context, "user_copy_details").
       getOrElse("Copy details about <b>%s</b> to clipboard").format(user.name)
     val content = UserAdapter.getDetails(context, user)
     AnyBase.runOnUiThread {

@@ -142,10 +142,19 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
       optionBlock <- TabContent.optionBlock
       environmentBlock <- TabContent.environmentBlock
       componentBlock <- TabContent.componentBlock
-    } yield menuItem.getMenuInfo match {
+    } yield Option(menuItem.getMenuInfo).getOrElse(hackForIssue7139) match {
+      case null =>
+        log.warn("ignore issue #7139 for menuItem \"" + menuItem.getTitle + "\"")
+        false
       case info: AdapterContextMenuInfo =>
         if (getListView.getPositionForView(info.targetView) == -1)
           return false
+        if (Seq(XResource.getId(getSherlockActivity, "user_keys_menu"),
+          XResource.getId(getSherlockActivity, "user_details_menu")).
+          contains(menuItem.getItemId)) {
+          hackForIssue7139 = info
+          return true
+        }
         TabContent.adapter.getItem(info.position) match {
           case item: FilterBlock.Item =>
             filterBlock.onContextItemSelected(menuItem, item)
@@ -155,17 +164,10 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
             environmentBlock.onContextItemSelected(menuItem, item)
           case item: ComponentBlock.Item =>
             componentBlock.onContextItemSelected(menuItem, item)
-          case id if id == XResource.getId(getSherlockActivity, "users_keys_menu") ||
-            id == XResource.getId(getSherlockActivity, "users_details_menu") =>
-            hackForIssue7139 = info
-            true
           case item =>
             log.debug("skip unknown context menu item " + info)
             false
         }
-      case null =>
-        log.warn("ignore issue #7139 for menuItem \"" + menuItem.getTitle + "\"")
-        false
       case info =>
         log.fatal("unsupported menu info for menuItem \"" + menuItem.getTitle + "\"")
         false

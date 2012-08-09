@@ -25,6 +25,7 @@ import java.util.Locale
 
 import scala.actors.Actor
 import scala.actors.threadpool.AtomicInteger
+import scala.annotation.implicitNotFound
 import scala.collection.immutable.HashMap
 import scala.ref.WeakReference
 
@@ -39,6 +40,7 @@ import org.digimead.digi.ctrl.lib.log.AndroidLogger
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabContent
+import org.digimead.digi.ctrl.sshd.service.FilterAddFragment
 import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.session.TabContent
 import org.digimead.digi.ctrl.sshd.user.UserFragment
@@ -208,6 +210,8 @@ class SSHDActivity extends SherlockFragmentActivity with DActivity {
   def onClickUsersApply(v: View) = UserFragment.onClickApply(v)
   def onClickUsersToggleBlockAll(v: View) = UserFragment.onClickToggleBlockAll(v)
   def onClickUsersDeleteAll(v: View) = UserFragment.onClickDeleteAll(v)
+  def onClickServiceFilterAddCustom(v: View) = FilterAddFragment.onClickCustom(v)
+  def onClickServiceFilterAddApply(v: View) = FilterAddFragment.onClickApply(v)
 }
 
 object SSHDActivity extends Logging {

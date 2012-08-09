@@ -40,7 +40,7 @@
                 android:textAppearance="?android:attr/textAppearanceMedium" />
 
             <Spinner
-                android:id="@+id/dialog_users_guid_uid"
+                android:id="@+id/dialog_user_guid_uid"
                 android:layout_width="0dip"
                 android:layout_height="wrap_content"
                 android:layout_weight="1" />
@@ -57,7 +57,7 @@
                 android:textAppearance="?android:attr/textAppearanceMedium" />
 
             <Spinner
-                android:id="@+id/dialog_users_guid_gid"
+                android:id="@+id/dialog_user_guid_gid"
                 android:layout_width="0dip"
                 android:layout_height="wrap_content"
                 android:layout_weight="1" />

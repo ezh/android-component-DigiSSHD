@@ -173,7 +173,7 @@ object UserDialog extends Logging {
   private def setHomeCallback(context: FragmentActivity, oldUser: UserInfo, selectedDirectory: File, selectedFiles: Seq[File]) = {
     log.debug(oldUser.name + " new home is " + selectedDirectory)
     val newUser = oldUser.copy(home = selectedDirectory.getAbsolutePath)
-    val message = Html.fromHtml(XResource.getString(context, "users_update_message").
+    val message = Html.fromHtml(XResource.getString(context, "user_update_message").
       getOrElse("update user <b>%s</b>").format(oldUser.name))
     IAmWarn(message.toString)
     Futures.future {
@@ -187,7 +187,7 @@ object UserDialog extends Logging {
     case Some(file) =>
       checkKeyAlreadyExists(activity, user, "User", file, () => selectKeyType(activity, user))
     case None =>
-      val message = Html.fromHtml(XResource.getString(activity, "users_unable_generate_key").
+      val message = Html.fromHtml(XResource.getString(activity, "user_unable_generate_key").
         getOrElse("unable generate key for user <b>%s</b>").format(user.name))
       IAmYell(message.toString)
       Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
@@ -303,7 +303,7 @@ object UserDialog extends Logging {
     } Futures.future {
       try {
         val context = getSherlockActivity
-        val notification = XResource.getString(context, "users_change_password").getOrElse("password changed for user %1$s").format(oldUser.name)
+        val notification = XResource.getString(context, "user_change_password").getOrElse("password changed for user %1$s").format(oldUser.name)
         IAmWarn(notification.format(oldUser.name))
         val newUser = oldUser.copy(password = passwordField.getText.toString)
         UserAdapter.updateUser(Some(newUser), Some(oldUser))
@@ -411,18 +411,18 @@ object UserDialog extends Logging {
     protected val newState = true
 
     def tag = "dialog_user_enable"
-    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_enable_title").
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_enable_title").
       getOrElse("Enable user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
-    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_enable_message").
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "user_enable_message").
       getOrElse("Do you want to enable <b>%s</b> account?").format(user.map(_.name).getOrElse("unknown"))))
   }
   class Disable extends ChangeState with Logging {
     protected val newState = false
 
     def tag = "dialog_user_disable"
-    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_disable_title").
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_disable_title").
       getOrElse("Disable user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
-    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_disable_message").
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "user_disable_message").
       getOrElse("Do you want to disable <b>%s</b> account?").format(user.map(_.name).getOrElse("unknown"))))
   }
   abstract class ChangeState
@@ -437,9 +437,9 @@ object UserDialog extends Logging {
             val context = getSherlockActivity
             val newUser = oldUser.copy(enabled = newState)
             val notification = if (newUser.enabled)
-              XResource.getString(getSherlockActivity, "users_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
+              XResource.getString(getSherlockActivity, "user_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
             else
-              XResource.getString(getSherlockActivity, "users_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
+              XResource.getString(getSherlockActivity, "user_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
             IAmWarn(notification)
             UserAdapter.updateUser(Some(newUser), Some(oldUser))
             UserFragment.updateUser(Some(newUser), Some(oldUser))
@@ -472,7 +472,7 @@ object UserDialog extends Logging {
             UserAdapter.updateUser(None, Some(oldUser))
             UserFragment.updateUser(None, Some(oldUser))
           }
-          val message = Html.fromHtml(XResource.getString(context, "users_deleted_message").
+          val message = Html.fromHtml(XResource.getString(context, "user_deleted_message").
             getOrElse("deleted user <b>%s</b>").format(oldUser.name))
           IAmWarn(message.toString)
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -481,9 +481,9 @@ object UserDialog extends Logging {
       Some(defaultButtonCallback))))
 
     def tag = "dialog_user_delete"
-    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_delete_title").
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_delete_title").
       getOrElse("Delete user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
-    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_delete_message").
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "user_delete_message").
       getOrElse("Do you want to delete <b>%s</b> account?").
       format(user.map(_.name).getOrElse("unknown"))))
     @Loggable
@@ -497,14 +497,14 @@ object UserDialog extends Logging {
     @volatile var user: Option[UserInfo] = None
     @volatile var userExt: Option[UserInfoExt] = None
     @volatile var onOkCallback: Option[(UserInfo, Option[Int], Option[Int]) => Any] = None
-    override lazy val extContent = Option(getSherlockActivity.getLayoutInflater.inflate(R.layout.dialog_users_guid, null))
+    override lazy val extContent = Option(getSherlockActivity.getLayoutInflater.inflate(R.layout.dialog_user_guid, null))
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(SetGUID.this),
       Some((dialog: SetGUID) => {
         dialog.customView.get.foreach {
           customContent =>
-            val uidSpinner = customContent.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
+            val uidSpinner = customContent.findViewById(R.id.dialog_user_guid_uid).asInstanceOf[Spinner]
             val uid = Option(uidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
-            val gidSpinner = customContent.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
+            val gidSpinner = customContent.findViewById(R.id.dialog_user_guid_gid).asInstanceOf[Spinner]
             val gid = Option(gidSpinner.getSelectedItem.asInstanceOf[SetGUID.Item]).map(_.id)
             user.foreach {
               user =>
@@ -529,9 +529,9 @@ object UserDialog extends Logging {
       Some(defaultButtonCallback))))
 
     def tag = "dialog_user_set_guid"
-    def title = XResource.getString(getSherlockActivity, "users_set_guid_title").
+    def title = XResource.getString(getSherlockActivity, "user_set_guid_title").
       getOrElse("Set UID and GID").format(user.map(_.name).getOrElse("unknown"))
-    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_set_guid_message").
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "user_set_guid_message").
       getOrElse("Please provide new UID (user id) and GID (group id) for <b>%s</b>. " +
         "Those values affect ssh session only in <b>SUPER USER</b> environment, <b>MULTIUSER</b> mode").
       format(user.map(_.name).getOrElse("unknown"))))
@@ -546,7 +546,7 @@ object UserDialog extends Logging {
         val packages = pm.getInstalledPackages(0)
         val ids = SetGUID.Item(-1, XResource.getString(context, "default_value").getOrElse("default")) +:
           packages.flatMap(p => Option(p.applicationInfo).map(ai => SetGUID.Item(ai.uid, p.packageName))).toList.sortBy(_.packageName)
-        val uidSpinner = customView.findViewById(R.id.dialog_users_guid_uid).asInstanceOf[Spinner]
+        val uidSpinner = customView.findViewById(R.id.dialog_user_guid_uid).asInstanceOf[Spinner]
         val uidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
         uidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         uidSpinner.setAdapter(uidAdapter)
@@ -557,7 +557,7 @@ object UserDialog extends Logging {
           }
           case None => uidSpinner.setSelection(0)
         }
-        val gidSpinner = customView.findViewById(R.id.dialog_users_guid_gid).asInstanceOf[Spinner]
+        val gidSpinner = customView.findViewById(R.id.dialog_user_guid_gid).asInstanceOf[Spinner]
         val gidAdapter = new ArrayAdapter[SetGUID.Item](context, android.R.layout.simple_spinner_item, ids)
         gidAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         gidSpinner.setAdapter(gidAdapter)
@@ -585,14 +585,14 @@ object UserDialog extends Logging {
     }
   }
   class ShowDetails
-    extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {
+    extends SSHDAlertDialog(Some(android.R.drawable.ic_menu_info_details)) {
     @volatile var user: Option[UserInfo] = None
     override lazy val extContent = ShowDetails.customContent
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(ShowDetails.this),
       Some(defaultButtonCallback))))
 
     def tag = "dialog_user_details"
-    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_details_title").
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_details_title").
       getOrElse("<b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
     def message = None
     @Loggable
@@ -627,10 +627,10 @@ object UserDialog extends Logging {
     extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) with LibFileChooser {
     @volatile var user: Option[UserInfo] = None
     def tag = "dialog_user_choosehome"
-    def title = Html.fromHtml(XResource.getString(getDialogActivity, "users_choosehome_title").
+    def title = Html.fromHtml(XResource.getString(getDialogActivity, "user_choosehome_title").
       getOrElse("Select home directory for <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
     def message = Some(Html.fromHtml(XResource.getString(getDialogActivity,
-      "users_choosehome_message").getOrElse("Choose home")))
+      "user_choosehome_message").getOrElse("Choose home")))
     def initialPath() = user.map(user => UserAdapter.homeDirectory(getSherlockActivity, user))
     def setCallbackOnResult(arg: (File, Seq[File]) => Any) = callbackOnResult = arg
   }
@@ -644,9 +644,9 @@ object UserDialog extends Logging {
       Some(defaultButtonCallback))))
 
     def tag = "dialog_user_key_replace"
-    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "users_key_replace_title").
+    def title = Html.fromHtml(XResource.getString(getSherlockActivity, "user_key_replace_title").
       getOrElse("Key already exists for user <b>%s</b>").format(user.map(_.name).getOrElse("unknown")))
-    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "users_key_replace_message").
+    def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "user_key_replace_message").
       getOrElse("%s key already exists. Do you want to replace it?").
       format(keyType.getOrElse("unknown").capitalize)))
     @Loggable
@@ -691,10 +691,10 @@ object UserDialog extends Logging {
     def tag = "dialog_user_key_type"
     def title = user match {
       case Some(user) =>
-        Html.fromHtml(XResource.getString(getSherlockActivity, "users_user_key_type_title").
+        Html.fromHtml(XResource.getString(getSherlockActivity, "user_user_key_type_title").
           getOrElse("Select key type for <b>%s</b>").format(user.name))
       case None =>
-        Html.fromHtml(XResource.getString(getSherlockActivity, "users_host_key_type_title").
+        Html.fromHtml(XResource.getString(getSherlockActivity, "user_host_key_type_title").
           getOrElse("Select <b>host</b> key type"))
     }
     def message = None

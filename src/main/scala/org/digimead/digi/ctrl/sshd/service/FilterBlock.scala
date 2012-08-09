@@ -117,8 +117,7 @@ class FilterBlock(val context: Context)(implicit @transient val dispatcher: Disp
   }
   def isEmpty() = synchronized { FilterBlock.adapter.getCount == 1 && FilterBlock.adapter.getItem(0).value == FilterBlock.ALL }
   @Loggable
-  def onClickServiceFilterAdd(v: View) = {}
-  //    startActivityForResult(new Intent(this, classOf[FilterAddActivity]), TabActivity.FILTER_REQUEST)
+  def onClickServiceFilterAdd(v: View) = FilterAddFragment.show
   @Loggable
   def onClickServiceFilterRemove(v: View) = {}
   /*TabActivity.filterBlock.foreach {
@@ -164,7 +163,7 @@ object FilterBlock extends Logging {
   }
   val ALL = "*:*.*.*.*"
 
-  private def updateItems(context: Context) = {
+  private[service] def updateItems(context: Context) = {
     val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
     val acl = pref.getAll
     val newItems = SyncVar(

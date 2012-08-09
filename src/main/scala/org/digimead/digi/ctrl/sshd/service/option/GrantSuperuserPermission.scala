@@ -58,7 +58,7 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
     fragment <- TabContent.fragment
     dialog <- SSHDResource.serviceRootRequest
   } if (!dialog.isShowing)
-    Dialog.rootRequest(fragment.getSherlockActivity)
+    Dialog.showRootRequest(fragment.getSherlockActivity)
   @Loggable
   def onListItemClick(l: ListView, v: View) =
     view.get.foreach {
@@ -68,7 +68,7 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
 
   object Dialog {
     @Loggable
-    def rootRequest(activity: FragmentActivity) =
+    def showRootRequest(activity: FragmentActivity) =
       SSHDResource.serviceRootRequest.foreach(dialog =>
         SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
           ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
@@ -91,8 +91,8 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
       def tag = "dialog_service_rootrequest"
       def title = Html.fromHtml(XResource.getString(getSherlockActivity, "service_rootrequest_title").
         getOrElse("Access Permission"))
-      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "dialog_root_message").
-        getOrElse("Are you sure you want to grant superuser permission to native components?\n\n" +
+      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "service_rootrequest_message").
+        getOrElse("Are you sure you want to grant superuser permission to native components?<br/><br/>" +
           "Please note that your software must support this function. This option is ignored " +
           "if you have a firmware with limited functionality.")))
       def onPositiveClick() =

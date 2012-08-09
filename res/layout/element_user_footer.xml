@@ -27,7 +27,7 @@
     android:orientation="vertical" >
 
     <LinearLayout
-        android:id="@+id/users_footer_dynamic"
+        android:id="@+id/user_footer_dynamic"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical" >
@@ -38,13 +38,13 @@
             android:orientation="horizontal" >
 
             <EditText
-                android:id="@+id/users_name"
+                android:id="@+id/user_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:cursorVisible="true"
                 android:ellipsize="end"
-                android:hint="@string/users_name"
+                android:hint="@string/user_name"
                 android:inputType="textNoSuggestions|textVisiblePassword"
                 android:lines="1"
                 android:maxLength="16"
@@ -53,7 +53,7 @@
             </EditText>
 
             <ImageButton
-                android:id="@+id/users_add"
+                android:id="@+id/user_add"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
@@ -75,13 +75,13 @@
                 android:layout_weight="0" />
 
             <EditText
-                android:id="@+id/users_password"
+                android:id="@+id/user_password"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:cursorVisible="true"
                 android:ellipsize="end"
-                android:hint="@string/users_password"
+                android:hint="@string/user_password"
                 android:inputType="textPassword"
                 android:lines="1"
                 android:maxLength="16"
@@ -90,7 +90,7 @@
             </EditText>
 
             <ImageButton
-                android:id="@+id/users_show_password"
+                android:id="@+id/user_show_password"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
@@ -108,7 +108,7 @@
         android:orientation="horizontal" >
 
         <Button
-            android:id="@+id/users_apply"
+            android:id="@+id/user_apply"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:enabled="false"
@@ -116,20 +116,20 @@
             android:text="@string/apply" />
 
         <Button
-            android:id="@+id/users_footer_toggle_all"
+            android:id="@+id/user_footer_toggle_all"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:enabled="false"
             android:onClick="onClickUsersToggleBlockAll"
-            android:text="@string/users_block_all" />
+            android:text="@string/user_block_all" />
 
         <Button
-            android:id="@+id/users_footer_delete_all"
+            android:id="@+id/user_footer_delete_all"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:enabled="false"
             android:onClick="onClickUsersDeleteAll"
-            android:text="@string/users_delete_all" />
+            android:text="@string/user_delete_all" />
     </LinearLayout>
 
 </LinearLayout>

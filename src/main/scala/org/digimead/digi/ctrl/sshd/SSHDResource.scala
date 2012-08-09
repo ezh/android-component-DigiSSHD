@@ -58,6 +58,15 @@ class SSHDResource(activity: WeakReference[Activity]) {
   lazy val userCreate = activity.get.map(a => Fragment.instantiate(a, classOf[UserFragment.Dialog.CreateUser].getName, null).asInstanceOf[UserFragment.Dialog.CreateUser])
   lazy val userDisableAll = activity.get.map(a => Fragment.instantiate(a, classOf[UserFragment.Dialog.DisableAllUsers].getName, null).asInstanceOf[UserFragment.Dialog.DisableAllUsers])
   lazy val userDeleteAll = activity.get.map(a => Fragment.instantiate(a, classOf[UserFragment.Dialog.DeleteAllUsers].getName, null).asInstanceOf[UserFragment.Dialog.DeleteAllUsers])
+  // service
+  lazy val serviceShowDetails = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.ComponentBlock.Dialog.ShowDetails].getName, null).asInstanceOf[service.ComponentBlock.Dialog.ShowDetails])
+  lazy val serviceReinstall = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.EnvironmentBlock.Dialog.Reinstall].getName, null).asInstanceOf[service.EnvironmentBlock.Dialog.Reinstall])
+  lazy val serviceFactoryDefault = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.EnvironmentBlock.Dialog.FactoryDefault].getName, null).asInstanceOf[service.EnvironmentBlock.Dialog.FactoryDefault])
+  lazy val serviceFiltersAdd = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.FilterAddFragment.Dialog.FiltersAdd].getName, null).asInstanceOf[service.FilterAddFragment.Dialog.FiltersAdd])
   // service.option
   lazy val serviceRestartRequired = activity.get.map(a => Fragment.instantiate(a,
     classOf[service.option.DefaultUser.Dialog.RestartRequired].getName, null).asInstanceOf[service.option.DefaultUser.Dialog.RestartRequired])
@@ -87,6 +96,11 @@ object SSHDResource {
   def userCreate = SSHDActivity.activity.flatMap(_.resources.userCreate)
   def userDisableAll = SSHDActivity.activity.flatMap(_.resources.userDisableAll)
   def userDeleteAll = SSHDActivity.activity.flatMap(_.resources.userDeleteAll)
+  // service
+  def serviceShowDetails = SSHDActivity.activity.flatMap(_.resources.serviceShowDetails)
+  def serviceReinstall = SSHDActivity.activity.flatMap(_.resources.serviceReinstall)
+  def serviceFactoryDefault = SSHDActivity.activity.flatMap(_.resources.serviceFactoryDefault)
+  def serviceFiltersAdd = SSHDActivity.activity.flatMap(_.resources.serviceFiltersAdd)
   // service.option
   def serviceRestartRequired = SSHDActivity.activity.flatMap(_.resources.serviceRestartRequired)
   def serviceRootRequest = SSHDActivity.activity.flatMap(_.resources.serviceRootRequest)

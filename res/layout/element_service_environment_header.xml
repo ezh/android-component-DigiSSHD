@@ -41,7 +41,7 @@
             <!-- android:background="#00ff00" -->
 
             <Button
-                android:id="@+id/service_environment_users_button"
+                android:id="@+id/service_environment_user_button"
                 style="@style/ButtonNormalText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -56,7 +56,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:drawableTop="@drawable/ic_reinstall"
+                android:drawableTop="@drawable/ic_reinstall_disabled"
                 android:text="@string/service_environment_reinstall" >
             </Button>
 
