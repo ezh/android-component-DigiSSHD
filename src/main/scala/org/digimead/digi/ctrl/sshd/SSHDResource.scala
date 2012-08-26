@@ -67,6 +67,8 @@ class SSHDResource(activity: WeakReference[Activity]) {
     classOf[service.EnvironmentBlock.Dialog.FactoryDefault].getName, null).asInstanceOf[service.EnvironmentBlock.Dialog.FactoryDefault])
   lazy val serviceFiltersAdd = activity.get.map(a => Fragment.instantiate(a,
     classOf[service.FilterAddFragment.Dialog.FiltersAdd].getName, null).asInstanceOf[service.FilterAddFragment.Dialog.FiltersAdd])
+  lazy val serviceFiltersRemove = activity.get.map(a => Fragment.instantiate(a,
+    classOf[service.FilterRemoveFragment.Dialog.FiltersRemove].getName, null).asInstanceOf[service.FilterRemoveFragment.Dialog.FiltersRemove])
   // service.option
   lazy val serviceRestartRequired = activity.get.map(a => Fragment.instantiate(a,
     classOf[service.option.DefaultUser.Dialog.RestartRequired].getName, null).asInstanceOf[service.option.DefaultUser.Dialog.RestartRequired])
@@ -101,6 +103,7 @@ object SSHDResource {
   def serviceReinstall = SSHDActivity.activity.flatMap(_.resources.serviceReinstall)
   def serviceFactoryDefault = SSHDActivity.activity.flatMap(_.resources.serviceFactoryDefault)
   def serviceFiltersAdd = SSHDActivity.activity.flatMap(_.resources.serviceFiltersAdd)
+  def serviceFiltersRemove = SSHDActivity.activity.flatMap(_.resources.serviceFiltersRemove)
   // service.option
   def serviceRestartRequired = SSHDActivity.activity.flatMap(_.resources.serviceRestartRequired)
   def serviceRootRequest = SSHDActivity.activity.flatMap(_.resources.serviceRootRequest)

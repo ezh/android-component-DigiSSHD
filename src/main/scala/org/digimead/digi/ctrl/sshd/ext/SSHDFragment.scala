@@ -21,26 +21,42 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 
+import com.actionbarsherlock.app.SherlockFragmentActivity
+
 import android.support.v4.app.Fragment
 import android.view.View
 
-trait SSHDFragment {
+trait SSHDFragment extends Logging {
   this: Fragment with SSHDFragment.Sherlock =>
-  def showDynamicFragment() = SSHDActivity.activity.foreach {
-    activity =>
-      activity.findViewById(R.id.main_primary).setVisibility(View.GONE)
-      activity.findViewById(R.id.main_secondary).setVisibility(View.VISIBLE)
+  def onTabFragmentShow(tab: TabInterface) = {
+    log.debug("SSHDFragment::onTabFragmentShow")
+    if (tab.isTopPanelAvailable)
+      tab.hideBottomPanel
+    else
+      SSHDActivity.activity.foreach {
+        activity =>
+          activity.findViewById(R.id.main_primary).setVisibility(View.GONE)
+          activity.findViewById(R.id.main_secondary).setVisibility(View.VISIBLE)
+      }
   }
-  def hideDynamicFragment() = SSHDActivity.activity.foreach {
-    activity =>
-      activity.findViewById(R.id.main_primary).setVisibility(View.VISIBLE)
-      activity.findViewById(R.id.main_secondary).setVisibility(View.GONE)
+  def onTabFragmentHide(tab: TabInterface) = {
+    log.debug("SSHDFragment::onTabFragmentHide")
+    if (tab.isTopPanelAvailable)
+      tab.showBottomPanel
+    else
+      SSHDActivity.activity.foreach {
+        activity =>
+          activity.findViewById(R.id.main_primary).setVisibility(View.VISIBLE)
+          activity.findViewById(R.id.main_secondary).setVisibility(View.GONE)
+      }
   }
+  def getSherlockActivity(): SherlockFragmentActivity
   def tag(): String
 }
 
@@ -48,7 +64,7 @@ object SSHDFragment extends Logging {
   type Sherlock = { def getSherlockActivity(): SherlockFragmentActivity }
 
   @Loggable
-  def show(fragment: Class[_ <: SSHDFragment], tab: TabInterface) {
+  def show(fragment: Class[_ <: SSHDFragment], tab: TabInterface) = AnyBase.runOnUiThread {
     val manager = tab.getSherlockActivity.getSupportFragmentManager
     val fragmentInstance = Fragment.instantiate(tab.getSherlockActivity, fragment.getName, null)
     val tag = fragmentInstance.asInstanceOf[SSHDFragment].tag
@@ -60,7 +76,7 @@ object SSHDFragment extends Logging {
       R.id.main_secondary
     }
     val ft = manager.beginTransaction()
-    ft.replace(target, fragmentInstance)
+    ft.replace(target, fragmentInstance, tag)
     ft.addToBackStack(tag)
     ft.commit()
   }

@@ -220,4 +220,7 @@ object TabContent extends Logging {
     context =>
       Option(Fragment.instantiate(context, classOf[org.digimead.digi.ctrl.sshd.service.TabContent].getName, null))
   }
+  trait AccessToTabFragment {
+    def tabFragment = TabContent.fragment
+  }
 }

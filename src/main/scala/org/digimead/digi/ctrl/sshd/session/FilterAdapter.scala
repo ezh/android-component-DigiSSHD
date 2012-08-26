@@ -23,13 +23,11 @@ package org.digimead.digi.ctrl.sshd.session
 
 import scala.actors.Futures.future
 import scala.ref.WeakReference
-
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DConstant
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -37,6 +35,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
+import android.app.Activity
 
 /*class FilterAdapter(context: FilterActivity, values: () => Seq[FilterAdapter.Item],
   private val resource: Int = android.R.layout.simple_list_item_checked,
@@ -158,7 +157,7 @@ object FilterAdapter extends Logging {
   case class Item(val value: String, var pending: Option[Boolean] = None)(private var _isActive: Boolean, isActivityAllow: Boolean) {
     override def toString() =
       value
-    var context = new WeakReference[FilterActivity](null)
+    var context = new WeakReference[Activity](null)
     def isActive_=(x: Boolean) = {
       context.get.foreach {
         context =>

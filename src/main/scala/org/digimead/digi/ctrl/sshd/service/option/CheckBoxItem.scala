@@ -21,6 +21,9 @@
 
 package org.digimead.digi.ctrl.sshd.service.option
 
+import scala.actors.Futures
+
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
@@ -38,7 +41,10 @@ trait CheckBoxItem extends Item {
     checkbox.setClickable(false)
     checkbox.setFocusable(false)
     checkbox.setFocusableInTouchMode(false)
-    checkbox.setChecked(getState[Boolean](context))
+    Futures.future {
+      val state = getState[Boolean](context)
+      AnyBase.runOnUiThread { checkbox.setChecked(state) }
+    }
     view
   }
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {

@@ -48,6 +48,7 @@ class SSHDTabAdapter(activity: FragmentActivity, val pager: WeakReference[ViewPa
   pager.get.foreach(pager => AnyBase.runOnUiThread {
     pager.setAdapter(this)
     pager.setOnPageChangeListener(SSHDTabAdapter.pageListener)
+    pager.setCurrentItem(SSHDActivity.initialTab)
   })
   log.debug("alive")
   ppLoading.stop
@@ -62,8 +63,8 @@ class SSHDTabAdapter(activity: FragmentActivity, val pager: WeakReference[ViewPa
     for { index <- 0 until SSHDTabAdapter.tabs.size }
       if (SSHDTabAdapter.tabs(index).clazz == tag) {
         // clear backstack
-        val manager = getItem(SSHDTabAdapter.selected.get).getFragmentManager
-        manager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        Option(getItem(SSHDTabAdapter.selected.get).getFragmentManager).foreach(
+          _.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE))
         // select new tab
         SSHDTabAdapter.selected.set(index)
         pager.get.foreach(_.setCurrentItem(index))
@@ -109,15 +110,24 @@ object SSHDTabAdapter extends Logging {
   log.debug("alive")
   ppLoading.stop
 
-  def getSelectedTab() = tabs(selected.get)
-  def getSelectedFragment(): Option[Fragment with TabInterface] =
-    adapter.map(_.getItem(selected.get).asInstanceOf[Fragment with TabInterface])
   def addTab(tabTitleResource: Int, clazz: Class[_ <: TabInterface], args: Bundle) = synchronized {
     SSHDActivity.activity.foreach {
       activity =>
         tabs = tabs :+ new Tab(tabTitleResource, clazz, args)(new WeakReference(activity.getSupportActionBar))
         adapter.foreach(_.notifyDataSetChanged)
     }
+  }
+  def getSelected() = selected.get
+  def getSelectedTab() = tabs(selected.get)
+  def getSelectedFragment(): Option[Fragment with TabInterface] =
+    adapter.map(_.getItem(selected.get).asInstanceOf[Fragment with TabInterface])
+  def setSelected(n: Int) = adapter.foreach {
+    adapter =>
+      adapter.pager.get.foreach {
+        pager =>
+          log.___glance("!!!" + n)
+          pager.setCurrentItem(n)
+      }
   }
   /**
    * called on SSHDActivity.onCreate

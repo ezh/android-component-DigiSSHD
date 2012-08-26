@@ -56,8 +56,8 @@ import android.widget.Toast
 
 object UserKeys extends Logging {
   @Loggable
-  def getDropbearKeyFile(context: Context, user: UserInfo): Option[File] = AppComponent.Inner.appNativePath flatMap {
-    appNativePath =>
+  def getDropbearKeyFile(context: Context, user: UserInfo): Option[File] = AppComponent.Inner.enginePath flatMap {
+    enginePath =>
       if (user.name != "android") {
         val homeDir = new File(user.home)
         val sshDir = new File(homeDir, ".ssh")

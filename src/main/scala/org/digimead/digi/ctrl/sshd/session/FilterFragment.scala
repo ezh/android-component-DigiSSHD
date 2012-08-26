@@ -28,7 +28,6 @@ import scala.collection.mutable.SynchronizedSet
 import scala.collection.mutable.Undoable
 import scala.collection.script.Message
 import scala.util.control.ControlThrowable
-
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.declaration.DConstant
@@ -37,7 +36,6 @@ import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
-
 import android.app.Activity
 import android.app.ListActivity
 import android.content.pm.ActivityInfo
@@ -49,19 +47,93 @@ import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import com.actionbarsherlock.app.SherlockListFragment
+import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
+import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
+import org.digimead.digi.ctrl.sshd.SSHDActivity
+import android.view.LayoutInflater
+import android.view.ViewGroup
 
-class FilterActivity extends ListActivity with Logging {
-  /*private lazy val inflater = getLayoutInflater()
-  private lazy val headerListNonEmpty = inflater.inflate(R.layout.session_filter_header, null)
-  private lazy val headerListEmpty = findViewById(R.id.nodata_header)
-  private lazy val footerListNonEmpty = inflater.inflate(R.layout.session_filter_footer, null)
-  private lazy val footerApply = footerListNonEmpty.findViewById(R.id.session_filter_footer_apply).asInstanceOf[Button]
-  private lazy val footerCancel = footerListNonEmpty.findViewById(R.id.session_filter_footer_cancel).asInstanceOf[Button]
-  private lazy val footerBack = footerListNonEmpty.findViewById(R.id.session_filter_footer_back).asInstanceOf[Button]
-  private val pendingToInclude = new HashSet[FilterAdapter.Item] with ObservableSet[FilterAdapter.Item] with SynchronizedSet[FilterAdapter.Item]
-  private val pendingToDelete = new HashSet[String] with ObservableSet[String] with SynchronizedSet[String]
-  private var isActivityAllow = true
-  lazy val adapter = new FilterAdapter(this, () => try {
+abstract class FilterFragment extends SherlockListFragment with SSHDFragment with Logging {
+  @volatile private var footerApply: Option[Button] = None
+  @volatile private var footerCancel: Option[Button] = None
+  //  private val pendingToInclude = new HashSet[FilterAdapter.Item] with ObservableSet[FilterAdapter.Item] with SynchronizedSet[FilterAdapter.Item]
+  //  private val pendingToDelete = new HashSet[String] with ObservableSet[String] with SynchronizedSet[String]
+  private var savedTitle: CharSequence = ""
+  @Loggable
+  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View =
+    SSHDActivity.ppGroup("FilterFragment.onCreateView") {
+      inflater.inflate(R.layout.fragment_session_filter, container, false)
+    }
+  @Loggable
+  override def onActivityCreated(savedInstanceState: Bundle) = SSHDActivity.ppGroup("info.TabContent.onActivityCreated") {
+    super.onActivityCreated(savedInstanceState)
+    //UserAdapter.adapter.foreach(setListAdapter)
+    setHasOptionsMenu(false)
+    registerForContextMenu(getListView)
+  }
+  @Loggable
+  override def onResume() = {
+    super.onResume
+    val activity = getSherlockActivity
+    // update UI elements
+  //footerListNonEmpty.findViewById(R.id.session_filter_footer_apply).asInstanceOf[Button]
+  //footerListNonEmpty.findViewById(R.id.session_filter_footer_cancel).asInstanceOf[Button]
+    //dynamicHeader = getListView().get
+    //dynamicFooter = Option(activity.findViewById(R.id.element_user_footer).asInstanceOf[LinearLayout].
+    //  findViewById(R.id.user_footer_dynamic).asInstanceOf[LinearLayout])
+    // update user that already loaded
+    /*    for {
+      existsUser <- lastActiveUserInfo.get()
+      userName <- userName
+      userPassword <- userPassword
+      userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
+    } {
+      UserAdapter.find(activity, existsUser.name) match {
+        case r @ Some(user) =>
+          lastActiveUserInfo.set(r)
+          userName.setText(user.name)
+          userPassword.setText(user.password)
+          userPasswordEnabledCheckbox.setChecked(user.enabled)
+        case r @ None =>
+          lastActiveUserInfo.set(r)
+          userName.setText("")
+          userPassword.setText("")
+          userPasswordEnabledCheckbox.setChecked(true)
+      }
+    }
+    savedTitle = activity.getTitle
+    for { userGenerateButton <- userGenerateButton } {
+      AuthentificationMode.getStateExt(activity) match {
+        case SSHDPreferences.AuthentificationType.SingleUser =>
+          activity.setTitle(XResource.getString(activity, "app_name_singleuser").getOrElse("Single User Mode"))
+          userGenerateButton.setEnabled(false)
+        case SSHDPreferences.AuthentificationType.MultiUser =>
+          activity.setTitle(XResource.getString(activity, "app_name_multiuser").getOrElse("Multi User Mode"))
+          userGenerateButton.setEnabled(true)
+        case invalid =>
+          log.fatal("invalid authenticatin type \"" + invalid + "\"")
+          None
+      }
+    }
+    for {
+      dynamicHeader <- dynamicHeader
+      dynamicFooter <- dynamicFooter
+    } {
+      /*      if (SSHDActivity.collapsed.get) {
+        dynamicHeader.setVisibility(View.GONE)
+        dynamicFooter.setVisibility(View.GONE)
+      } else {
+        dynamicHeader.setVisibility(View.VISIBLE)
+        dynamicFooter.setVisibility(View.VISIBLE)
+      }*/
+    }
+    if (lastActiveUserInfo.get.isEmpty)
+      onListItemClick(getListView, getListView, 0, 0)
+    updateFieldsState
+    tabFragment.foreach(onTabFragmentShow)*/
+  }
+  /*  lazy val adapter = new FilterAdapter(this, () => try {
     (if (isActivityAllow)
       SSHDPreferences.FilterConnection.Allow.get(this)
     else
@@ -287,4 +359,59 @@ class FilterActivity extends ListActivity with Logging {
     case "" => "*"
     case ip => ip.toInt
   }*/
+}
+
+object FilterFragment extends Logging {
+  class ACLAllow extends FilterFragment {
+    ACLAllow.fragment = Some(this)
+
+    def tag = "fragment_session_filter_allow"
+    @Loggable
+    override def onAttach(activity: Activity) {
+      super.onAttach(activity)
+      ACLAllow.fragment = Some(this)
+    }
+  }
+  object ACLAllow extends Logging {
+    /** profiling support */
+    private val ppLoading = SSHDActivity.ppGroup.start("FilterFragment.ACLAllow$")
+    /** TabContent fragment instance */
+    @volatile private[session] var fragment: Option[ACLAllow] = None
+    log.debug("alive")
+    ppLoading.stop
+
+    @Loggable
+    def show() = SSHDTabAdapter.getSelectedFragment match {
+      case Some(currentTabFragment) =>
+        SSHDFragment.show(classOf[ACLAllow], currentTabFragment)
+      case None =>
+        log.fatal("current tab fragment not found")
+    }
+  }
+  class ACLDeny extends FilterFragment {
+    ACLDeny.fragment = Some(this)
+
+    def tag = "fragment_session_filter_deny"
+    @Loggable
+    override def onAttach(activity: Activity) {
+      super.onAttach(activity)
+      ACLDeny.fragment = Some(this)
+    }
+  }
+  object ACLDeny extends Logging {
+    /** profiling support */
+    private val ppLoading = SSHDActivity.ppGroup.start("FilterFragment.ACLDeny$")
+    /** TabContent fragment instance */
+    @volatile private[session] var fragment: Option[ACLDeny] = None
+    log.debug("alive")
+    ppLoading.stop
+
+    @Loggable
+    def show() = SSHDTabAdapter.getSelectedFragment match {
+      case Some(currentTabFragment) =>
+        SSHDFragment.show(classOf[ACLDeny], currentTabFragment)
+      case None =>
+        log.fatal("current tab fragment not found")
+    }
+  }
 }

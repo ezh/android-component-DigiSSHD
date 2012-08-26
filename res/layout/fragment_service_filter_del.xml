@@ -20,16 +20,44 @@
  ~
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/user_header_dynamic"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical" >
 
-    <TextView
+    <ListView
+        android:id="@android:id/list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="1" >
+    </ListView>
+
+    <RelativeLayout
+        android:id="@android:id/empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginRight="10dip"
-        android:gravity="right"
-        android:text="@string/user_header" />
+        android:orientation="vertical" >
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="@android:string/untitled"
+            android:padding="30dip"
+            android:src="@drawable/ic_background_logo" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_horizontal"
+            android:text="@string/no_filters" />
+    </RelativeLayout>
+
+    <include
+        android:id="@+id/element_service_filter_footer"
+        android:layout_weight="0"
+        layout="@layout/element_service_filter_footer" />
 
 </LinearLayout>

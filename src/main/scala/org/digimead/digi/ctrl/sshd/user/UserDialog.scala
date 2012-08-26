@@ -44,6 +44,7 @@ import org.digimead.digi.ctrl.lib.message.IAmWarn
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.ext.SSHDListDialog
@@ -51,7 +52,6 @@ import org.digimead.digi.ctrl.sshd.service.option.DefaultUser
 
 import android.content.Context
 import android.support.v4.app.FragmentActivity
-import android.support.v4.app.FragmentTransaction
 import android.text.Editable
 import android.text.Html
 import android.text.InputFilter
@@ -122,53 +122,58 @@ object UserDialog extends Logging {
   }
 
   @Loggable
-  def enable(activity: FragmentActivity, user: UserInfo) =
-    SSHDResource.userEnable.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => dialog.user = Some(user)).show())
+  def changePassword(activity: FragmentActivity, user: UserInfo, onOkCallback: Option[UserInfo => Unit]) =
+    SSHDResource.userChangePassword.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before {
+          (dialog) =>
+            dialog.user = Some(user)
+            dialog.onOkCallback = onOkCallback
+        }.show())
   @Loggable
-  def disable(activity: FragmentActivity, user: UserInfo) =
+  def enable(activity: FragmentActivity, user: UserInfo, callback: Option[UserInfo => Unit] = None) =
+    SSHDResource.userEnable.foreach(dialog =>
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before {
+          dialog =>
+            dialog.user = Some(user)
+            dialog.onOkCallback = callback
+        }.show())
+  @Loggable
+  def disable(activity: FragmentActivity, user: UserInfo, callback: Option[UserInfo => Unit] = None) =
     SSHDResource.userDisable.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => dialog.user = Some(user)).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before {
+          dialog =>
+            dialog.user = Some(user)
+            dialog.onOkCallback = callback
+        }.show())
   @Loggable
   def delete(activity: FragmentActivity, user: UserInfo) =
     SSHDResource.userDelete.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => dialog.user = Some(user)).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before(dialog => dialog.user = Some(user)).show())
   @Loggable
   def setGUID(activity: FragmentActivity, user: UserInfo) =
     SSHDResource.userSetGUID.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => {
-        dialog.user = Some(user)
-        dialog.userExt = UserInfoExt.get(dialog.getSherlockActivity, user)
-      }).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before(dialog => {
+          dialog.user = Some(user)
+          dialog.userExt = UserInfoExt.get(dialog.getSherlockActivity, user)
+        }).show())
   @Loggable
   def showDetails(activity: FragmentActivity, user: UserInfo) =
     SSHDResource.userShowDetails.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => dialog.user = Some(user)).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before(dialog => dialog.user = Some(user)).show())
   @Loggable
   def setHome(activity: FragmentActivity, user: UserInfo) =
     SSHDResource.userSetHome.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => {
-        dialog.user = Some(user)
-        dialog.setCallbackOnResult(setHomeCallback(activity, user, _, _))
-      }).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before(dialog => {
+          dialog.user = Some(user)
+          dialog.setCallbackOnResult(setHomeCallback(activity, user, _, _))
+        }).show())
   @Loggable
   private def setHomeCallback(context: FragmentActivity, oldUser: UserInfo, selectedDirectory: File, selectedFiles: Seq[File]) = {
     log.debug(oldUser.name + " new home is " + selectedDirectory)
@@ -198,21 +203,17 @@ object UserDialog extends Logging {
     callback()
   else
     SSHDResource.userKeyReplace.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => {
-        dialog.user = Some(user)
-      }).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before(dialog => {
+          dialog.user = Some(user)
+        }).show())
   @Loggable
   def selectKeyType(activity: FragmentActivity, user: UserInfo) =
     SSHDResource.userKeyType.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-        ft.addToBackStack(dialog)
-      }).before(dialog => {
-        dialog.user = Some(user)
-      }).show())
+      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        transaction(SSHDPreferences.defaultTransaction(dialog)).before(dialog => {
+          dialog.user = Some(user)
+        }).show())
   //UserKeys.generateUserKey(fragment.getSherlockActivity)
   /*
    *   private def generateUserKey(activity: SherlockFragmentActivity) {
@@ -250,7 +251,10 @@ object UserDialog extends Logging {
     }
     override lazy val extContent = innerContent
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
-      Some((dialog: ChangePassword) => onPositiveButtonClick))))
+      Some((dialog: ChangePassword) => {
+        onPositiveButtonClick
+        defaultButtonCallback(dialog)
+      }))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangePassword.this),
       Some(defaultButtonCallback))))
     for {
@@ -272,6 +276,9 @@ object UserDialog extends Logging {
         "Password cannot be more than 16 characters. Only standard unix password characters are allowed.")))
     @Loggable
     override def onResume() {
+      val context = getSherlockActivity
+      // update user that already loaded
+      user.foreach(existsUser => user = UserAdapter.find(context, existsUser.name))
       for {
         user <- user
         enablePasswordButton <- enablePasswordButton
@@ -279,7 +286,6 @@ object UserDialog extends Logging {
         passwordField <- passwordField
         ok <- positiveView.get
       } {
-        val context = getSherlockActivity
         val isUserPasswordEnabled = Futures.future { UserAdapter.isPasswordEnabled(context, user) }
         ok.setEnabled(false)
         enablePasswordButton.setChecked(isUserPasswordEnabled())
@@ -300,26 +306,29 @@ object UserDialog extends Logging {
       callback <- onOkCallback
       passwordField <- passwordField
       enablePasswordButton <- enablePasswordButton
-    } Futures.future {
-      try {
-        val context = getSherlockActivity
-        val notification = XResource.getString(context, "user_change_password").getOrElse("password changed for user %1$s").format(oldUser.name)
-        IAmWarn(notification.format(oldUser.name))
-        val newUser = oldUser.copy(password = passwordField.getText.toString)
-        UserAdapter.updateUser(Some(newUser), Some(oldUser))
-        UserAdapter.setPasswordEnabled(enablePasswordButton.isChecked, context, newUser)
-        UserFragment.updateUser(Some(newUser), Some(oldUser))
-        if (oldUser.name == "android")
-          DefaultUser.updateUser(newUser)
-        AnyBase.runOnUiThread {
-          Toast.makeText(context, notification.format(oldUser.name), Toast.LENGTH_SHORT).show()
-          callback(newUser)
+    } {
+      val valuePassword = passwordField.getText.toString
+      val valueIsPasswordEnabled = enablePasswordButton.isChecked
+      onOkCallback = None
+      Futures.future {
+        try {
+          val context = getSherlockActivity
+          val notification = XResource.getString(context, "user_change_password").getOrElse("password changed for user %1$s").format(oldUser.name)
+          IAmWarn(notification.format(oldUser.name))
+          val newUser = oldUser.copy(password = valuePassword)
+          UserAdapter.updateUser(Some(newUser), Some(oldUser))
+          UserAdapter.setPasswordEnabled(valueIsPasswordEnabled, context, newUser)
+          UserFragment.updateUser(Some(newUser), Some(oldUser))
+          if (oldUser.name == "android")
+            DefaultUser.updateUser(newUser)
+          AnyBase.runOnUiThread {
+            Toast.makeText(context, notification.format(oldUser.name), Toast.LENGTH_SHORT).show()
+            callback(newUser)
+          }
+        } catch {
+          case e =>
+            log.error(e.getMessage, e)
         }
-      } catch {
-        case e =>
-          log.error(e.getMessage, e)
-      } finally {
-        onOkCallback = None
       }
     }
   }
@@ -433,22 +442,21 @@ object UserDialog extends Logging {
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some((dialog: ChangeState) => user.foreach {
         oldUser =>
+          val context = getSherlockActivity
+          val newUser = oldUser.copy(enabled = newState)
+          val notification = if (newUser.enabled)
+            XResource.getString(context, "user_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
+          else
+            XResource.getString(context, "user_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
+          Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
+          dialog.onOkCallback.foreach(_(newUser))
+          defaultButtonCallback(dialog)
           Futures.future {
-            val context = getSherlockActivity
-            val newUser = oldUser.copy(enabled = newState)
-            val notification = if (newUser.enabled)
-              XResource.getString(getSherlockActivity, "user_enabled_message").getOrElse("enabled user \"%s\"").format(newUser.name)
-            else
-              XResource.getString(getSherlockActivity, "user_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
             IAmWarn(notification)
             UserAdapter.updateUser(Some(newUser), Some(oldUser))
             UserFragment.updateUser(Some(newUser), Some(oldUser))
             if (oldUser.name == "android")
               DefaultUser.updateUser(newUser)
-            AnyBase.runOnUiThread {
-              Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
-              dialog.onOkCallback.foreach(_(newUser))
-            }
           }
       }))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
@@ -639,7 +647,7 @@ object UserDialog extends Logging {
     @volatile var user: Option[UserInfo] = None
     @volatile var keyType: Option[String] = None
     override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(KeyReplace.this),
-      Some((dialog: KeyReplace) => { log.g_a_s_e("AAAA") }))))
+      Some((dialog: KeyReplace) => { log.___gaze("AAAA") }))))
     override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(KeyReplace.this),
       Some(defaultButtonCallback))))
 

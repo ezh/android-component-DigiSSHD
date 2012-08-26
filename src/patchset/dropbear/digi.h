@@ -1,1 +1,0 @@
-/home/devbox/android/android-DigiControl.private/bridge/src/digi.h

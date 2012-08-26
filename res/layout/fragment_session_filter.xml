@@ -24,44 +24,45 @@
     android:layout_height="match_parent"
     android:orientation="vertical" >
 
+    <include
+        android:id="@+id/element_session_filter_header"
+        android:layout_weight="0"
+        layout="@layout/element_session_filter_header" />
+
     <ListView
         android:id="@android:id/list"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" >
+        android:layout_height="match_parent"
+        android:layout_weight="1" >
     </ListView>
 
-    <LinearLayout
+    <RelativeLayout
         android:id="@android:id/empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical" >
 
-        <include layout="@layout/element_service_filter_fragment_header" />
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="@android:string/untitled"
+            android:padding="30dip"
+            android:src="@drawable/ic_background_logo" />
 
-        <RelativeLayout
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" >
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_horizontal"
+            android:text="@string/no_filters" />
+    </RelativeLayout>
 
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
-                android:layout_centerVertical="true"
-                android:contentDescription="@android:string/untitled"
-                android:padding="30dip"
-                android:src="@drawable/ic_background_logo" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
-                android:layout_centerVertical="true"
-                android:gravity="center_horizontal"
-                android:text="@string/no_filters" />
-        </RelativeLayout>
-
-        <include layout="@layout/element_service_filter_fragment_footer" />
-    </LinearLayout>
+    <include
+        android:id="@+id/element_session_filter_footer"
+        android:layout_weight="0"
+        layout="@layout/element_session_filter_footer" />
 
 </LinearLayout>

@@ -21,17 +21,14 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
-import org.digimead.digi.ctrl.lib.declaration.DConstant
+import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.aop.Loggable
+import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.sshd.R
 
 import android.content.Context
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.TextView
-import android.widget.Toast
 
 /*class FilterRemoveAdapter(context: FilterRemoveActivity, values: Seq[FilterRemoveActivity.FilterItem],
   private val resource: Int = android.R.layout.simple_list_item_1,
@@ -81,42 +78,43 @@ import android.widget.Toast
     }
   }
   def getPending() = values.filter(_.pending == true)
-  override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
-    if (getItem(position) == null) {
-      separator
-    } else
-      createViewFromResource(position, convertView, parent, resource)
-  }
+
   /*
    * skip separator view from RecycleBin
    */
-  private def createViewFromResource(position: Int, convertView: View, parent: ViewGroup, resource: Int): View = {
-    val view = if (convertView == null || convertView == separator)
-      inflater.inflate(resource, parent, false)
-    else
-      convertView
 
-    val text = try {
-      if (fieldId == 0)
-        //  If no custom field is assigned, assume the whole resource is a TextView
-        view.asInstanceOf[TextView]
-      else
-        //  Otherwise, find the TextView field within the layout
-        view.findViewById(fieldId).asInstanceOf[TextView]
-    } catch {
-      case e: ClassCastException =>
-        log.error("You must supply a resource ID for a TextView")
-        throw new IllegalStateException(
-          "ArrayAdapter requires the resource ID to be a TextView", e)
-    }
-
-    getItem(position) match {
-      case item: CharSequence =>
-        text.setText(item)
-      case item =>
-        text.setText(item.toString())
-    }
-
-    view
-  }
 }*/
+
+class FilterRemoveAdapter(protected val context: Context)
+  extends ArrayAdapter[String](context, android.R.layout.simple_expandable_list_item_1, android.R.id.text1)
+  with FilterBlock.FragmentAdapter with Logging {
+  log.debug("alive")
+
+  @Loggable
+  def submit() = synchronized {
+    log.___gaze("SUBMIT")
+    val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
+    val editor = pref.edit()
+    setPending(Seq()).foreach(filter => editor.remove(filter))
+    editor.commit()
+    AnyBase.runOnUiThread { update }
+  }
+}
+
+object FilterRemoveAdapter extends Logging {
+  private[service] lazy val adapter: Option[FilterRemoveAdapter] = AppComponent.Context map {
+    context =>
+      Some(new FilterRemoveAdapter(context))
+  } getOrElse { log.fatal("unable to create FilterRemoveAdaper"); None }
+  log.debug("alive")
+
+  @Loggable
+  def update(context: Context) = adapter.foreach {
+    adapter =>
+      // get list of predefined filters - active filters 
+      val actual = FilterBlock.listFilters(context)
+      // get list of actual filters - pending filters 
+      adapter.availableFilters = actual.map(v => (v, adapter.pendingFilters.exists(_ == v)))
+      AnyBase.runOnUiThread { adapter.update }
+  }
+}

@@ -37,6 +37,7 @@ import org.digimead.digi.ctrl.lib.info.UserInfo
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.R
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -227,8 +228,10 @@ object SessionBlock extends Logging {
         inflate(XResource.getId(context.getApplicationContext, "element_session_header", "layout"), null).asInstanceOf[LinearLayout]
       val headerTitle = view.findViewById(android.R.id.title).asInstanceOf[TextView]
       headerTitle.setText(Html.fromHtml(XResource.getString(context, "block_session_title").getOrElse("sessions")))
-      Level.intermediate(view.findViewById(android.R.id.custom))
-      view.findViewById(android.R.id.custom).setVisibility(View.VISIBLE)
+      val emptyView = view.findViewById(android.R.id.empty)
+      emptyView.findViewById(android.R.id.text1).asInstanceOf[TextView].setText(R.string.no_sessions)
+      Level.intermediate(emptyView)
+      emptyView.setVisibility(View.VISIBLE)
       view
     case None =>
       log.fatal("lost ApplicationContext")

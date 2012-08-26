@@ -22,9 +22,11 @@
 package org.digimead.digi.ctrl.sshd
 
 import java.io.File
+import java.io.FileNotFoundException
 
 import scala.actors.Futures
 import scala.collection.JavaConversions._
+import scala.xml.XML
 
 import org.digimead.digi.ctrl.ICtrlComponent
 import org.digimead.digi.ctrl.lib.AnyBase
@@ -72,9 +74,6 @@ class SSHDService extends Service with DService {
   @Loggable
   override def onCreate() = {
     SSHDService.service = Some(this)
-    // sometimes there is java.lang.IllegalArgumentException in scala.actors.threadpool.ThreadPoolExecutor
-    // if we started actors from the singleton
-    SSHDActivity.actor.start // Yes, SSHDActivity from SSHDService
     Preferences.DebugLogLevel.set(this)
     Preferences.DebugAndroidLogger.set(this)
     super.onCreate()
@@ -167,8 +166,12 @@ object SSHDService extends Logging {
     val executables = Seq("dropbear", "openssh")
     (for {
       context <- AppComponent.Context
-      appNativePath <- AppComponent.Inner.appNativePath
-      xml <- AppComponent.Inner.nativeManifest
+      enginePath <- AppComponent.Inner.enginePath
+      xmlPath <- AppComponent.Inner.engineManifestPath
+      xml <- try { Option(XML.loadFile(xmlPath)) } catch {
+        case e: FileNotFoundException => None
+        case e => log.error(e.getMessage, e); None
+      }
       info <- AnyBase.info.get
     } yield {
       var executableID = 0
@@ -308,7 +311,7 @@ object SSHDService extends Logging {
       ready.get(DTimeout.long).getOrElse({ log.fatal("unable to start DigiSSHD service") })
       (for {
         context <- AppComponent.Context
-        appNativePath <- AppComponent.Inner.appNativePath
+        enginePath <- AppComponent.Inner.enginePath
       } yield {
         assert(id == 0)
         val keyResult = AppControl.Inner.getInternalDirectory(DTimeout.long) match {
@@ -327,7 +330,7 @@ object SSHDService extends Logging {
             // create security keys
             (if (RSAPublicKeyEncription.getState[Boolean](context)) {
               log.debug("prepare RSA key")
-              val rsa_key_source = new File(appNativePath, "dropbear_rsa_host_key")
+              val rsa_key_source = new File(enginePath, "dropbear_rsa_host_key")
               val rsa_key_destination = new File(path, "dropbear_rsa_host_key")
               if (rsa_key_source.exists && rsa_key_source.length > 0) {
                 IAmMumble("syncronize RSA key with origin")
@@ -347,7 +350,7 @@ object SSHDService extends Logging {
               true) &&
               (if (DSAPublicKeyEncription.getState[Boolean](context)) {
                 log.debug("prepare DSA key")
-                val dss_key_source = new File(appNativePath, "dropbear_dss_host_key")
+                val dss_key_source = new File(enginePath, "dropbear_dss_host_key")
                 val dss_key_destination = new File(path, "dropbear_dss_host_key")
                 if (dss_key_source.exists && dss_key_source.length > 0) {
                   IAmMumble("syncronize DSA key with origin")

@@ -34,6 +34,7 @@ import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
@@ -70,10 +71,8 @@ object GrantSuperuserPermission extends CheckBoxItem with Logging {
     @Loggable
     def showRootRequest(activity: FragmentActivity) =
       SSHDResource.serviceRootRequest.foreach(dialog =>
-        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-          ft.addToBackStack(dialog)
-        }).show())
+        SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+          transaction(SSHDPreferences.defaultTransaction(dialog)).show())
 
     class RootRequest
       extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_danger", "drawable")))) with Logging {

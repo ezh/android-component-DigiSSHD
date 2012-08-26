@@ -62,7 +62,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
-import android.widget.AdapterView.AdapterContextMenuInfo
 import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.Toast
@@ -81,19 +80,19 @@ object DefaultUser extends CheckBoxItem with Logging {
           Toast.makeText(context, Html.fromHtml(XResource.getString(context, "user_android_enabled_singleuser").
             getOrElse("<b>android</b> is always enabled in single user mode")), Toast.LENGTH_SHORT).show()
         }
-      else
-        (if (android.enabled) SSHDResource.userDisable else SSHDResource.userEnable) foreach {
-          case dialog =>
-            SafeDialog(fragment.getActivity, dialog, () => dialog.asInstanceOf[UserDialog.ChangeState]).
-              target(R.id.main_topPanel).before {
-                (dialog) =>
-                  dialog.user = Some(android)
-                  dialog.onOkCallback = Some((user) => {
-                    android = user
-                    AnyBase.runOnUiThread { view.setChecked(user.enabled) }
-                  })
-              }.show()
-        }
+      else {
+        val activity = fragment.getSherlockActivity
+        if (android.enabled)
+          UserDialog.disable(activity, android, Some((user) => {
+            android = user
+            view.setChecked(user.enabled)
+          }))
+        else
+          UserDialog.enable(activity, android, Some((user) => {
+            android = user
+            view.setChecked(user.enabled)
+          }))
+      }
   }
   @Loggable
   def updateCheckbox(view: CheckBox) = {
@@ -116,11 +115,7 @@ object DefaultUser extends CheckBoxItem with Logging {
     dialog <- SSHDResource.userChangePassword
   } if (!dialog.isShowing) {
     val context = fragment.getSherlockActivity
-    SafeDialog(fragment.getActivity, dialog, () => dialog).target(R.id.main_topPanel).before {
-      (dialog) =>
-        dialog.user = Some(android)
-        dialog.onOkCallback = Some(onDialogUserUpdate(context, _: UserInfo))
-    }.show()
+    UserDialog.changePassword(context, android, Some(onDialogUserUpdate(context, _: UserInfo)))
   }
   @Loggable
   def onDialogUserUpdate(context: Context, newUser: UserInfo) = {

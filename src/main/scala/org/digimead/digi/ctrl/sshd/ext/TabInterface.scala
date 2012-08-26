@@ -21,16 +21,20 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 
 import com.actionbarsherlock.app.SherlockFragmentActivity
 
 import android.support.v4.app.Fragment
+import android.view.View
 
 trait TabInterface extends Logging {
   this: Fragment with TabInterface.Sherlock =>
+  private var bottomPanelHideCounter = 0
   def onTabSelected()
+  def getSherlockActivity(): SherlockFragmentActivity
   def getTabDescriptionFragment(): Option[Fragment]
   def showTabDescriptionFragment() = if (isTopPanelAvailable)
     getTabDescriptionFragment.foreach {
@@ -46,8 +50,19 @@ trait TabInterface extends Logging {
         log.debug("skip show description fragment for " + this.getClass.getName)
     }
   def isTopPanelAvailable =
-    Option(getActivity.findViewById(R.id.main_topPanel)).exists(_.isShown)  
-  def getSherlockActivity(): SherlockFragmentActivity
+    Option(getActivity.findViewById(R.id.main_topPanel)).exists(_.isShown)
+  def hideBottomPanel() = synchronized {
+    bottomPanelHideCounter += 1
+    if (bottomPanelHideCounter == 1)
+      AnyBase.runOnUiThread { getSherlockActivity.findViewById(R.id.main_bottomPanel).setVisibility(View.GONE) }
+    log.debug("new bottom panel hide counter is " + bottomPanelHideCounter)
+  }
+  def showBottomPanel() = synchronized {
+    bottomPanelHideCounter -= 1
+    if (bottomPanelHideCounter == 0)
+      AnyBase.runOnUiThread { getSherlockActivity.findViewById(R.id.main_bottomPanel).setVisibility(View.VISIBLE) }
+    log.debug("new bottom panel hide counter is " + bottomPanelHideCounter)
+  }
 }
 
 object TabInterface {

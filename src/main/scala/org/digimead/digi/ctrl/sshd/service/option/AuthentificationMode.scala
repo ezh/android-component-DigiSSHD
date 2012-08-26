@@ -61,7 +61,7 @@ object AuthentificationMode extends TextViewItem with Logging {
     fragment <- TabContent.fragment
     dialog <- SSHDResource.serviceSelectAuth
   } if (!dialog.isShowing)
-    Dialog.showSelectPort(fragment.getSherlockActivity)
+    Dialog.showSelectAuth(fragment.getSherlockActivity)
   def getState[T](context: Context)(implicit m: Manifest[T]): T = {
     assert(m.erasure == option.kind)
     SSHDPreferences.AuthentificationMode.get(context).id.asInstanceOf[T]
@@ -82,12 +82,10 @@ object AuthentificationMode extends TextViewItem with Logging {
 
   object Dialog {
     @Loggable
-    def showSelectPort(activity: FragmentActivity) =
+    def showSelectAuth(activity: FragmentActivity) =
       SSHDResource.serviceSelectAuth.foreach(dialog =>
-        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-          ft.addToBackStack(dialog)
-        }).show())
+        SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+          transaction(SSHDPreferences.defaultTransaction(dialog)).show())
 
     class SelectAuth
       extends SSHDListDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_users", "drawable")))) {

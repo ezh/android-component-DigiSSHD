@@ -21,100 +21,163 @@
 
 package org.digimead.digi.ctrl.sshd.service
 
-import scala.collection.JavaConversions._
+import scala.actors.Futures
+import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDActivity
+import org.digimead.digi.ctrl.sshd.SSHDResource
+import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
+import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
+import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
+
+import com.actionbarsherlock.app.SherlockListFragment
 
 import android.app.Activity
-import android.app.AlertDialog
-import android.app.Dialog
-import android.app.ListActivity
-import android.content.Context
-import android.content.DialogInterface
-import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.support.v4.app.FragmentActivity
+import android.support.v4.app.FragmentManager
+import android.support.v4.app.FragmentTransaction
+import android.text.Html
 import android.view.View
 import android.widget.Button
 import android.widget.ListView
 
-class FilterRemoveFragment extends ListActivity with Logging {
-  // lazy for workaround of System services not available to Activities before onCreate()
-  private lazy val adapter = {
-    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
-    val values = pref.getAll().toSeq.map(t => t._1).filter(_ != FilterBlock.ALL).sorted.map(FilterRemoveActivity.FilterItem(_, false))
-    //new FilterRemoveAdapter(this, values)
-    null
-  }
-  private lazy val inflater = getLayoutInflater()
-  //private lazy val footerApply = findViewById(R.id.service_filter_footer_apply).asInstanceOf[Button]
+class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with TabContent.AccessToTabFragment with Logging {
+  FilterRemoveFragment.fragment = Some(this)
+  private lazy val footerApply = new WeakReference(getSherlockActivity.
+    findViewById(R.id.service_filter_footer_apply).asInstanceOf[Button])
+  private var savedTitle: CharSequence = ""
   log.debug("alive")
-  /** Called when the activity is first created. */
+
+  def tag = "fragment_service_filter_remove"
   @Loggable
-  override def onCreate(savedInstanceState: Bundle) = {
-    super.onCreate(savedInstanceState)
-    /*    AnyBase.init(this, false)
-    AnyBase.preventShutdown(this)
-    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_BEHIND)
-    setContentView(R.layout.service_filter)
-    val footer = inflater.inflate(R.layout.service_filter_footer, null)
-    getListView().addFooterView(footer, null, false)
-    setListAdapter(adapter)*/
+  override def onAttach(activity: Activity) {
+    super.onAttach(activity)
+    FilterRemoveFragment.fragment = Some(this)
   }
   @Loggable
-  override def onDestroy() {
-    AnyBase.deinit(this)
-    super.onDestroy()
+  override def onActivityCreated(savedInstanceState: Bundle) = SSHDActivity.ppGroup("FilterRemoveFragment.onActivityCreated") {
+    super.onActivityCreated(savedInstanceState)
+    val inflater = getLayoutInflater(savedInstanceState)
+    val lv = getListView
+    setHasOptionsMenu(false)
+    FilterRemoveAdapter.adapter.foreach(setListAdapter)
+    registerForContextMenu(lv)
   }
   @Loggable
-  override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = {
-    /*    runOnUiThread(new Runnable {
-      def run = {
-        adapter.itemClick(position)
+  override def onResume() = {
+    super.onResume
+    val activity = getSherlockActivity
+    Futures.future {
+      FilterRemoveAdapter.update(activity)
+      for {
+        adapter <- FilterRemoveAdapter.adapter
+        footerApply <- footerApply.get
+      } AnyBase.runOnUiThread {
+        Option(footerApply.findViewById(R.id.service_filter_footer_apply)).foreach {
+          button =>
+            button.setOnClickListener(new View.OnClickListener() {
+              def onClick(view: View) = onClickApply(view)
+            })
+        }
         if (adapter.getPending.isEmpty)
           footerApply.setEnabled(false)
         else
           footerApply.setEnabled(true)
       }
-    })*/
+    }
+    savedTitle = activity.getTitle
+    activity.setTitle(XResource.getString(activity, "app_name_filter_remove").getOrElse("Remove interface filters"))
+    tabFragment.foreach(onTabFragmentShow)
   }
   @Loggable
-  def applySelectedFilters(v: View) {
-    showDialog(0) // apply?
+  override def onPause() = {
+    tabFragment.foreach(onTabFragmentHide)
+    getSherlockActivity.setTitle(savedTitle)
+    super.onPause
   }
   @Loggable
-  override protected def onCreateDialog(id: Int): Dialog = {
-    // there is only one - apply
-    /*    new AlertDialog.Builder(this).
-      setTitle("Apply").
-      setMessage("R u sure?").
-      setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-        def onClick(dialog: DialogInterface, whichButton: Int) {
-          FilterRemoveActivity.this.onSubmit()
-          setResult(Activity.RESULT_OK, new Intent())
-          finish()
-        }
-      }).
-      setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-        def onClick(dialog: DialogInterface, whichButton: Int) {
-        }
-      }).
-      create()*/
-    null
+  override def onDetach() {
+    FilterRemoveFragment.fragment = None
+    super.onDetach()
+  }
+  @Loggable
+  override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
+    adapter <- FilterRemoveAdapter.adapter
+    footerApply <- footerApply.get
+  } {
+    adapter.onListItemClick(position)
+    if (adapter.getPending.isEmpty)
+      footerApply.setEnabled(false)
+    else
+      footerApply.setEnabled(true)
+  }
+  @Loggable
+  def onClickApply(v: View) = SSHDResource.serviceFiltersRemove.foreach {
+    dialog =>
+      if (!dialog.isShowing)
+        FilterRemoveFragment.Dialog.showFiltersRemove(getSherlockActivity)
   }
   @Loggable
   private def onSubmit() = {
-    val pref = getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
-    val editor = pref.edit()
-    //adapter.getPending.foreach(filter => editor.remove(filter.value))
-    editor.commit()
+    val context = getSherlockActivity
+    FilterRemoveAdapter.adapter.foreach(_.submit)
+    FilterBlock.updateItems(context)
+    getSherlockActivity.getSupportFragmentManager.
+      popBackStack(tag, FragmentManager.POP_BACK_STACK_INCLUSIVE)
   }
 }
 
-object FilterRemoveActivity {
+object FilterRemoveFragment extends Logging {
+  /** profiling support */
+  private val ppLoading = SSHDActivity.ppGroup.start("service.FilterDelFragment$")
+  /** TabContent fragment instance */
+  @volatile private[service] var fragment: Option[FilterRemoveFragment] = None
+  log.debug("alive")
+  ppLoading.stop
+
+  @Loggable
+  def show() = SSHDTabAdapter.getSelectedFragment match {
+    case Some(currentTabFragment) =>
+      SSHDFragment.show(classOf[FilterRemoveFragment], currentTabFragment)
+    case None =>
+      log.fatal("current tab fragment not found")
+  }
+
   case class FilterItem(val value: String, var pending: Boolean)
+  object Dialog {
+    @Loggable
+    def showFiltersRemove(activity: FragmentActivity) =
+      SSHDResource.serviceFiltersRemove.foreach(dialog =>
+        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
+          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+          ft.addToBackStack(dialog)
+        }).show())
+
+    class FiltersRemove
+      extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_danger", "drawable")))) with Logging {
+      override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(FiltersRemove.this),
+        Some((dialog: FiltersRemove) => {
+          defaultButtonCallback(dialog)
+          Futures.future { FilterRemoveFragment.fragment.foreach(_.onSubmit) }
+        }))))
+      override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(FiltersRemove.this),
+        Some(defaultButtonCallback))))
+
+      def tag = "dialog_service_filtersremove"
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "service_filtersremove_title").
+        getOrElse("Remove new filters"))
+      def message = Some(Html.fromHtml(XResource.getString(getSherlockActivity, "service_filtersadd_message").
+        getOrElse("Are you sure you want to remove interface filters?")))
+    }
+  }
 }

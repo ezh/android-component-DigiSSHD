@@ -78,10 +78,8 @@ object NetworkPort extends TextViewItem with Logging {
     @Loggable
     def showSelectPort(activity: FragmentActivity) =
       SSHDResource.serviceSelectPort.foreach(dialog =>
-        SafeDialog(activity, dialog, () => dialog).transaction((ft, fragment, target) => {
-          ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-          ft.addToBackStack(dialog)
-        }).show())
+        SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+          transaction(SSHDPreferences.defaultTransaction(dialog)).show())
 
     class SelectPort
       extends SSHDAlertDialog(Some(android.R.drawable.ic_menu_preferences)) with Logging {

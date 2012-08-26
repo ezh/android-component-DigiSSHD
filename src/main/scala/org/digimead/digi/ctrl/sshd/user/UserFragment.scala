@@ -51,6 +51,7 @@ import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
+import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 
 import com.actionbarsherlock.app.SherlockListFragment
@@ -79,31 +80,18 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 
-class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
+class UserFragment extends SherlockListFragment with SSHDFragment with TabContent.AccessToTabFragment with Logging {
   UserFragment.fragment = Some(this)
-  private lazy val dynamicHeader = new WeakReference({
-    getSherlockActivity.findViewById(R.id.element_user_header).asInstanceOf[LinearLayout]
-  })
-  private lazy val dynamicFooter = new WeakReference({
-    getSherlockActivity.findViewById(R.id.element_user_footer).asInstanceOf[LinearLayout].
-      findViewById(R.id.user_footer_dynamic).asInstanceOf[LinearLayout]
-  })
-  private lazy val apply = new WeakReference(getSherlockActivity.findViewById(R.id.element_user_footer).
-    findViewById(R.id.user_apply).asInstanceOf[TextView])
-  private lazy val blockAll = new WeakReference(getSherlockActivity.findViewById(R.id.element_user_footer).
-    findViewById(R.id.user_footer_toggle_all).asInstanceOf[TextView])
-  private lazy val deleteAll = new WeakReference(getSherlockActivity.findViewById(R.id.element_user_footer).
-    findViewById(R.id.user_footer_delete_all).asInstanceOf[TextView])
-  private lazy val userName = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_name).
-    asInstanceOf[TextView]).getOrElse(null))
-  private lazy val userGenerateButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_add).
-    asInstanceOf[ImageButton]).getOrElse(null))
-  private lazy val userPassword = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_password).
-    asInstanceOf[TextView]).getOrElse(null))
-  private lazy val userPasswordShowButton = new WeakReference(dynamicFooter.get.map(_.findViewById(R.id.user_show_password).
-    asInstanceOf[ImageButton]).getOrElse(null))
-  private lazy val userPasswordEnabledCheckbox = new WeakReference(dynamicFooter.get.map(_.findViewById(android.R.id.checkbox).
-    asInstanceOf[CheckBox]).getOrElse(null))
+  @volatile private var dynamicHeader: Option[LinearLayout] = None
+  @volatile private var dynamicFooter: Option[LinearLayout] = None
+  @volatile private var apply: Option[TextView] = None
+  @volatile private var blockAll: Option[TextView] = None
+  @volatile private var deleteAll: Option[TextView] = None
+  @volatile private var userName: Option[TextView] = None
+  @volatile private var userGenerateButton: Option[ImageButton] = None
+  @volatile private var userPassword: Option[TextView] = None
+  @volatile private var userPasswordShowButton: Option[ImageButton] = None
+  @volatile private var userPasswordEnabledCheckbox: Option[CheckBox] = None
   private[user] val lastActiveUserInfo = new AtomicReference[Option[UserInfo]](None)
   private var savedTitle: CharSequence = ""
   /**
@@ -111,6 +99,14 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
    * affected API 8 - API 16, blame for such 'quality', few years without reaction
    */
   @volatile private var hackForIssue7139: AdapterContextMenuInfo = null
+  private val textWatcher = new TextWatcher() {
+    def afterTextChanged(s: Editable) { updateFieldsState }
+    def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+    def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+  }
+  private val onPasswordEnabledChangeListener = new CompoundButton.OnCheckedChangeListener() {
+    def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = updateFieldsState
+  }
   log.debug("alive")
 
   def tag = "fragment_users"
@@ -130,40 +126,70 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     UserAdapter.adapter.foreach(setListAdapter)
     setHasOptionsMenu(false)
     registerForContextMenu(getListView)
-    for {
-      userName <- userName.get
-      userPassword <- userPassword.get
-      userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
-    } {
-      userName.addTextChangedListener(new TextWatcher() {
-        def afterTextChanged(s: Editable) { updateFieldsState }
-        def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-        def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-      })
-      userName.setFilters(Array(UserDialog.userNameFilter))
-      userPassword.addTextChangedListener(new TextWatcher() {
-        def afterTextChanged(s: Editable) { updateFieldsState }
-        def beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-        def onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-      })
-      userPassword.setFilters(Array(UserDialog.userPasswordFilter))
-      userPasswordEnabledCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-        def onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) = updateFieldsState
-      })
-    }
   }
   @Loggable
   override def onResume() = {
     super.onResume
     val activity = getSherlockActivity
+    // update UI elements
+    dynamicHeader = Option(activity.findViewById(R.id.element_user_header).asInstanceOf[LinearLayout])
+    dynamicFooter = Option(activity.findViewById(R.id.element_user_footer).asInstanceOf[LinearLayout].
+      findViewById(R.id.user_footer_dynamic).asInstanceOf[LinearLayout])
+    apply = Option(activity.findViewById(R.id.element_user_footer).
+      findViewById(R.id.user_apply).asInstanceOf[TextView])
+    blockAll = Option(activity.findViewById(R.id.element_user_footer).
+      findViewById(R.id.user_footer_toggle_all).asInstanceOf[TextView])
+    deleteAll = Option(activity.findViewById(R.id.element_user_footer).
+      findViewById(R.id.user_footer_delete_all).asInstanceOf[TextView])
+    userName = Option(dynamicFooter.map(_.findViewById(R.id.user_name).
+      asInstanceOf[TextView]).getOrElse(null))
+    userGenerateButton = Option(dynamicFooter.map(_.findViewById(R.id.user_add).
+      asInstanceOf[ImageButton]).getOrElse(null))
+    userPassword = Option(dynamicFooter.map(_.findViewById(R.id.user_password).
+      asInstanceOf[TextView]).getOrElse(null))
+    userPasswordShowButton = Option(dynamicFooter.map(_.findViewById(R.id.user_show_password).
+      asInstanceOf[ImageButton]).getOrElse(null))
+    userPasswordEnabledCheckbox = Option(dynamicFooter.map(_.findViewById(android.R.id.checkbox).
+      asInstanceOf[CheckBox]).getOrElse(null))
+    for {
+      userName <- userName
+      userPassword <- userPassword
+      userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
+    } {
+      userName.addTextChangedListener(textWatcher)
+      userName.setFilters(Array(UserDialog.userNameFilter))
+      userPassword.addTextChangedListener(textWatcher)
+      userPassword.setFilters(Array(UserDialog.userPasswordFilter))
+      userPasswordEnabledCheckbox.setOnCheckedChangeListener(onPasswordEnabledChangeListener)
+    }
+    // update user that already loaded
+    for {
+      existsUser <- lastActiveUserInfo.get()
+      userName <- userName
+      userPassword <- userPassword
+      userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
+    } {
+      UserAdapter.find(activity, existsUser.name) match {
+        case r @ Some(user) =>
+          lastActiveUserInfo.set(r)
+          userName.setText(user.name)
+          userPassword.setText(user.password)
+          userPasswordEnabledCheckbox.setChecked(user.enabled)
+        case r @ None =>
+          lastActiveUserInfo.set(r)
+          userName.setText("")
+          userPassword.setText("")
+          userPasswordEnabledCheckbox.setChecked(true)
+      }
+    }
     savedTitle = activity.getTitle
-    for { userGenerateButton <- userGenerateButton.get } {
+    for { userGenerateButton <- userGenerateButton } {
       AuthentificationMode.getStateExt(activity) match {
         case SSHDPreferences.AuthentificationType.SingleUser =>
-          activity.setTitle(XResource.getString(activity, "app_name_singleuser").getOrElse("DigiSSHD: Single User Mode"))
+          activity.setTitle(XResource.getString(activity, "app_name_singleuser").getOrElse("Single User Mode"))
           userGenerateButton.setEnabled(false)
         case SSHDPreferences.AuthentificationType.MultiUser =>
-          activity.setTitle(XResource.getString(activity, "app_name_multiuser").getOrElse("DigiSSHD: Multi User Mode"))
+          activity.setTitle(XResource.getString(activity, "app_name_multiuser").getOrElse("Multi User Mode"))
           userGenerateButton.setEnabled(true)
         case invalid =>
           log.fatal("invalid authenticatin type \"" + invalid + "\"")
@@ -171,8 +197,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
       }
     }
     for {
-      dynamicHeader <- dynamicHeader.get
-      dynamicFooter <- dynamicFooter.get
+      dynamicHeader <- dynamicHeader
+      dynamicFooter <- dynamicFooter
     } {
       /*      if (SSHDActivity.collapsed.get) {
         dynamicHeader.setVisibility(View.GONE)
@@ -185,12 +211,29 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     if (lastActiveUserInfo.get.isEmpty)
       onListItemClick(getListView, getListView, 0, 0)
     updateFieldsState
-    showDynamicFragment
+    tabFragment.foreach(onTabFragmentShow)
   }
   @Loggable
   override def onPause() = {
-    hideDynamicFragment
+    tabFragment.foreach(onTabFragmentHide)
     getSherlockActivity.setTitle(savedTitle)
+    for {
+      userName <- userName
+      userPassword <- userPassword
+    } {
+      userName.removeTextChangedListener(textWatcher)
+      userPassword.removeTextChangedListener(textWatcher)
+    }
+    dynamicHeader = None
+    dynamicFooter = None
+    apply = None
+    blockAll = None
+    deleteAll = None
+    userName = None
+    userGenerateButton = None
+    userPassword = None
+    userPasswordShowButton = None
+    userPasswordEnabledCheckbox = None
     super.onPause
   }
   @Loggable
@@ -201,9 +244,9 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   @Loggable
   override def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
     adapter <- UserAdapter.adapter
-    userName <- userName.get
-    userPassword <- userPassword.get
-    userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+    userName <- userName
+    userPassword <- userPassword
+    userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
     context <- Option(getSherlockActivity)
   } adapter.getItem(position) match {
     case user: UserInfo =>
@@ -367,8 +410,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   @Loggable
   def onClickApply(v: View) = synchronized {
     for {
-      userName <- userName.get
-      userPassword <- userPassword.get
+      userName <- userName
+      userPassword <- userPassword
     } {
       val context = getSherlockActivity
       val name = userName.getText.toString.trim
@@ -439,8 +482,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
       // password
       val password = UserAdapter.generate()
       for {
-        userName <- userName.get
-        userPasswrod <- userPassword.get
+        userName <- userName
+        userPasswrod <- userPassword
       } AnyBase.runOnUiThread {
         userName.setText(name)
         userPasswrod.setText(password)
@@ -452,31 +495,21 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     }
   }
   @Loggable
-  def onClickShowPassword(v: View): Unit = for {
-    userPasswordShowButton <- userPasswordShowButton.get
-    userPassword <- userPassword.get
-  } if (UserFragment.showPassword) {
-    UserFragment.showPassword = false
-    userPasswordShowButton.setSelected(false)
-    userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
-    userPassword.setTransformationMethod(PasswordTransformationMethod.getInstance())
-  } else {
-    UserFragment.showPassword = true
-    userPasswordShowButton.setSelected(true)
-    userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
-  }
-  @Loggable
-  def onDialogChooseHome(user: UserInfo, home: File) = Futures.future {
-
+  def onClickShowPassword(v: View): Unit = {
+    if (UserFragment.showPassword)
+      UserFragment.showPassword = false
+    else
+      UserFragment.showPassword = true
+    updateUserPasswordShowButton()
   }
   @Loggable
   def onDialogUserUpdate() = Futures.future {
     this.synchronized {
       for {
         adapter <- UserAdapter.adapter
-        userName <- userName.get
-        userPassword <- userPassword.get
-        userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+        userName <- userName
+        userPassword <- userPassword
+        userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
         user <- lastActiveUserInfo.get
       } {
         val context = getSherlockActivity
@@ -518,9 +551,9 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
     this.synchronized {
       for {
         adapter <- UserAdapter.adapter
-        userName <- userName.get
-        userPassword <- userPassword.get
-        userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+        userName <- userName
+        userPassword <- userPassword
+        userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
       } {
         val context = getSherlockActivity
         val name = userName.getText.toString.trim
@@ -626,13 +659,14 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
   }
   @Loggable
   private[user] def updateFieldsState(): Unit = for {
-    userName <- userName.get
-    userPassword <- userPassword.get
-    apply <- apply.get
-    blockAll <- blockAll.get
-    deleteAll <- deleteAll.get
-    userGenerateButton <- userGenerateButton.get
-    userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox.get
+    userName <- userName
+    userPassword <- userPassword
+    apply <- apply
+    blockAll <- blockAll
+    deleteAll <- deleteAll
+    userGenerateButton <- userGenerateButton
+    userPasswordShowButton <- userPasswordShowButton
+    userPasswordEnabledCheckbox <- userPasswordEnabledCheckbox
   } Futures.future {
     var applyState = if (lastActiveUserInfo.get.nonEmpty) {
       if (lastActiveUserInfo.get.exists(u => u.name == userName.getText.toString.trim &&
@@ -655,6 +689,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         userPassword.setEnabled(userPasswordState)
         blockAll.setEnabled(blockAllState)
         deleteAll.setEnabled(deleteAllState)
+        updateUserPasswordShowButton()
       }
     } else {
       AnyBase.runOnUiThread {
@@ -664,8 +699,20 @@ class UserFragment extends SherlockListFragment with SSHDFragment with Logging {
         userPassword.setEnabled(userPasswordState)
         blockAll.setEnabled(false)
         deleteAll.setEnabled(false)
+        updateUserPasswordShowButton()
       }
     }
+  }
+  private def updateUserPasswordShowButton() = for {
+    userPassword <- userPassword
+    userPasswordShowButton <- userPasswordShowButton
+  } if (UserFragment.showPassword) {
+    userPasswordShowButton.setSelected(true)
+    userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
+  } else {
+    userPasswordShowButton.setSelected(false)
+    userPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+    userPassword.setTransformationMethod(PasswordTransformationMethod.getInstance())
   }
 }
 

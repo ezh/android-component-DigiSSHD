@@ -54,9 +54,9 @@ trait PublicKey extends Logging {
 
   def generateHostKey(context: Context): Boolean = option match {
     case RSAPublicKeyEncription.option =>
-      AppComponent.Inner.appNativePath.map {
-        appNativePath =>
-          val rsa_key = new File(appNativePath, "dropbear_rsa_host_key")
+      AppComponent.Inner.enginePath.map {
+        enginePath =>
+          val rsa_key = new File(enginePath, "dropbear_rsa_host_key")
           log.debug("private key path: " + rsa_key.getAbsolutePath())
           if (generateKey(context, rsa_key)) {
             true
@@ -66,9 +66,9 @@ trait PublicKey extends Logging {
           }
       } getOrElse false
     case DSAPublicKeyEncription.option =>
-      AppComponent.Inner.appNativePath.map {
-        appNativePath =>
-          val dss_key = new File(appNativePath, "dropbear_dss_host_key")
+      AppComponent.Inner.enginePath.map {
+        enginePath =>
+          val dss_key = new File(enginePath, "dropbear_dss_host_key")
           log.debug("private key path: " + dss_key.getAbsolutePath())
           if (generateKey(context, dss_key)) {
             true
@@ -98,11 +98,11 @@ trait PublicKey extends Logging {
     val kindOpt = if (option.tag == "dsa") "dss" else option.tag
     (for {
       importFileFrom <- files.headOption
-      appNativePath <- AppComponent.Inner.appNativePath
+      enginePath <- AppComponent.Inner.enginePath
     } yield {
       IAmWarn("import " + kindOpt.toUpperCase + " from " + importFileFrom)
       val importTemplateName = "dropbear_" + kindOpt + "_host_key"
-      val importFileTo = new File(appNativePath, importTemplateName)
+      val importFileTo = new File(enginePath, importTemplateName)
       if (Common.copyFile(importFileFrom, importFileTo))
         Toast.makeText(context, XResource.getString(context, "import_public_key_successful").
           getOrElse("import %s key succesful").format(option.tag.toUpperCase), Toast.LENGTH_SHORT).show
@@ -117,9 +117,9 @@ trait PublicKey extends Logging {
   def exportHostKey(context: Context): Boolean = try {
     val file = option match {
       case RSAPublicKeyEncription.option =>
-        AppComponent.Inner.appNativePath.flatMap(p => Some(new File(p, "dropbear_rsa_host_key")))
+        AppComponent.Inner.enginePath.flatMap(p => Some(new File(p, "dropbear_rsa_host_key")))
       case DSAPublicKeyEncription.option =>
-        AppComponent.Inner.appNativePath.flatMap(p => Some(new File(p, "dropbear_dss_host_key")))
+        AppComponent.Inner.enginePath.flatMap(p => Some(new File(p, "dropbear_dss_host_key")))
     }
     file match {
       case Some(file) if file.exists =>
@@ -144,10 +144,10 @@ trait PublicKey extends Logging {
       log.error(e.getMessage(), e)
       false
   }
-  protected def getSourceKeyFile(): Option[File] = AppComponent.Inner.appNativePath flatMap {
-    appNativePath =>
+  protected def getSourceKeyFile(): Option[File] = AppComponent.Inner.enginePath flatMap {
+    enginePath =>
       val kindOpt = if (option.tag == "dsa") "dss" else option.tag
-      Some(new File(appNativePath, "dropbear_" + kindOpt + "_host_key"))
+      Some(new File(enginePath, "dropbear_" + kindOpt + "_host_key"))
   }
   private def generateKey(context: Context, keyFile: File): Boolean = try {
     IAmBusy(this, option.tag.toUpperCase + " key generation")

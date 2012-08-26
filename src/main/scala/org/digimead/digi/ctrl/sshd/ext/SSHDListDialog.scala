@@ -22,10 +22,28 @@
 package org.digimead.digi.ctrl.sshd.ext
 
 import org.digimead.digi.ctrl.lib.androidext.XListDialog
+import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.actionbarsherlock.app.SherlockDialogFragment
+
+import android.view.View
 
 abstract class SSHDListDialog(val icon: Option[Int]) extends SherlockDialogFragment with XListDialog {
   def this() = this(None)
   def getDialogActivity() = getSherlockActivity()
+  override def onResume() = {
+    SSHDActivity.activity.foreach {
+      activity =>
+        activity.findViewById(R.id.main_bottomPanel).setVisibility(View.GONE)
+    }
+    super.onResume
+  }
+  override def onPause() = {
+    super.onPause
+    SSHDActivity.activity.foreach {
+      activity =>
+        activity.findViewById(R.id.main_bottomPanel).setVisibility(View.VISIBLE)
+    }
+  }
 }

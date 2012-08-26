@@ -114,35 +114,17 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
     }*/
   }
   @Loggable
-  def onClickLeftPart(v: View) {
-    val item = items.head
-    if (item.isFilterADA) {
-      log.debug("start FILTER_REQUEST_ALLOW activity with request code " + FilterBlock.FILTER_REQUEST_ALLOW)
-      val intent = new Intent(context, classOf[FilterActivity])
-      intent.putExtra("requestCode", FilterBlock.FILTER_REQUEST_ALLOW)
-      //context.startActivityForResult(intent, FilterBlock.FILTER_REQUEST_ALLOW)
-    } else {
-      log.debug("start FILTER_REQUEST_DENY activity with request code " + FilterBlock.FILTER_REQUEST_DENY)
-      val intent = new Intent(context, classOf[FilterActivity])
-      intent.putExtra("requestCode", FilterBlock.FILTER_REQUEST_DENY)
-      //context.startActivityForResult(intent, FilterBlock.FILTER_REQUEST_DENY)
-    }
-  }
+  def onClickLeftPart(v: View) =
+    if (items.head.isFilterADA)
+      FilterFragment.ACLAllow.show()
+    else
+      FilterFragment.ACLDeny.show()
   @Loggable
-  def onClickRightPart(v: View) {
-    val item = items.head
-    if (item.isFilterADA) {
-      log.debug("start FILTER_REQUEST_DENY activity with request code " + FilterBlock.FILTER_REQUEST_DENY)
-      val intent = new Intent(context, classOf[FilterActivity])
-      intent.putExtra("requestCode", FilterBlock.FILTER_REQUEST_DENY)
-      //context.startActivityForResult(intent, FilterBlock.FILTER_REQUEST_DENY)
-    } else {
-      log.debug("start FILTER_REQUEST_ALLOW activity with request code " + FilterBlock.FILTER_REQUEST_ALLOW)
-      val intent = new Intent(context, classOf[FilterActivity])
-      intent.putExtra("requestCode", FilterBlock.FILTER_REQUEST_ALLOW)
-      //context.startActivityForResult(intent, FilterBlock.FILTER_REQUEST_ALLOW)
-    }
-  }
+  def onClickRightPart(v: View) =
+    if (items.head.isFilterADA)
+      FilterFragment.ACLDeny.show()
+    else
+      FilterFragment.ACLAllow.show()
   @Loggable
   def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) =
     items.head.updateUI

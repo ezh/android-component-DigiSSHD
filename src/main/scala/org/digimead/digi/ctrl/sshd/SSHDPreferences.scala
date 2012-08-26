@@ -24,6 +24,8 @@ package org.digimead.digi.ctrl.sshd
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -44,6 +46,8 @@ import android.content.Intent
 import android.net.Uri
 import android.preference.ListPreference
 import android.preference.{ Preference => APreference }
+import android.support.v4.app.Fragment
+import android.support.v4.app.FragmentTransaction
 import android.widget.Toast
 
 class SSHDPreferences extends Preferences {
@@ -86,6 +90,11 @@ object SSHDPreferences {
       AnyBase.runOnUiThread { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     }
   }
+  def defaultTransaction(dialog: XDialog): (FragmentTransaction, Fragment, Option[Int]) => Any =
+    (ft, fragment, target) => {
+      ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+      ft.addToBackStack(dialog)
+    }
   object ControlsHighlight extends Preferences.StringPreference[String](DOption.ControlsHighlight, (s) => s,
     "set_experience_highlights_notify", "set experience highlights to \"%s\"") {
     override def set(value: String, context: Context, notify: Boolean = false)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit = {

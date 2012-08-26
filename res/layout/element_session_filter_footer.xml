@@ -20,9 +20,8 @@
  ~
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
+    android:layout_width="match_parent"
     android:layout_height="?android:attr/listPreferredItemHeight"
-    android:background="#ff888888"
     android:gravity="center"
     android:orientation="horizontal" >
 

@@ -23,15 +23,30 @@ package org.digimead.digi.ctrl.sshd
 
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
-
 import android.app.Activity
-import android.view.Menu
+import com.actionbarsherlock.app.SherlockFragmentActivity
+import com.actionbarsherlock.view.Menu
 
-object SSHDActivityMenu extends Logging {
+abstract class SSHDActivityMenu extends SSHDActivityState {
+  this: SSHDActivity =>
   @Loggable
-  def onCreateOptionsMenu(activity: Activity, menu: Menu): Boolean = {
-    val inflater = activity.getMenuInflater()
-    inflater.inflate(R.menu.menu, menu);
+  override def onCreateOptionsMenu(menu: Menu): Boolean = {
+    super.onCreateOptionsMenu(menu)
+    val inflater = getSupportMenuInflater()
+    inflater.inflate(R.menu.menu, menu)
     true
   }
+  /*
+   *   @Loggable
+  override def onCreateOptionsMenu(menu: Menu): Boolean = 
+   * {
+
+    //import com.actionbarsherlock.view.MenuItem
+    //
+    //menu.add(0, 1, 1, android.R.string.cancel).setIcon(android.R.drawable.ic_menu_camera).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+    //menu.add(0, 2, 2, android.R.string.cut).setIcon(android.R.drawable.ic_menu_agenda).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+    //menu.add(0, 3, 3, android.R.string.paste).setIcon(android.R.drawable.ic_menu_compass).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+    //menu.add(0, 4, 4, android.R.string.search_go).setIcon(android.R.drawable.ic_menu_upload).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+  }
+   */
 }

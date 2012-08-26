@@ -47,6 +47,7 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.SSHDService
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
@@ -69,9 +70,12 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
+import android.widget.AbsListView
 import android.widget.ArrayAdapter
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ListView
+import android.widget.RelativeLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -205,12 +209,20 @@ object ComponentBlock extends Logging {
       null
   }
   /** ComponentBlock header view */
-  private lazy val header = AppComponent.Context match {
+  private lazy val header = AppComponent.AppContext match {
     case Some(context) =>
-      val view = context.getApplicationContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].
-        inflate(XResource.getId(context.getApplicationContext, "header", "layout"), null).asInstanceOf[TextView]
-      view.setText(Html.fromHtml(XResource.getString(context, "block_components_title").getOrElse("components")))
-      view
+      val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+      val layout = new LinearLayout(context)
+      layout.setOrientation(LinearLayout.VERTICAL)
+      layout.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+      val header = inflater.inflate(XResource.getId(context, "header", "layout"), null).asInstanceOf[TextView]
+      header.setText(Html.fromHtml(XResource.getString(context, "block_components_title").getOrElse("components")))
+      layout.addView(header)
+      val empty = inflater.inflate(XResource.getId(context, "element_empty", "layout"), null).asInstanceOf[RelativeLayout]
+      empty.findViewById(android.R.id.text1).asInstanceOf[TextView].setText(R.string.no_components)
+      Level.novice(empty)
+      layout.addView(empty)
+      layout
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -220,12 +232,17 @@ object ComponentBlock extends Logging {
   private def items(partial: Boolean = false): Seq[ComponentBlock.Item] =
     SSHDService.getExecutableInfo(".", partial).map(ei => ComponentBlock.Item(ei.name, ei.executableID)(ei))
   private def updateItems(): Unit = {
-    val partial = adapter.getItem(0) == null
+    val partial = adapter.getCount() > 0 && adapter.getItem(0) == null
     val newItems = SyncVar(items(partial))
     AnyBase.runOnUiThread {
+      val adapterItems = newItems.get
+      if (adapterItems.isEmpty)
+        header.findViewById(android.R.id.empty).setVisibility(View.VISIBLE)
+      else
+        header.findViewById(android.R.id.empty).setVisibility(View.GONE)
       adapter.setNotifyOnChange(false)
       adapter.clear
-      newItems.get.foreach(adapter.add)
+      adapterItems.foreach(adapter.add)
       adapter.setNotifyOnChange(true)
       adapter.notifyDataSetChanged
       newItems.unset()

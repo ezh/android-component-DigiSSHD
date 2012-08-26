@@ -22,9 +22,9 @@
 package org.digimead.digi.ctrl.sshd.service
 
 import scala.actors.Futures
-import scala.annotation.implicitNotFound
 import scala.ref.WeakReference
 
+import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.androidext.XDialog
 import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
@@ -61,7 +61,7 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 
-class FilterAddFragment extends SherlockListFragment with SSHDFragment with Logging {
+class FilterAddFragment extends SherlockListFragment with SSHDFragment with TabContent.AccessToTabFragment with Logging {
   FilterAddFragment.fragment = Some(this)
   private lazy val headerInterface = new WeakReference(getSherlockActivity.
     findViewById(R.id.service_filter_header_interface).asInstanceOf[TextView])
@@ -87,18 +87,14 @@ class FilterAddFragment extends SherlockListFragment with SSHDFragment with Logg
   @Loggable
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View =
     SSHDActivity.ppGroup("FilterAddFragment.onCreateView") {
-      inflater.inflate(R.layout.fragment_service_filter, container, false)
+      inflater.inflate(R.layout.fragment_service_filter_add, container, false)
     }
   @Loggable
-  override def onActivityCreated(savedInstanceState: Bundle) = SSHDActivity.ppGroup("info.TabContent.onActivityCreated") {
+  override def onActivityCreated(savedInstanceState: Bundle) = SSHDActivity.ppGroup("FilterAddFragment.onActivityCreated") {
     super.onActivityCreated(savedInstanceState)
     val inflater = getLayoutInflater(savedInstanceState)
     val lv = getListView
     setHasOptionsMenu(false)
-    val header = inflater.inflate(R.layout.element_service_filter_fragment_header, null)
-    lv.addHeaderView(header, null, false)
-    val footer = inflater.inflate(R.layout.element_service_filter_fragment_footer, null)
-    lv.addFooterView(footer, null, false)
     FilterAddAdapter.adapter.foreach(setListAdapter)
     registerForContextMenu(lv)
   }
@@ -106,15 +102,38 @@ class FilterAddFragment extends SherlockListFragment with SSHDFragment with Logg
   override def onResume() = {
     super.onResume
     val activity = getSherlockActivity
+    Futures.future {
+      FilterAddAdapter.update(activity)
+      for {
+        adapter <- FilterAddAdapter.adapter
+        footerApply <- footerApply.get
+      } AnyBase.runOnUiThread {
+        Option(footerApply.findViewById(R.id.service_filter_footer_apply)).foreach {
+          button =>
+            button.setOnClickListener(new View.OnClickListener() {
+              def onClick(view: View) = onClickApply(view)
+            })
+        }
+        if (adapter.getPending.isEmpty)
+          footerApply.setEnabled(false)
+        else
+          footerApply.setEnabled(true)
+      }
+    }
     savedTitle = activity.getTitle
-    FilterAddAdapter.update(activity)
-    showDynamicFragment
+    activity.setTitle(XResource.getString(activity, "app_name_filter_add").getOrElse("Add interface filters"))
+    tabFragment.foreach(onTabFragmentShow)
   }
   @Loggable
   override def onPause() = {
-    hideDynamicFragment
+    tabFragment.foreach(onTabFragmentHide)
     getSherlockActivity.setTitle(savedTitle)
     super.onPause
+  }
+  @Loggable
+  override def onDetach() {
+    FilterAddFragment.fragment = None
+    super.onDetach()
   }
   @Loggable
   override def onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) = for {
@@ -145,7 +164,7 @@ class FilterAddFragment extends SherlockListFragment with SSHDFragment with Logg
     adapter <- FilterAddAdapter.adapter
     footerApply <- footerApply.get
   } {
-    adapter.onListItemClick(position)
+    adapter.onListItemClick(position - 1)
     if (adapter.getPending.isEmpty)
       footerApply.setEnabled(false)
     else
@@ -167,7 +186,7 @@ class FilterAddFragment extends SherlockListFragment with SSHDFragment with Logg
       headerIP2.getText.toString.replaceFirst("^$", "*") + "." +
       headerIP3.getText.toString.replaceFirst("^$", "*") + "." +
       headerIP4.getText.toString.replaceFirst("^$", "*")
-    val checkAlreaySaved = Futures.future { FilterAddAdapter.savedFilters(context).contains(item) }
+    val checkAlreaySaved = Futures.future { FilterBlock.listFilters(context).contains(item) }
     if (item == "*:*.*.*.*") {
       log.info("filter *:*.*.*.* is illegal")
       Toast.makeText(context, getString(R.string.service_filter_illegal).format(item), DConstant.toastTimeout).show()
@@ -183,7 +202,7 @@ class FilterAddFragment extends SherlockListFragment with SSHDFragment with Logg
         footerApply.setEnabled(false)
       else
         footerApply.setEnabled(true)
-      FilterAddAdapter.update(context)
+      Futures.future { FilterAddAdapter.update(context) }
       Toast.makeText(context, getString(R.string.service_filter_select).format(item), DConstant.toastTimeout).show()
     }
   }
@@ -226,8 +245,6 @@ object FilterAddFragment extends Logging {
   }
   @Loggable
   def onClickCustom(v: View) = fragment.foreach(_.onClickCustom(v))
-  @Loggable
-  def onClickApply(v: View) = fragment.foreach(_.onClickApply(v))
 
   case class FilterItem(value: String)
   object Dialog {

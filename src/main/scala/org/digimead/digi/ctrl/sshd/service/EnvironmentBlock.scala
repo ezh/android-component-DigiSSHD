@@ -187,7 +187,7 @@ object EnvironmentBlock extends Logging {
     class Reinstall
       extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_danger", "drawable")))) {
       override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(Reinstall.this),
-        Some((dialog: Reinstall) => { log.g_a_s_e("AAAA") }))))
+        Some((dialog: Reinstall) => { log.___gaze("AAAA") }))))
       override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(Reinstall.this),
         Some(defaultButtonCallback))))
 
@@ -200,7 +200,7 @@ object EnvironmentBlock extends Logging {
     class FactoryDefault
       extends SSHDAlertDialog(AppComponent.Context.map(c => (XResource.getId(c, "ic_danger", "drawable")))) {
       override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(FactoryDefault.this),
-        Some((dialog: FactoryDefault) => { log.g_a_s_e("AAAA") }))))
+        Some((dialog: FactoryDefault) => { log.___gaze("AAAA") }))))
       override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(FactoryDefault.this),
         Some(defaultButtonCallback))))
 
