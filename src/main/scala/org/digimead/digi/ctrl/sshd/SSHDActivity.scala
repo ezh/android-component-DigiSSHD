@@ -134,31 +134,19 @@ class SSHDActivity extends SSHDActivityMenu {
    */
   @Loggable
   override def onResume() = SSHDActivity.ppGroup("SSHDActivity.onResume") {
+    restoreState()
+    SSHDHelp.onResume
     super.onResume()
     if (SSHDActivity.focused)
       SafeDialog.enable
-  }
-  /**
-   * @see android.support.v4.app.FragmentActivity#onRestoreInstanceState()
-   */
-  @Loggable
-  override def onRestoreInstanceState(outState: Bundle) = SSHDActivity.ppGroup("onRestoreInstanceState") {
-    super.onRestoreInstanceState(outState)
-    SSHDActivity.appInitialTab = outState.getInt("current_tab", 0)
-  }
-  /**
-   * @see android.support.v4.app.FragmentActivity#onSaveInstanceState()
-   */
-  @Loggable
-  override def onSaveInstanceState(outState: Bundle) = SSHDActivity.ppGroup("onSaveInstanceState") {
-    super.onSaveInstanceState(outState)
-    outState.putInt("current_tab", SSHDTabAdapter.getSelected)
   }
   /**
    * @see android.support.v4.app.FragmentActivity#onPause()
    */
   @Loggable
   override def onPause() = SSHDActivity.ppGroup("SSHDActivity.onPause") {
+    saveState()
+    SSHDHelp.onPause
     SafeDialog.disable
     super.onPause()
   }
@@ -167,6 +155,7 @@ class SSHDActivity extends SSHDActivityMenu {
    */
   @Loggable
   override def onDestroy() = SSHDActivity.ppGroup("SSHDActivity.onDestroy") {
+    SSHDHelp.onDestroy
     SSHDActivity.appActivity = None
     super.onDestroy()
   }
@@ -182,12 +171,26 @@ class SSHDActivity extends SSHDActivityMenu {
       else
         SafeDialog.suspend
   }
+  @Loggable
+  def onClickDigiControl(v: View) = {
+
+  }
+  def onClickHelp(v: View) = SSHDHelp.toggle(this)
   def onClickUsersGenerateNewUser(v: View) = UserFragment.onClickGenerateNewUser(v)
   def onClickUsersShowPassword(v: View) = UserFragment.onClickUsersShowPassword(v)
   def onClickUsersApply(v: View) = UserFragment.onClickApply(v)
   def onClickUsersToggleBlockAll(v: View) = UserFragment.onClickToggleBlockAll(v)
   def onClickUsersDeleteAll(v: View) = UserFragment.onClickDeleteAll(v)
   def onClickServiceFilterAddCustom(v: View) = FilterAddFragment.onClickCustom(v)
+  private def saveState() {
+    SSHDActivity.StateStash.appInitialTab = SSHDTabAdapter.getSelected
+    SSHDActivity.StateStash.appHelpShown = SSHDHelp.isShown
+  }
+  private def restoreState() {
+    if (SSHDActivity.StateStash.appHelpShown)
+      SSHDHelp.show(this)
+    SSHDTabAdapter.setSelected(SSHDActivity.StateStash.appInitialTab)
+  }
 }
 
 object SSHDActivity extends Logging {
@@ -199,7 +202,6 @@ object SSHDActivity extends Logging {
     (group, group.start("SSHDActivity$"))
   }
   @volatile private var appActivity: Option[SSHDActivity] = None
-  @volatile private var appInitialTab = 0
   @volatile private var appLayoutVariant = Layout.Normal
   @volatile private var focused = false
   @volatile private var layoutAdjusted = false
@@ -236,7 +238,6 @@ object SSHDActivity extends Logging {
   Logging.addLogger(AndroidLogger)
 
   def activity = appActivity
-  def initialTab = appInitialTab
   def layoutVariant = appLayoutVariant
   def adjustHiddenLayout(activity: SherlockFragmentActivity): Unit = Layout.synchronized {
     ppGroup("SSHDActivity.adjustHiddenLayout") {
@@ -258,9 +259,6 @@ object SSHDActivity extends Logging {
           val main_viewpager_lp = main_viewpager.getLayoutParams.asInstanceOf[LinearLayout.LayoutParams]
           main_viewpager_lp.weight = 4
           main_viewpager.setLayoutParams(main_viewpager_lp)
-          // hide Grow/Shrink and jump to DigiControl
-          activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
-          activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
           // hide small status
           activity.findViewById(R.id.main_textStatusSmallDevices).setVisibility(View.GONE)
         case Layout.Largest =>
@@ -268,25 +266,12 @@ object SSHDActivity extends Logging {
           val lp = main_bottomPanel.getLayoutParams
           lp.height = size.y / 4
           main_bottomPanel.setLayoutParams(lp)
-          // hide Grow/Shrink and jump to DigiControl
-          activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
-          activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
           // hide small status
           activity.findViewById(R.id.main_textStatusSmallDevices).setVisibility(View.GONE)
         case Layout.Normal =>
           activity.findViewById(R.id.main_extPanel).setVisibility(View.GONE)
-          // hide Grow/Shrink and jump to DigiControl
-          activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
-          activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
         case Layout.Small =>
           activity.findViewById(R.id.main_extPanel).setVisibility(View.GONE)
-          if (activity.getSupportActionBar().isShowing) {
-            activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.GONE)
-            activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.GONE)
-          } else {
-            activity.findViewById(R.id.main_buttonDigiControl).setVisibility(View.VISIBLE)
-            activity.findViewById(R.id.main_buttonGrowShrink).setVisibility(View.VISIBLE)
-          }
       }
     }
   }
@@ -331,15 +316,20 @@ object SSHDActivity extends Logging {
   @Loggable
   def stateInit(activity: SSHDActivity) = ppGroup("SSHDActivity.stateInit") {
     val bar = SyncVar[ActionBar]()
-    AnyBase.runOnUiThread { bar.set(activity.getSupportActionBar()) }
+    AnyBase.runOnUiThread {
+      SSHDTabAdapter.addTab(R.string.tab_name_service, classOf[org.digimead.digi.ctrl.sshd.service.TabContent], null)
+      SSHDTabAdapter.addTab(R.string.tab_name_sessions, classOf[org.digimead.digi.ctrl.sshd.session.TabContent], null)
+      SSHDTabAdapter.addTab(R.string.tab_name_information, classOf[org.digimead.digi.ctrl.sshd.info.TabContent], null)
+      bar.set(activity.getSupportActionBar())
+    }
     bar.get // initialize ActionBar
-    SSHDTabAdapter.addTab(R.string.tab_name_service, classOf[org.digimead.digi.ctrl.sshd.service.TabContent], null)
-    SSHDTabAdapter.addTab(R.string.tab_name_sessions, classOf[org.digimead.digi.ctrl.sshd.session.TabContent], null)
-    SSHDTabAdapter.addTab(R.string.tab_name_information, classOf[org.digimead.digi.ctrl.sshd.info.TabContent], null)
   }
   @Loggable
   def stateCreate(activity: SSHDActivity) = ppGroup("SSHDActivity.stateCreate") {
     activity.onCreateExt(activity)
+    val bar = SyncVar[ActionBar]()
+    AnyBase.runOnUiThread { bar.set(activity.getSupportActionBar()) }
+    bar.get // initialize ActionBar
     if (SSHDActivityState.get == SSHDActivityState.State.Initializing)
       SSHDPreferences.initActivityPersistentOptions(activity)
     SSHDTabAdapter.onCreate(activity)
@@ -369,6 +359,12 @@ object SSHDActivity extends Logging {
   def stateDestroy(activity: SSHDActivity) = ppGroup("SSHDActivity.stateDestroy") {
     AnyBase.runOnUiThread { activity.findViewById(R.id.loadingProgressBar).setVisibility(View.VISIBLE) }
     activity.onDestroyExt(activity)
+  }
+  object StateStash {
+    @volatile private[SSHDActivity] var appInitialTab = 0
+    @volatile private[SSHDActivity] var appHelpShown = false
+    def initialTab = appInitialTab
+    def helpVisible = appHelpShown
   }
   object Layout extends Enumeration {
     val Small, Normal, Large, Largest = Value

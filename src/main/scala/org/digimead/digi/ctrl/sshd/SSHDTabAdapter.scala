@@ -48,7 +48,7 @@ class SSHDTabAdapter(activity: FragmentActivity, val pager: WeakReference[ViewPa
   pager.get.foreach(pager => AnyBase.runOnUiThread {
     pager.setAdapter(this)
     pager.setOnPageChangeListener(SSHDTabAdapter.pageListener)
-    pager.setCurrentItem(SSHDActivity.initialTab)
+    pager.setCurrentItem(SSHDActivity.StateStash.initialTab)
   })
   log.debug("alive")
   ppLoading.stop
@@ -80,7 +80,7 @@ object SSHDTabAdapter extends Logging {
   /** profiling support */
   private val ppLoading = SSHDActivity.ppGroup.start("SSHDTabAdapter")
   /** SSHDTabAdapter depended on SSHDActivity.activity */
-  @volatile private[sshd] var adapter: Option[SSHDTabAdapter] = None
+  @volatile private var adapter: Option[SSHDTabAdapter] = None
   /** tab pool */
   private var tabs = Seq[Tab]()
   /** current tab */
@@ -102,8 +102,16 @@ object SSHDTabAdapter extends Logging {
   private lazy val pageListener = new ViewPager.OnPageChangeListener {
     def onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {}
     def onPageSelected(position: Int) = {
-      adapter.foreach(_.getItem(position).asInstanceOf[TabInterface].onTabSelected)
-      SSHDActivity.activity.foreach(_.getSupportActionBar.setSelectedNavigationItem(position))
+      adapter.foreach {
+        adapter =>
+          if (adapter.getCount > position)
+            adapter.getItem(position).asInstanceOf[TabInterface].onTabSelected
+      }
+      SSHDActivity.activity.foreach {
+        activity =>
+          if (activity.getSupportActionBar().getTabCount() > position)
+            activity.getSupportActionBar.setSelectedNavigationItem(position)
+      }
     }
     def onPageScrollStateChanged(state: Int) {}
   }
@@ -121,23 +129,25 @@ object SSHDTabAdapter extends Logging {
   def getSelectedTab() = tabs(selected.get)
   def getSelectedFragment(): Option[Fragment with TabInterface] =
     adapter.map(_.getItem(selected.get).asInstanceOf[Fragment with TabInterface])
-  def setSelected(n: Int) = adapter.foreach {
-    adapter =>
-      adapter.pager.get.foreach {
-        pager =>
-          log.___glance("!!!" + n)
-          pager.setCurrentItem(n)
-      }
-  }
+  def setSelected(n: Int) = adapter.foreach(_.pager.get.foreach(_.setCurrentItem(n)))
   /**
    * called on SSHDActivity.onCreate
    */
   def onCreate(activity: SSHDActivity) = synchronized {
     adapter = Some(new SSHDTabAdapter(activity, new WeakReference(activity.findViewById(R.id.main_viewpager).asInstanceOf[ViewPager])))
-    tabs.foreach(item => item.acquire(activity.getSupportActionBar))
+    AnyBase.runOnUiThread {
+      var tabCounter = 0
+      val bar = activity.getSupportActionBar
+      tabs.foreach { item =>
+        val tab = item.acquire(bar)
+        if (tabCounter == SSHDActivity.StateStash.initialTab)
+          bar.selectTab(tab)
+        tabCounter += 1
+      }
+    }
   }
   case class Tab(titleResource: Int, clazz: Class[_ <: TabInterface], args: Bundle)(private var cachedBar: WeakReference[ActionBar]) {
-    private var cachedTab = new WeakReference[ActionBar.Tab](null)
+    @volatile private var cachedTab = new WeakReference[ActionBar.Tab](null)
     cachedBar.get.foreach(acquire)
 
     def acquire(bar: ActionBar): ActionBar.Tab = synchronized {
@@ -147,11 +157,9 @@ object SSHDTabAdapter extends Logging {
           val newTab = bar.newTab.setText(titleResource)
           cachedTab = new WeakReference(newTab)
           cachedBar = new WeakReference(bar)
-          AnyBase.runOnUiThread {
-            newTab.setTag(clazz)
-            newTab.setTabListener(tabListener)
-            bar.addTab(newTab)
-          }
+          newTab.setTag(clazz)
+          newTab.setTabListener(tabListener)
+          bar.addTab(newTab)
           newTab
       }
     }

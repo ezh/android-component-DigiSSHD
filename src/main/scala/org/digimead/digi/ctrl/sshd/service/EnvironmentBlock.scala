@@ -23,7 +23,6 @@ package org.digimead.digi.ctrl.sshd.service
 
 import java.net.URL
 
-import scala.annotation.implicitNotFound
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.androidext.SafeDialog
@@ -39,6 +38,7 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmYell
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDHelp
 import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.user.UserFragment
@@ -70,7 +70,13 @@ class EnvironmentBlock(val context: Context)(implicit @transient val dispatcher:
   @Loggable
   def appendTo(mergeAdapter: MergeAdapter) = {
     log.debug("append " + getClass.getName + " to MergeAdapter")
-    Option(EnvironmentBlock.header).foreach(mergeAdapter.addView)
+    Option(EnvironmentBlock.header).foreach {
+      header =>
+        SSHDHelp.register(header.findViewById(R.id.service_environment_user_button), "service_environment_user")
+        SSHDHelp.register(header.findViewById(R.id.service_environment_reinstall_button), "service_environment_reinstall")
+        SSHDHelp.register(header.findViewById(R.id.service_environment_reset_button), "service_environment_reset")
+        mergeAdapter.addView(header)
+    }
     Option(EnvironmentBlock.adapter).foreach(mergeAdapter.addAdapter)
   }
   @Loggable

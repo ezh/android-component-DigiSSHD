@@ -43,8 +43,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/main_textStatusSmallDevices"
-        android:orientation="vertical" 
-        android:visibility="gone">
+        android:orientation="vertical"
+        android:visibility="gone" >
     </LinearLayout>
 
     <LinearLayout
@@ -139,15 +139,45 @@
         </RelativeLayout>
     </LinearLayout>
 
+    <org.digimead.digi.ctrl.sshd.SSHDHelp
+        android:id="@+id/main_help"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/main_help_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone" >
+
+        <WebView
+            android:id="@+id/main_help_content_wv"
+            android:layout_width="match_parent"
+            android:layout_height="0dip"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/main_help_content_ok"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:text="@android:string/ok" />
+    </LinearLayout>
+
     <ImageButton
-        android:id="@+id/main_buttonGrowShrink"
+        android:id="@+id/main_buttonHelp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:background="@drawable/ic_grow"
         android:contentDescription="@android:string/untitled"
-        android:onClick="onClickGrowShrink" />
+        android:onClick="onClickHelp" />
 
     <ImageButton
         android:id="@+id/main_buttonDigiControl"
