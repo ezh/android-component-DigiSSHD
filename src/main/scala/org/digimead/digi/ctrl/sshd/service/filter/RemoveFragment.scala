@@ -19,7 +19,7 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service
+package org.digimead.digi.ctrl.sshd.service.filter
 
 import scala.actors.Futures
 import scala.ref.WeakReference
@@ -38,6 +38,8 @@ import org.digimead.digi.ctrl.sshd.SSHDResource
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
 import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
+import org.digimead.digi.ctrl.sshd.service.FilterBlock
+import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import com.actionbarsherlock.app.SherlockListFragment
 
@@ -47,12 +49,14 @@ import android.support.v4.app.FragmentActivity
 import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentTransaction
 import android.text.Html
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ListView
 
-class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with TabContent.AccessToTabFragment with Logging {
-  FilterRemoveFragment.fragment = Some(this)
+class RemoveFragment extends SherlockListFragment with SSHDFragment with TabContent.AccessToTabFragment with Logging {
+  RemoveFragment.fragment = Some(this)
   private lazy val footerApply = new WeakReference(getSherlockActivity.
     findViewById(R.id.service_filter_footer_apply).asInstanceOf[Button])
   private var savedTitle: CharSequence = ""
@@ -62,15 +66,18 @@ class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with T
   @Loggable
   override def onAttach(activity: Activity) {
     super.onAttach(activity)
-    FilterRemoveFragment.fragment = Some(this)
+    RemoveFragment.fragment = Some(this)
   }
   @Loggable
-  override def onActivityCreated(savedInstanceState: Bundle) = SSHDActivity.ppGroup("FilterRemoveFragment.onActivityCreated") {
+  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View =
+    inflater.inflate(R.layout.fragment_service_filter_del, container, false)
+  @Loggable
+  override def onActivityCreated(savedInstanceState: Bundle) = {
     super.onActivityCreated(savedInstanceState)
     val inflater = getLayoutInflater(savedInstanceState)
     val lv = getListView
     setHasOptionsMenu(false)
-    FilterRemoveAdapter.adapter.foreach(setListAdapter)
+    RemoveAdapter.adapter.foreach(setListAdapter)
     registerForContextMenu(lv)
   }
   @Loggable
@@ -78,9 +85,9 @@ class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with T
     super.onResume
     val activity = getSherlockActivity
     Futures.future {
-      FilterRemoveAdapter.update(activity)
+      RemoveAdapter.update(activity)
       for {
-        adapter <- FilterRemoveAdapter.adapter
+        adapter <- RemoveAdapter.adapter
         footerApply <- footerApply.get
       } AnyBase.runOnUiThread {
         Option(footerApply.findViewById(R.id.service_filter_footer_apply)).foreach {
@@ -96,7 +103,8 @@ class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with T
       }
     }
     savedTitle = activity.getTitle
-    activity.setTitle(XResource.getString(activity, "app_name_filter_remove").getOrElse("Remove interface filters"))
+    val title = XResource.getString(activity, "app_name_filter_remove").getOrElse("Remove interface filters")
+    activity.setTitle(Html.fromHtml("<b><i>" + title + "</i></b>"))
     tabFragment.foreach(onTabFragmentShow)
   }
   @Loggable
@@ -107,12 +115,12 @@ class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with T
   }
   @Loggable
   override def onDetach() {
-    FilterRemoveFragment.fragment = None
+    RemoveFragment.fragment = None
     super.onDetach()
   }
   @Loggable
   override protected def onListItemClick(l: ListView, v: View, position: Int, id: Long) = for {
-    adapter <- FilterRemoveAdapter.adapter
+    adapter <- RemoveAdapter.adapter
     footerApply <- footerApply.get
   } {
     adapter.onListItemClick(position)
@@ -125,30 +133,27 @@ class FilterRemoveFragment extends SherlockListFragment with SSHDFragment with T
   def onClickApply(v: View) = SSHDResource.serviceFiltersRemove.foreach {
     dialog =>
       if (!dialog.isShowing)
-        FilterRemoveFragment.Dialog.showFiltersRemove(getSherlockActivity)
+        RemoveFragment.Dialog.showFiltersRemove(getSherlockActivity)
   }
   @Loggable
   private def onSubmit() = {
     val context = getSherlockActivity
-    FilterRemoveAdapter.adapter.foreach(_.submit)
+    RemoveAdapter.adapter.foreach(_.submit)
     FilterBlock.updateItems(context)
     getSherlockActivity.getSupportFragmentManager.
       popBackStack(tag, FragmentManager.POP_BACK_STACK_INCLUSIVE)
   }
 }
 
-object FilterRemoveFragment extends Logging {
-  /** profiling support */
-  private val ppLoading = SSHDActivity.ppGroup.start("service.FilterDelFragment$")
-  /** TabContent fragment instance */
-  @volatile private[service] var fragment: Option[FilterRemoveFragment] = None
+object RemoveFragment extends Logging {
+  /** RemoveFragment instance */
+  @volatile private[service] var fragment: Option[RemoveFragment] = None
   log.debug("alive")
-  ppLoading.stop
 
   @Loggable
   def show() = SSHDTabAdapter.getSelectedFragment match {
     case Some(currentTabFragment) =>
-      SSHDFragment.show(classOf[FilterRemoveFragment], currentTabFragment)
+      SSHDFragment.show(classOf[RemoveFragment], currentTabFragment)
     case None =>
       log.fatal("current tab fragment not found")
   }
@@ -168,7 +173,7 @@ object FilterRemoveFragment extends Logging {
       override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(FiltersRemove.this),
         Some((dialog: FiltersRemove) => {
           defaultButtonCallback(dialog)
-          Futures.future { FilterRemoveFragment.fragment.foreach(_.onSubmit) }
+          Futures.future { RemoveFragment.fragment.foreach(_.onSubmit) }
         }))))
       override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(FiltersRemove.this),
         Some(defaultButtonCallback))))

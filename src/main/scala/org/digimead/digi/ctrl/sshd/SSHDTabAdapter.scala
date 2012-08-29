@@ -62,6 +62,8 @@ class SSHDTabAdapter(activity: FragmentActivity, val pager: WeakReference[ViewPa
     val tag = tab.getTag
     for { index <- 0 until SSHDTabAdapter.tabs.size }
       if (SSHDTabAdapter.tabs(index).clazz == tag) {
+        // hide help
+        SSHDHelp.hide()
         // clear backstack
         Option(getItem(SSHDTabAdapter.selected.get).getFragmentManager).foreach(
           _.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE))
@@ -118,12 +120,9 @@ object SSHDTabAdapter extends Logging {
   log.debug("alive")
   ppLoading.stop
 
-  def addTab(tabTitleResource: Int, clazz: Class[_ <: TabInterface], args: Bundle) = synchronized {
-    SSHDActivity.activity.foreach {
-      activity =>
-        tabs = tabs :+ new Tab(tabTitleResource, clazz, args)(new WeakReference(activity.getSupportActionBar))
-        adapter.foreach(_.notifyDataSetChanged)
-    }
+  def addTab(bar: ActionBar, tabTitleResource: Int, clazz: Class[_ <: TabInterface], args: Bundle) = synchronized {
+    tabs = tabs :+ new Tab(tabTitleResource, clazz, args)(new WeakReference(bar))
+    AnyBase.runOnUiThread { adapter.foreach(_.notifyDataSetChanged) }
   }
   def getSelected() = selected.get
   def getSelectedTab() = tabs(selected.get)

@@ -105,30 +105,31 @@ object SSHDHelp extends Logging {
     contentDisplay.loadUrl("content://org.digimead.digi.ctrl.sshd.help/help_" + helpID + ".html")
   }
   @Loggable
-  def toggle(activity: SSHDActivity) {
-    controls match {
-      case Some(controls) =>
-        if (!isShown) {
-          controls.control.get.foreach(_.show)
-        } else {
-          controls.control.get.foreach(_.hide)
-          controls.content.get.foreach(_.setVisibility(View.GONE))
-        }
-      case None =>
-        val control = activity.findViewById(R.id.main_help).asInstanceOf[SSHDHelp]
-        val content = activity.findViewById(R.id.main_help_content).asInstanceOf[LinearLayout]
-        val contentDisplay = activity.findViewById(R.id.main_help_content_wv).asInstanceOf[WebView]
-        val contentOk = activity.findViewById(R.id.main_help_content_ok).asInstanceOf[Button]
-        controls = Some(Controls(new WeakReference(control), new WeakReference(content),
-          new WeakReference(contentDisplay), new WeakReference(contentOk)))
-        controls.foreach(_.init)
-        control.toggle
-    }
+  def toggle() = SSHDActivity.activity.foreach {
+    activity =>
+      controls match {
+        case Some(controls) =>
+          if (!isShown) {
+            controls.control.get.foreach(_.show)
+          } else {
+            controls.control.get.foreach(_.hide)
+            controls.content.get.foreach(_.setVisibility(View.GONE))
+          }
+        case None =>
+          val control = activity.findViewById(R.id.main_help).asInstanceOf[SSHDHelp]
+          val content = activity.findViewById(R.id.main_help_content).asInstanceOf[LinearLayout]
+          val contentDisplay = activity.findViewById(R.id.main_help_content_wv).asInstanceOf[WebView]
+          val contentOk = activity.findViewById(R.id.main_help_content_ok).asInstanceOf[Button]
+          controls = Some(Controls(new WeakReference(control), new WeakReference(content),
+            new WeakReference(contentDisplay), new WeakReference(contentOk)))
+          controls.foreach(_.init)
+          control.toggle
+      }
   }
   @Loggable
-  def show(activity: SSHDActivity) = if (!isShown) toggle(activity)
+  def show() = if (!isShown) toggle()
   @Loggable
-  def hide(activity: SSHDActivity) = if (isShown) toggle(activity)
+  def hide() = if (isShown) toggle()
   @Loggable
   def isShown() = {
     for {

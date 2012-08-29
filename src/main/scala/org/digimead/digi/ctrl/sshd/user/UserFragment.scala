@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import scala.Option.option2Iterable
 import scala.actors.Futures
+import scala.annotation.implicitNotFound
 import scala.ref.WeakReference
 import scala.util.Random
 
@@ -82,8 +83,7 @@ import android.widget.Toast
 
 class UserFragment extends SherlockListFragment with SSHDFragment with TabContent.AccessToTabFragment with Logging {
   UserFragment.fragment = Some(this)
-  @volatile private var dynamicHeader: Option[LinearLayout] = None
-  @volatile private var dynamicFooter: Option[LinearLayout] = None
+  @volatile private var footer: Option[LinearLayout] = None
   @volatile private var apply: Option[TextView] = None
   @volatile private var blockAll: Option[TextView] = None
   @volatile private var deleteAll: Option[TextView] = None
@@ -132,8 +132,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
     super.onResume
     val activity = getSherlockActivity
     // update UI elements
-    dynamicHeader = Option(activity.findViewById(R.id.element_user_header).asInstanceOf[LinearLayout])
-    dynamicFooter = Option(activity.findViewById(R.id.element_user_footer).asInstanceOf[LinearLayout].
+    footer = Option(activity.findViewById(R.id.element_user_footer).asInstanceOf[LinearLayout].
       findViewById(R.id.user_footer_dynamic).asInstanceOf[LinearLayout])
     apply = Option(activity.findViewById(R.id.element_user_footer).
       findViewById(R.id.user_apply).asInstanceOf[TextView])
@@ -141,15 +140,15 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
       findViewById(R.id.user_footer_toggle_all).asInstanceOf[TextView])
     deleteAll = Option(activity.findViewById(R.id.element_user_footer).
       findViewById(R.id.user_footer_delete_all).asInstanceOf[TextView])
-    userName = Option(dynamicFooter.map(_.findViewById(R.id.user_name).
+    userName = Option(footer.map(_.findViewById(R.id.user_name).
       asInstanceOf[TextView]).getOrElse(null))
-    userGenerateButton = Option(dynamicFooter.map(_.findViewById(R.id.user_add).
+    userGenerateButton = Option(footer.map(_.findViewById(R.id.user_add).
       asInstanceOf[ImageButton]).getOrElse(null))
-    userPassword = Option(dynamicFooter.map(_.findViewById(R.id.user_password).
+    userPassword = Option(footer.map(_.findViewById(R.id.user_password).
       asInstanceOf[TextView]).getOrElse(null))
-    userPasswordShowButton = Option(dynamicFooter.map(_.findViewById(R.id.user_show_password).
+    userPasswordShowButton = Option(footer.map(_.findViewById(R.id.user_show_password).
       asInstanceOf[ImageButton]).getOrElse(null))
-    userPasswordEnabledCheckbox = Option(dynamicFooter.map(_.findViewById(android.R.id.checkbox).
+    userPasswordEnabledCheckbox = Option(footer.map(_.findViewById(android.R.id.checkbox).
       asInstanceOf[CheckBox]).getOrElse(null))
     for {
       userName <- userName
@@ -184,29 +183,18 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
     }
     savedTitle = activity.getTitle
     for { userGenerateButton <- userGenerateButton } {
-      AuthentificationMode.getStateExt(activity) match {
+      val title = AuthentificationMode.getStateExt(activity) match {
         case SSHDPreferences.AuthentificationType.SingleUser =>
-          activity.setTitle(XResource.getString(activity, "app_name_singleuser").getOrElse("Single User Mode"))
           userGenerateButton.setEnabled(false)
+          Some(XResource.getString(activity, "app_name_singleuser").getOrElse("Single User Mode"))
         case SSHDPreferences.AuthentificationType.MultiUser =>
-          activity.setTitle(XResource.getString(activity, "app_name_multiuser").getOrElse("Multi User Mode"))
           userGenerateButton.setEnabled(true)
+          Some(XResource.getString(activity, "app_name_multiuser").getOrElse("Multi User Mode"))
         case invalid =>
           log.fatal("invalid authenticatin type \"" + invalid + "\"")
           None
       }
-    }
-    for {
-      dynamicHeader <- dynamicHeader
-      dynamicFooter <- dynamicFooter
-    } {
-      /*      if (SSHDActivity.collapsed.get) {
-        dynamicHeader.setVisibility(View.GONE)
-        dynamicFooter.setVisibility(View.GONE)
-      } else {
-        dynamicHeader.setVisibility(View.VISIBLE)
-        dynamicFooter.setVisibility(View.VISIBLE)
-      }*/
+      title.foreach(title => activity.setTitle(Html.fromHtml("<b><i>" + title + "</i></b>")))
     }
     if (lastActiveUserInfo.get.isEmpty)
       onListItemClick(getListView, getListView, 0, 0)
@@ -224,8 +212,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
       userName.removeTextChangedListener(textWatcher)
       userPassword.removeTextChangedListener(textWatcher)
     }
-    dynamicHeader = None
-    dynamicFooter = None
+    footer = None
     apply = None
     blockAll = None
     deleteAll = None

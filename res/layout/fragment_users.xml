@@ -24,11 +24,6 @@
     android:layout_height="match_parent"
     android:orientation="vertical" >
 
-    <include
-        android:id="@+id/element_user_header"
-        android:layout_weight="0"
-        layout="@layout/element_user_header" />
-
     <ListView
         android:id="@android:id/list"
         android:layout_width="match_parent"

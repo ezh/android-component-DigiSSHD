@@ -29,23 +29,6 @@
         android:id="@+id/session_filter_footer_apply"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:onClick="onClickApply"
-        android:text="@string/Apply"
-        android:visibility="gone" />
-
-    <Button
-        android:id="@+id/session_filter_footer_back"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:onClick="onClickCancel"
-        android:text="@string/Back" />
-
-    <Button
-        android:id="@+id/session_filter_footer_cancel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:onClick="onClickCancel"
-        android:text="@string/Cancel"
-        android:visibility="gone" />
+        android:text="@string/Apply" />
 
 </LinearLayout>

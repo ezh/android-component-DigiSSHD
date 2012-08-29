@@ -41,6 +41,8 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
+import org.digimead.digi.ctrl.sshd.session.filter.AllowFragment
+import org.digimead.digi.ctrl.sshd.session.filter.DenyFragment
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -72,7 +74,7 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {}
   @Loggable
   def onClickButton(v: View) = Futures.future { // leave UI thread
-    /*    TabActivity.activity.foreach {
+    /*    TabActivity.activity.foreach {//
       activity =>
         AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_change_acl_order", () => {
           val item = items.head
@@ -116,15 +118,15 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
   @Loggable
   def onClickLeftPart(v: View) =
     if (items.head.isFilterADA)
-      FilterFragment.ACLAllow.show()
+      AllowFragment.show()
     else
-      FilterFragment.ACLDeny.show()
+      DenyFragment.show()
   @Loggable
   def onClickRightPart(v: View) =
     if (items.head.isFilterADA)
-      FilterFragment.ACLDeny.show()
+      DenyFragment.show()
     else
-      FilterFragment.ACLAllow.show()
+      AllowFragment.show()
   @Loggable
   def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) =
     items.head.updateUI

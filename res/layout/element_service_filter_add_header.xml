@@ -18,136 +18,114 @@
  ~ 3 along with this work; if not, write to the Free Software Foundation,
  ~ Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  ~
- -->
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical" >
+    android:orientation="horizontal" >
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal" >
-
-        <EditText
-            android:id="@+id/service_filter_header_interface"
-            android:layout_width="0dip"
-            android:layout_height="wrap_content"
-            android:layout_weight="5"
-            android:cursorVisible="true"
-            android:ellipsize="end"
-            android:hint="@string/interface1"
-            android:lines="1"
-            android:maxLength="10"
-            android:scrollHorizontally="true"
-            android:selectAllOnFocus="true" >
-
-        </EditText>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/separator_colon"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
-
-        <EditText
-            android:id="@+id/service_filter_header_ip1"
-            android:layout_width="0dip"
-            android:layout_height="wrap_content"
-            android:layout_weight="4"
-            android:cursorVisible="true"
-            android:ellipsize="end"
-            android:hint="@string/ip1"
-            android:inputType="number"
-            android:lines="1"
-            android:maxLength="3"
-            android:scrollHorizontally="true"
-            android:selectAllOnFocus="true" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/separator_dot"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
-
-        <EditText
-            android:id="@+id/service_filter_header_ip2"
-            android:layout_width="0dip"
-            android:layout_height="wrap_content"
-            android:layout_weight="4"
-            android:cursorVisible="true"
-            android:ellipsize="end"
-            android:hint="@string/ip2"
-            android:inputType="number"
-            android:lines="1"
-            android:maxLength="3"
-            android:scrollHorizontally="true"
-            android:selectAllOnFocus="true" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/separator_dot"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
-
-        <EditText
-            android:id="@+id/service_filter_header_ip3"
-            android:layout_width="0dip"
-            android:layout_height="wrap_content"
-            android:layout_weight="4"
-            android:cursorVisible="true"
-            android:ellipsize="end"
-            android:hint="@string/ip3"
-            android:inputType="number"
-            android:lines="1"
-            android:maxLength="3"
-            android:scrollHorizontally="true"
-            android:selectAllOnFocus="true" >
-
-        </EditText>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/separator_dot"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
-
-        <EditText
-            android:id="@+id/service_filter_header_ip4"
-            android:layout_width="0dip"
-            android:layout_height="wrap_content"
-            android:layout_weight="4"
-            android:cursorVisible="true"
-            android:ellipsize="end"
-            android:hint="@string/ip4"
-            android:inputType="number"
-            android:lines="1"
-            android:maxLength="3"
-            android:scrollHorizontally="true"
-            android:selectAllOnFocus="true" >
-
-        </EditText>
-
-        <ImageButton
-            android:id="@+id/service_filter_header_add"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/image_description"
-            android:onClick="onClickServiceFilterAddCustom"
-            android:src="@drawable/plus_selected" />
-    </LinearLayout>
+    <EditText
+        android:id="@+id/service_filter_header_interface"
+        android:layout_width="0dip"
+        android:layout_height="wrap_content"
+        android:layout_weight="5"
+        android:cursorVisible="true"
+        android:ellipsize="end"
+        android:hint="@string/interface1"
+        android:lines="1"
+        android:maxLength="10"
+        android:scrollHorizontally="true"
+        android:selectAllOnFocus="true" >
+    </EditText>
 
     <TextView
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="@string/service_filter_header" />
+        android:text="@string/separator_colon"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <EditText
+        android:id="@+id/service_filter_header_ip1"
+        android:layout_width="0dip"
+        android:layout_height="wrap_content"
+        android:layout_weight="4"
+        android:cursorVisible="true"
+        android:ellipsize="end"
+        android:hint="@string/ip1"
+        android:inputType="number"
+        android:lines="1"
+        android:maxLength="3"
+        android:scrollHorizontally="true"
+        android:selectAllOnFocus="true" />
 
     <TextView
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginRight="10dip"
-        android:gravity="right"
-        android:text="@string/service_filter_header2" />
+        android:text="@string/separator_dot"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <EditText
+        android:id="@+id/service_filter_header_ip2"
+        android:layout_width="0dip"
+        android:layout_height="wrap_content"
+        android:layout_weight="4"
+        android:cursorVisible="true"
+        android:ellipsize="end"
+        android:hint="@string/ip2"
+        android:inputType="number"
+        android:lines="1"
+        android:maxLength="3"
+        android:scrollHorizontally="true"
+        android:selectAllOnFocus="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/separator_dot"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <EditText
+        android:id="@+id/service_filter_header_ip3"
+        android:layout_width="0dip"
+        android:layout_height="wrap_content"
+        android:layout_weight="4"
+        android:cursorVisible="true"
+        android:ellipsize="end"
+        android:hint="@string/ip3"
+        android:inputType="number"
+        android:lines="1"
+        android:maxLength="3"
+        android:scrollHorizontally="true"
+        android:selectAllOnFocus="true" >
+    </EditText>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/separator_dot"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <EditText
+        android:id="@+id/service_filter_header_ip4"
+        android:layout_width="0dip"
+        android:layout_height="wrap_content"
+        android:layout_weight="4"
+        android:cursorVisible="true"
+        android:ellipsize="end"
+        android:hint="@string/ip4"
+        android:inputType="number"
+        android:lines="1"
+        android:maxLength="3"
+        android:scrollHorizontally="true"
+        android:selectAllOnFocus="true" >
+    </EditText>
+
+    <ImageButton
+        android:id="@+id/service_filter_header_add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/image_description"
+        android:onClick="onClickServiceFilterAddCustom"
+        android:src="@drawable/plus_selected" />
 
 </LinearLayout>

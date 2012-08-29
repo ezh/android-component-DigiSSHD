@@ -19,58 +19,44 @@
  *
  */
 
-package org.digimead.digi.ctrl.sshd.service
+package org.digimead.digi.ctrl.sshd.service.filter
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.ctrl.sshd.service.FilterBlock
 
 import android.content.Context
-import android.widget.ArrayAdapter
 
-class FilterAddAdapter(protected val context: Context)
-  extends ArrayAdapter[String](context, android.R.layout.simple_expandable_list_item_1, android.R.id.text1)
-  with FilterBlock.FragmentAdapter with Logging {
+class RemoveAdapter(protected val context: Context) extends Adapter(context) with Logging {
   log.debug("alive")
 
   @Loggable
   def submit() = synchronized {
     val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
     val editor = pref.edit()
-    setPending(Seq()).foreach(filter => editor.putBoolean(filter, true))
+    setPending(Seq()).foreach(filter => editor.remove(filter))
     editor.commit()
     AnyBase.runOnUiThread { update }
   }
 }
 
-object FilterAddAdapter extends Logging {
-  private[service] lazy val adapter: Option[FilterAddAdapter] = AppComponent.Context map {
+object RemoveAdapter extends Logging {
+  private[service] lazy val adapter: Option[RemoveAdapter] = AppComponent.Context map {
     context =>
-      Some(new FilterAddAdapter(context))
-  } getOrElse { log.fatal("unable to create FilterAddAdaper"); None }
+      Some(new RemoveAdapter(context))
+  } getOrElse { log.fatal("unable to create FilterRemoveAdaper"); None }
   log.debug("alive")
 
   @Loggable
   def update(context: Context) = adapter.foreach {
     adapter =>
       // get list of predefined filters - active filters 
-      val actual = predefinedFilters.diff(FilterBlock.listFilters(context))
+      val actual = FilterBlock.listFilters(context)
       // get list of actual filters - pending filters 
       adapter.availableFilters = actual.map(v => (v, adapter.pendingFilters.exists(_ == v)))
       AnyBase.runOnUiThread { adapter.update }
-  }
-  @Loggable
-  private def predefinedFilters(): Seq[String] = {
-    log.debug("predefinedFilters(...)")
-    Common.listInterfaces().map(entry => {
-      val Array(interface, ip) = entry.split(":")
-      if (ip == "0.0.0.0")
-        Seq(interface + ":*.*.*.*")
-      else
-        Seq(entry, interface + ":*.*.*.*", "*:" + ip)
-    }).flatten
   }
 }

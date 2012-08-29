@@ -2,7 +2,6 @@ package org.digimead.digi.ctrl.sshd
 
 import android.view.View
 import org.digimead.digi.ctrl.sshd.user.UserFragment
-import org.digimead.digi.ctrl.sshd.service.FilterAddFragment
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import android.os.Bundle
 import com.actionbarsherlock.app.ActionBar

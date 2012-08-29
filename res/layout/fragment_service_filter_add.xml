@@ -24,41 +24,47 @@
     android:layout_height="match_parent"
     android:orientation="vertical" >
 
-    <include
-        android:id="@+id/element_service_filter_add_header"
-        android:layout_weight="0"
-        layout="@layout/element_service_filter_add_header" />
-
     <ListView
         android:id="@android:id/list"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dip"
         android:layout_weight="1" >
     </ListView>
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@android:id/empty"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dip"
+        android:layout_weight="1"
         android:orientation="vertical" >
 
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
-            android:layout_centerVertical="true"
-            android:contentDescription="@android:string/untitled"
-            android:padding="30dip"
-            android:src="@drawable/ic_background_logo" />
+        <include
+            android:id="@+id/element_service_filter_add_header"
+            layout="@layout/element_service_filter_add_header" />
 
-        <TextView
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
-            android:layout_centerVertical="true"
-            android:gravity="center_horizontal"
-            android:text="@string/no_filters" />
-    </RelativeLayout>
+            android:orientation="vertical" >
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_centerVertical="true"
+                android:contentDescription="@android:string/untitled"
+                android:padding="30dip"
+                android:src="@drawable/ic_background_logo" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_horizontal"
+                android:text="@string/no_filters" />
+        </RelativeLayout>
+    </LinearLayout>
 
     <include
         android:id="@+id/element_service_filter_footer"

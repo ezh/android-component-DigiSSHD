@@ -66,9 +66,9 @@ class SSHDResource(activity: WeakReference[Activity]) {
   lazy val serviceFactoryDefault = activity.get.map(a => Fragment.instantiate(a,
     classOf[service.EnvironmentBlock.Dialog.FactoryDefault].getName, null).asInstanceOf[service.EnvironmentBlock.Dialog.FactoryDefault])
   lazy val serviceFiltersAdd = activity.get.map(a => Fragment.instantiate(a,
-    classOf[service.FilterAddFragment.Dialog.FiltersAdd].getName, null).asInstanceOf[service.FilterAddFragment.Dialog.FiltersAdd])
+    classOf[service.filter.AddFragment.Dialog.FiltersAdd].getName, null).asInstanceOf[service.filter.AddFragment.Dialog.FiltersAdd])
   lazy val serviceFiltersRemove = activity.get.map(a => Fragment.instantiate(a,
-    classOf[service.FilterRemoveFragment.Dialog.FiltersRemove].getName, null).asInstanceOf[service.FilterRemoveFragment.Dialog.FiltersRemove])
+    classOf[service.filter.RemoveFragment.Dialog.FiltersRemove].getName, null).asInstanceOf[service.filter.RemoveFragment.Dialog.FiltersRemove])
   // service.option
   lazy val serviceRestartRequired = activity.get.map(a => Fragment.instantiate(a,
     classOf[service.option.DefaultUser.Dialog.RestartRequired].getName, null).asInstanceOf[service.option.DefaultUser.Dialog.RestartRequired])

@@ -29,8 +29,8 @@
     <string name="apply">Apply</string>
     <string name="app_name">DigiSSHD</string>
     <string name="app_name_filter_add">Add interface filters</string>
-    <string name="app_name_filter_allow">DigiSSHD: Allow connection filters</string>
-    <string name="app_name_filter_deny">DigiSSHD: Deny connection filters</string>
+    <string name="app_name_filter_allow">Allow connection filters</string>
+    <string name="app_name_filter_deny">Deny connection filters</string>
     <string name="app_name_filter">DigiSSHD: Filters</string>
     <string name="app_name_filter_remove">Remove interface filters</string>
     <string name="app_name_information">DigiSSHD: Information</string>

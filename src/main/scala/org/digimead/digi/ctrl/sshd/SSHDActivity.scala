@@ -39,8 +39,8 @@ import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabContent
-import org.digimead.digi.ctrl.sshd.service.FilterAddFragment
 import org.digimead.digi.ctrl.sshd.service.TabContent
+import org.digimead.digi.ctrl.sshd.service.filter.AddFragment
 import org.digimead.digi.ctrl.sshd.session.TabContent
 import org.digimead.digi.ctrl.sshd.user.UserFragment
 
@@ -175,20 +175,19 @@ class SSHDActivity extends SSHDActivityMenu {
   def onClickDigiControl(v: View) = {
 
   }
-  def onClickHelp(v: View) = SSHDHelp.toggle(this)
+  def onClickHelp(v: View) = SSHDHelp.toggle()
   def onClickUsersGenerateNewUser(v: View) = UserFragment.onClickGenerateNewUser(v)
   def onClickUsersShowPassword(v: View) = UserFragment.onClickUsersShowPassword(v)
   def onClickUsersApply(v: View) = UserFragment.onClickApply(v)
   def onClickUsersToggleBlockAll(v: View) = UserFragment.onClickToggleBlockAll(v)
   def onClickUsersDeleteAll(v: View) = UserFragment.onClickDeleteAll(v)
-  def onClickServiceFilterAddCustom(v: View) = FilterAddFragment.onClickCustom(v)
+  def onClickServiceFilterAddCustom(v: View) = AddFragment.onClickCustom(v)
   private def saveState() {
     SSHDActivity.StateStash.appInitialTab = SSHDTabAdapter.getSelected
     SSHDActivity.StateStash.appHelpShown = SSHDHelp.isShown
   }
   private def restoreState() {
-    if (SSHDActivity.StateStash.appHelpShown)
-      SSHDHelp.show(this)
+    if (SSHDActivity.StateStash.appHelpShown) SSHDHelp.show()
     SSHDTabAdapter.setSelected(SSHDActivity.StateStash.appInitialTab)
   }
 }
@@ -316,20 +315,17 @@ object SSHDActivity extends Logging {
   @Loggable
   def stateInit(activity: SSHDActivity) = ppGroup("SSHDActivity.stateInit") {
     val bar = SyncVar[ActionBar]()
-    AnyBase.runOnUiThread {
-      SSHDTabAdapter.addTab(R.string.tab_name_service, classOf[org.digimead.digi.ctrl.sshd.service.TabContent], null)
-      SSHDTabAdapter.addTab(R.string.tab_name_sessions, classOf[org.digimead.digi.ctrl.sshd.session.TabContent], null)
-      SSHDTabAdapter.addTab(R.string.tab_name_information, classOf[org.digimead.digi.ctrl.sshd.info.TabContent], null)
-      bar.set(activity.getSupportActionBar())
-    }
-    bar.get // initialize ActionBar
+    AnyBase.runOnUiThread { bar.set(activity.getSupportActionBar()) } // initialize ActionBar
+    SSHDTabAdapter.addTab(bar.get, R.string.tab_name_service, classOf[org.digimead.digi.ctrl.sshd.service.TabContent], null)
+    SSHDTabAdapter.addTab(bar.get, R.string.tab_name_sessions, classOf[org.digimead.digi.ctrl.sshd.session.TabContent], null)
+    SSHDTabAdapter.addTab(bar.get, R.string.tab_name_information, classOf[org.digimead.digi.ctrl.sshd.info.TabContent], null)
   }
   @Loggable
   def stateCreate(activity: SSHDActivity) = ppGroup("SSHDActivity.stateCreate") {
     activity.onCreateExt(activity)
     val bar = SyncVar[ActionBar]()
-    AnyBase.runOnUiThread { bar.set(activity.getSupportActionBar()) }
-    bar.get // initialize ActionBar
+    AnyBase.runOnUiThread { bar.set(activity.getSupportActionBar()) } // initialize ActionBar
+    bar.get
     if (SSHDActivityState.get == SSHDActivityState.State.Initializing)
       SSHDPreferences.initActivityPersistentOptions(activity)
     SSHDTabAdapter.onCreate(activity)
