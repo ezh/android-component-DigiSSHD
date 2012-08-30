@@ -442,6 +442,7 @@ object UserDialog extends Logging {
     override protected lazy val positive = Some((android.R.string.yes, new XDialog.ButtonListener(new WeakReference(ChangeState.this),
       Some((dialog: ChangeState) => user.foreach {
         oldUser =>
+          val callback = dialog.onOkCallback
           val context = getSherlockActivity
           val newUser = oldUser.copy(enabled = newState)
           val notification = if (newUser.enabled)
@@ -449,7 +450,6 @@ object UserDialog extends Logging {
           else
             XResource.getString(context, "user_disabled_message").getOrElse("disabled user \"%s\"").format(newUser.name)
           Toast.makeText(context, notification, Toast.LENGTH_SHORT).show()
-          dialog.onOkCallback.foreach(_(newUser))
           defaultButtonCallback(dialog)
           Futures.future {
             IAmWarn(notification)
@@ -457,6 +457,7 @@ object UserDialog extends Logging {
             UserFragment.updateUser(Some(newUser), Some(oldUser))
             if (oldUser.name == "android")
               DefaultUser.updateUser(newUser)
+            AnyBase.runOnUiThread { callback.foreach(_(newUser)) }
           }
       }))))
     override protected lazy val negative = Some((android.R.string.no, new XDialog.ButtonListener(new WeakReference(ChangeState.this),

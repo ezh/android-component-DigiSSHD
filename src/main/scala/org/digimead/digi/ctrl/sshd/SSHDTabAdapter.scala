@@ -147,7 +147,7 @@ object SSHDTabAdapter extends Logging {
   }
   case class Tab(titleResource: Int, clazz: Class[_ <: TabInterface], args: Bundle)(private var cachedBar: WeakReference[ActionBar]) {
     @volatile private var cachedTab = new WeakReference[ActionBar.Tab](null)
-    cachedBar.get.foreach(acquire)
+    AnyBase.runOnUiThread { cachedBar.get.foreach(acquire) }
 
     def acquire(bar: ActionBar): ActionBar.Tab = synchronized {
       cachedTab.get match {

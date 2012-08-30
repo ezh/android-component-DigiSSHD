@@ -32,38 +32,51 @@ import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
 import android.app.Activity
 import android.os.Bundle
 import android.text.Html
+import android.view.View
+import android.widget.ListView
 
 class DenyFragment extends Fragment {
+  protected val updateAdapterFunction = DenyAdapter.update _
   DenyFragment.fragment = Some(this)
 
   def tag = "fragment_session_filter_deny"
+  @Loggable
   override def onAttach(activity: Activity) {
     super.onAttach(activity)
     DenyFragment.fragment = Some(this)
   }
   @Loggable
-  override def onActivityCreated(savedInstanceState: Bundle) = {
-    super.onActivityCreated(savedInstanceState)
-    DenyAdapter.adapter.foreach(setListAdapter)
-  }
+  override def onActivityCreated(savedInstanceState: Bundle) =
+    DenyAdapter.adapter.foreach(adapter => onActivityCreated(adapter, DenyAdapter.update, savedInstanceState))
   @Loggable
   override def onResume() = {
-    super.onResume
+    DenyAdapter.adapter.foreach(onResume)
     val activity = getSherlockActivity()
     val title = XResource.getString(activity, "app_name_filter_deny").getOrElse("Deny connection filters")
     activity.setTitle(Html.fromHtml("<b><i>" + title + "</i></b>"))
     Futures.future { DenyAdapter.update(activity) }
   }
   @Loggable
+  override def onPause() = DenyAdapter.adapter.foreach(onPause)
+  @Loggable
   override def onDetach() {
     DenyFragment.fragment = None
     super.onDetach()
   }
+  @Loggable
+  def onClickAddFilter(v: View): Unit =
+    DenyAdapter.adapter.foreach(onClickAddFilter(_, false))
+  @Loggable
+  def onClickApply(v: View): Unit =
+    Futures.future { DenyAdapter.adapter.foreach(onClickApply(_, false)) }
+  @Loggable
+  override def onListItemClick(l: ListView, v: View, position: Int, id: Long) =
+    DenyAdapter.adapter.foreach(adapter => onListItemClick(adapter, l, v, position, id))
 }
 
 object DenyFragment extends Logging {
   /** DenyFragment fragment instance */
-  @volatile private var fragment: Option[DenyFragment] = None
+  @volatile private[filter] var fragment: Option[DenyFragment] = None
   log.debug("alive")
 
   @Loggable

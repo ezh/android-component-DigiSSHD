@@ -39,7 +39,7 @@
         android:orientation="vertical" >
 
         <include
-            android:id="@+id/element_session_filter_header"
+            android:id="@+id/element_session_filter_empty_header"
             layout="@layout/element_session_filter_header" />
 
         <RelativeLayout

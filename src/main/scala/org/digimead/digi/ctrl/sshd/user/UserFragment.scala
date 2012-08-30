@@ -173,7 +173,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
           lastActiveUserInfo.set(r)
           userName.setText(user.name)
           userPassword.setText(user.password)
-          userPasswordEnabledCheckbox.setChecked(user.enabled)
+          userPasswordEnabledCheckbox.setChecked(UserAdapter.isPasswordEnabled(activity, user))
         case r @ None =>
           lastActiveUserInfo.set(r)
           userName.setText("")
@@ -341,10 +341,10 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
               case item: UserInfo =>
                 menuItem.getItemId match {
                   case id if id == XResource.getId(context, "user_disable") =>
-                    Futures.future { UserDialog.disable(context, item) }
+                    Futures.future { UserDialog.disable(context, item, Some((user) => Futures.future { updateFieldsState })) }
                     true
                   case id if id == XResource.getId(context, "user_enable") =>
-                    Futures.future { UserDialog.enable(context, item) }
+                    Futures.future { UserDialog.enable(context, item, Some((user) => Futures.future { updateFieldsState })) }
                     true
                   case id if id == XResource.getId(context, "user_set_gid_uid") =>
                     Futures.future { UserDialog.setGUID(context, item) }
@@ -474,7 +474,7 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
       } AnyBase.runOnUiThread {
         userName.setText(name)
         userPasswrod.setText(password)
-        updateFieldsState()
+        Futures.future { updateFieldsState }
       }
     } catch {
       case e =>
@@ -522,8 +522,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
               adapter.remove(user)
               adapter.insert(newUser, position)
               UserFragment.this.getListView.setSelectionFromTop(position, 5)
+              Futures.future { updateFieldsState }
             }
-            updateFieldsState()
           case None =>
             val message = XResource.getString(context, "user_update_fail_message").
               getOrElse("update user \"%s\" failed").format(user.name)
@@ -571,8 +571,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
             case e =>
               log.error(e.getMessage, e)
           }
+          Futures.future { updateFieldsState }
         }
-        updateFieldsState
       }
     }
   }
@@ -603,8 +603,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
           val message = XResource.getString(context, "user_all_disabled").getOrElse("all users are disabled")
           IAmWarn(message)
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+          Futures.future { updateFieldsState }
         }
-        updateFieldsState
       } catch {
         case e =>
           log.error(e.getMessage, e)
@@ -636,8 +636,8 @@ class UserFragment extends SherlockListFragment with SSHDFragment with TabConten
             getOrElse("all users except <b>android</b> are deleted"))
           IAmWarn(message.toString)
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+          Futures.future { updateFieldsState }
         }
-        updateFieldsState
       } catch {
         case e =>
           log.error(e.getMessage, e)

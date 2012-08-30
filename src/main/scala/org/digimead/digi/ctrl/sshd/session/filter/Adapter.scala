@@ -21,18 +21,23 @@
 
 package org.digimead.digi.ctrl.sshd.session.filter
 
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.ObservableSet
+import scala.collection.mutable.SynchronizedSet
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 
@@ -40,17 +45,19 @@ class Adapter(context: Context)
   extends ArrayAdapter[Adapter.Item](context, android.R.layout.simple_list_item_checked, android.R.id.text1) with Logging {
   private val fieldId = android.R.id.text1
   private val resource = android.R.layout.simple_list_item_checked
-  protected val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
-  protected val separatorInclude = {
+  private val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
+  private val separatorInclude = {
     val view = inflater.inflate(R.layout.header, null, false).asInstanceOf[TextView]
     view.setText(R.string.session_filter_include_separator)
     view
   }
-  protected val separatorDelete = {
+  private val separatorDelete = {
     val view = inflater.inflate(R.layout.header, null, false).asInstanceOf[TextView]
     view.setText(R.string.session_filter_delete_separator)
     view
   }
+  private[filter] val pendingToInclude = new HashSet[Adapter.Item] with ObservableSet[Adapter.Item] with SynchronizedSet[Adapter.Item]
+  private[filter] val pendingToDelete = new HashSet[String] with ObservableSet[String] with SynchronizedSet[String]
 
   override def getView(position: Int, convertView: View, parent: ViewGroup): View = {
     getItem(position) match {
@@ -63,10 +70,67 @@ class Adapter(context: Context)
         createViewFromResource(position, convertView, parent, resource)
     }
   }
-  @Loggable
-  def update {
-
+  def exists(item: Adapter.Item): Boolean = {
+    for (i <- 0 until getCount) yield { if (getItem(i).value == item.value) return true }
+    false
   }
+  def exists(item: String): Boolean = {
+    for (i <- 0 until getCount) yield { if (getItem(i).value == item) return true }
+    false
+  }
+  override def isEnabled(position: Int) = getItem(position) match {
+    case Adapter.separatorToInclude =>
+      false
+    case Adapter.separatorToDelete =>
+      false
+    case _ =>
+      super.isEnabled(position)
+  }
+  def items = for (i <- 0 to getCount) yield getItem(i)
+  @Loggable
+  def update(lv: ListView, values: Seq[Adapter.Item]) = synchronized {
+    assert(Thread.currentThread().getId() == AnyBase.uiThreadID, "def update(lv: ListView) available only from UI thread")
+    val normal = values.filter(_.pending == None).sortBy(_.value)
+    val toInclude = values.filter(_.pending == Some(true)).sortBy(_.value)
+    val toDelete = values.filter(_.pending == Some(false)).sortBy(_.value)
+    var id = 1 // position, base 1
+    setNotifyOnChange(false)
+    clear
+    normal.foreach(v => {
+      add(v)
+      lv.setItemChecked(id, v.isActive) // <-- here
+      id += 1
+    })
+    if (toInclude.nonEmpty) {
+      // add header
+      add(Adapter.separatorToInclude)
+      id += 1
+      // add items
+      toInclude.foreach(v => {
+        add(v)
+        lv.setItemChecked(id, v.isActive)
+        id += 1
+      })
+    }
+    if (toDelete.nonEmpty) {
+      // add header
+      add(Adapter.separatorToDelete)
+      id += 1
+      // add items
+      toDelete.foreach(v => {
+        add(v)
+        lv.setItemChecked(id, v.isActive)
+        id += 1
+      })
+    }
+    setNotifyOnChange(true)
+    notifyDataSetChanged
+  }
+  def getFilters(context: Context, f: (Context) => Seq[(String, Boolean)], isActivityAllow: Boolean): Seq[Adapter.Item] =
+    f(context).map(t =>
+      Adapter.Item(t._1,
+        if (pendingToDelete(t._1)) Some(false) else None)(t._2, isActivityAllow)) ++
+      pendingToInclude
   private def createViewFromResource(position: Int, convertView: View, parent: ViewGroup, resource: Int): View = {
     val view = if (convertView == null || convertView == separatorInclude || convertView == separatorDelete)
       inflater.inflate(resource, parent, false)
@@ -105,7 +169,7 @@ object Adapter extends Logging {
     override def toString() =
       value
     var context = new WeakReference[Context](null)
-    def isActive_=(x: Boolean) = {
+    def isActive_=(x: Boolean) = synchronized {
       context.get.foreach {
         context =>
           pending match {
@@ -113,13 +177,13 @@ object Adapter extends Logging {
               log.debug("update state of normal item " + value + " " + x)
               (isActivityAllow, x) match {
                 case (true, true) =>
-                //                  SSHDPreferences.FilterConnection.Allow.enable(context, value)
+                  SSHDPreferences.FilterConnection.Allow.enable(context, value)
                 case (true, false) =>
-                //                  SSHDPreferences.FilterConnection.Allow.disable(context, value)
+                  SSHDPreferences.FilterConnection.Allow.disable(context, value)
                 case (false, true) =>
-                //                  SSHDPreferences.FilterConnection.Deny.enable(context, value)
+                  SSHDPreferences.FilterConnection.Deny.enable(context, value)
                 case (false, false) =>
-                //                  SSHDPreferences.FilterConnection.Deny.disable(context, value)
+                  SSHDPreferences.FilterConnection.Deny.disable(context, value)
               }
               AnyBase.runOnUiThread {
                 Toast.makeText(context, context.getString(if (x)
@@ -139,13 +203,13 @@ object Adapter extends Logging {
               log.debug("update state of toDelete item " + value + " " + x)
               (isActivityAllow, x) match {
                 case (true, true) =>
-                //                  SSHDPreferences.FilterConnection.Allow.enable(context, value)
+                  SSHDPreferences.FilterConnection.Allow.enable(context, value)
                 case (true, false) =>
-                //                  SSHDPreferences.FilterConnection.Allow.disable(context, value)
+                  SSHDPreferences.FilterConnection.Allow.disable(context, value)
                 case (false, true) =>
-                //                  SSHDPreferences.FilterConnection.Deny.enable(context, value)
+                  SSHDPreferences.FilterConnection.Deny.enable(context, value)
                 case (false, false) =>
-                //                  SSHDPreferences.FilterConnection.Deny.disable(context, value)
+                  SSHDPreferences.FilterConnection.Deny.disable(context, value)
               }
               AnyBase.runOnUiThread {
                 Toast.makeText(context, context.getString(if (x)
@@ -160,74 +224,4 @@ object Adapter extends Logging {
     def isActive =
       _isActive
   }
-  /*class Adapter(context: FilterActivity, values: () => Seq[Adapter.Item],
-  private val resource: Int = android.R.layout.simple_list_item_checked,
-  private val fieldId: Int = android.R.id.text1)
-  extends ArrayAdapter[Adapter.Item](context, resource, fieldId) with Logging {
-  
-
-  future { updateAdapter }
-  @Loggable
-  def updateAdapter() = synchronized {
-    val lv = context.getListView
-    var id = 1 // position, base 1
-    // TODO rewrite
-    val normal = values().filter(_.pending == None).sortBy(_.value)
-    val toInclude = values().filter(_.pending == Some(true)).sortBy(_.value)
-    val toDelete = values().filter(_.pending == Some(false)).sortBy(_.value)
-    setNotifyOnChange(false)
-    // ! Only the original thread that created a view hierarchy can touch its views.
-    context.runOnUiThread(new Runnable {
-      def run {
-        clear
-        normal.foreach(v => {
-          add(v)
-          lv.setItemChecked(id, v.isActive) // <-- here
-          id += 1
-        })
-        if (toInclude.nonEmpty) {
-          // add header
-          add(Adapter.separatorToInclude)
-          id += 1
-          // add items
-          toInclude.foreach(v => {
-            add(v)
-            lv.setItemChecked(id, v.isActive)
-            id += 1
-          })
-        }
-        if (toDelete.nonEmpty) {
-          // add header
-          add(Adapter.separatorToDelete)
-          id += 1
-          // add items
-          toDelete.foreach(v => {
-            add(v)
-            lv.setItemChecked(id, v.isActive)
-            id += 1
-          })
-        }
-        setNotifyOnChange(true)
-        notifyDataSetChanged
-      }
-    })
-  }
-  def exists(item: Adapter.Item): Boolean = {
-    for (i <- 0 until getCount) yield { if (getItem(i).value == item.value) return true }
-    false
-  }
-  def exists(item: String): Boolean = {
-    for (i <- 0 until getCount) yield { if (getItem(i).value == item) return true }
-    false
-  }
-
-  override def isEnabled(position: Int) = getItem(position) match {
-    case Adapter.separatorToInclude =>
-      false
-    case Adapter.separatorToDelete =>
-      false
-    case _ =>
-      super.isEnabled(position)
-  }
-}*/
 }

@@ -42,9 +42,9 @@
     <string name="app_name_users">DigiSSHD: Users</string>
     <string name="comm_session_block">session list</string>
     <string name="copy_to_clipboard">copy_to_clipboard</string>
-    <string name="dialog_acl_order_title">Change ACL rules order</string>
-    <string name="dialog_acl_order_ada_message">Do you want to set ACL rules order to &lt;font color=\'red\'>Deny&lt;/font>, &lt;font color=\'green\'>Allow&lt;/font>, &lt;font color=\'red\'>Implicit Deny&lt;/font>?</string>
-    <string name="dialog_acl_order_dad_message">Do you want to set ACL rules order to &lt;font color=\'green\'>Allow&lt;/font>, &lt;font color=\'red\'>Deny&lt;/font>, &lt;font color=\'green\'>Implicit Allow&lt;/font>?</string>
+    <string name="session_acl_order_title">Change ACL rules order</string>
+    <string name="session_acl_order_ada_messagee">Do you want to set ACL rules order to &lt;font color=\'red\'>Deny&lt;/font>, &lt;font color=\'green\'>Allow&lt;/font>, &lt;font color=\'red\'>Implicit Deny&lt;/font>?</string>
+    <string name="session_acl_order_dad_message">Do you want to set ACL rules order to &lt;font color=\'green\'>Allow&lt;/font>, &lt;font color=\'red\'>Deny&lt;/font>, &lt;font color=\'green\'>Implicit Allow&lt;/font>?</string>
     <string name="dialog_auth_message">Component password</string>
     <string name="service_authmode_title">Authentification mode</string>
     <string name="dialog_component_info_message">component: &lt;font color=\'white\'>%1$s&lt;/font> &lt;br/>

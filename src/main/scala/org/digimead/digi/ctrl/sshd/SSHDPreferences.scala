@@ -22,6 +22,7 @@
 package org.digimead.digi.ctrl.sshd
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.Publisher
 
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.androidext.XDialog
@@ -40,6 +41,7 @@ import org.digimead.digi.ctrl.lib.message.Dispatcher
 import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.PublicPreferences
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.SSHDPreferences.FilterConnection.Changed
 
 import android.content.Context
 import android.content.Intent
@@ -134,7 +136,7 @@ object SSHDPreferences {
         editor.commit
       }
     }
-    object Allow {
+    object Allow extends Publisher[Changed.type] {
       val FilterConnectionAllow = getClass.getPackage.getName + "@namespace.filter.connection.allow"
       def get(context: Context): Seq[(String, Boolean)] = {
         initialize(context)
@@ -146,19 +148,22 @@ object SSHDPreferences {
         val editor = context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).edit
         acl.foreach(acl => editor.putBoolean(acl, true))
         editor.commit
+        publish(Changed)
       }
       def disable(context: Context, acl: String*) {
         val editor = context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).edit
         acl.foreach(acl => editor.putBoolean(acl, false))
         editor.commit
+        publish(Changed)
       }
       def remove(context: Context, acl: String*) {
         val editor = context.getSharedPreferences(FilterConnectionAllow, Context.MODE_PRIVATE).edit
         acl.foreach(acl => editor.remove(acl))
         editor.commit
+        publish(Changed)
       }
     }
-    object Deny {
+    object Deny extends Publisher[Changed.type] {
       val FilterConnectionDeny = getClass.getPackage.getName + "@namespace.filter.connection.deny"
       def get(context: Context): Seq[(String, Boolean)] = {
         initialize(context)
@@ -170,18 +175,22 @@ object SSHDPreferences {
         val editor = context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).edit
         acl.foreach(acl => editor.putBoolean(acl, true))
         editor.commit
+        publish(Changed)
       }
       def disable(context: Context, acl: String*) {
         val editor = context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).edit
         acl.foreach(acl => editor.putBoolean(acl, false))
         editor.commit
+        publish(Changed)
       }
       def remove(context: Context, acl: String*) {
         val editor = context.getSharedPreferences(FilterConnectionDeny, Context.MODE_PRIVATE).edit
         acl.foreach(acl => editor.remove(acl))
         editor.commit
+        publish(Changed)
       }
     }
+    case object Changed
   }
   object NetworkPort extends Preferences.Preference[Int, Int, Int] {
     val option = DOption.NetworkPort

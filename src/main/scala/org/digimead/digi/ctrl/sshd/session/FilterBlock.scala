@@ -28,7 +28,10 @@ import scala.actors.Futures
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.ctrl.lib.androidext.SafeDialog
 import org.digimead.digi.ctrl.lib.androidext.XAPI
+import org.digimead.digi.ctrl.lib.androidext.XDialog
+import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
 import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
@@ -38,9 +41,13 @@ import org.digimead.digi.ctrl.lib.declaration.DOption
 import org.digimead.digi.ctrl.lib.declaration.DPreference
 import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.lib.message.IAmMumble
 import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
+import org.digimead.digi.ctrl.sshd.SSHDResource
+import org.digimead.digi.ctrl.sshd.ext.SSHDAlertDialog
 import org.digimead.digi.ctrl.sshd.session.filter.AllowFragment
 import org.digimead.digi.ctrl.sshd.session.filter.DenyFragment
 
@@ -48,6 +55,7 @@ import com.commonsware.cwac.merge.MergeAdapter
 
 import android.content.Context
 import android.content.Intent
+import android.support.v4.app.FragmentActivity
 import android.text.Html
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -73,48 +81,11 @@ class FilterBlock(val context: Context) extends Block[FilterBlock.Item] with Log
   @Loggable
   def onListItemClick(l: ListView, v: View, item: FilterBlock.Item) = {}
   @Loggable
-  def onClickButton(v: View) = Futures.future { // leave UI thread
-    /*    TabActivity.activity.foreach {//
-      activity =>
-        AppComponent.Inner.showDialogSafe[AlertDialog](activity, "dialog_change_acl_order", () => {
-          val item = items.head
-          val dialog = new AlertDialog.Builder(activity).
-            setTitle(R.string.dialog_acl_order_title).
-            setMessage(Html.fromHtml(XResource.getString(activity, if (item.isFilterADA)
-              "dialog_acl_order_ada_message"
-            else
-              "dialog_acl_order_dad_message").getOrElse("Do you want change ACL rules order?"))).
-            setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-              def onClick(dialog: DialogInterface, whichButton: Int) = {
-                if (item.isFilterADA) {
-                  IAmMumble("change ACL order to Deny, Allow, Implicit Deny")
-                  FilterBlock.iconDAD.foreach(v.setBackgroundDrawable)
-                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                  val editor = pref.edit()
-                  editor.putBoolean(DOption.ACLConnection.tag, false)
-                  editor.commit()
-                } else {
-                  IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
-                  FilterBlock.iconADA.foreach(v.setBackgroundDrawable)
-                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                  val editor = pref.edit()
-                  editor.putBoolean(DOption.ACLConnection.tag, true)
-                  editor.commit()
-                }
-                item.updateUI
-                v.invalidate()
-                v.refreshDrawableState()
-                v.getRootView().postInvalidate()
-              }
-            }).
-            setNegativeButton(android.R.string.cancel, null).
-            setIcon(android.R.drawable.ic_dialog_alert).
-            create()
-          dialog.show()
-          dialog
-        })
-    }*/
-  }
+  def onClickButton(v: View) = for {
+    fragment <- TabContent.fragment
+    dialog <- SSHDResource.serviceSelectPort
+  } if (!dialog.isShowing)
+    FilterBlock.Dialog.showSelectACLOrder(fragment.getSherlockActivity)
   @Loggable
   def onClickLeftPart(v: View) =
     if (items.head.isFilterADA)
@@ -138,7 +109,19 @@ object FilterBlock extends Logging {
   /** FilterBlock adapter */
   private[session] lazy val adapter = AppComponent.Context match {
     case Some(context) =>
-      new FilterBlock.Adapter(context.getApplicationContext)
+      val adapter = new FilterBlock.Adapter(context.getApplicationContext)
+      // add adapter listener for event SSHDPreferences.FilterConnection.*.Changed
+      SSHDPreferences.FilterConnection.Allow.subscribe(new SSHDPreferences.FilterConnection.Allow.Sub {
+        def notify(pub: SSHDPreferences.FilterConnection.Allow.Pub,
+          event: SSHDPreferences.FilterConnection.Changed.type) =
+          if (!adapter.isEmpty()) adapter.getItem(0).updateUI
+      })
+      SSHDPreferences.FilterConnection.Deny.subscribe(new SSHDPreferences.FilterConnection.Deny.Sub {
+        def notify(pub: SSHDPreferences.FilterConnection.Deny.Pub,
+          event: SSHDPreferences.FilterConnection.Changed.type) =
+          if (!adapter.isEmpty()) adapter.getItem(0).updateUI
+      })
+      adapter
     case None =>
       log.fatal("lost ApplicationContext")
       null
@@ -166,7 +149,7 @@ object FilterBlock extends Logging {
   @Loggable
   def onActivityResult(requestCode: Int, resultCode: Int, data: Intent) =
     block.foreach(_.onActivityResult(requestCode, resultCode, data))
-  private def updateItems = if (adapter.getItem(0) == null) {
+  private def updateItems(): Unit = if (adapter.getItem(0) == null) {
     val newItems = SyncVar(items)
     AnyBase.runOnUiThread {
       adapter.setNotifyOnChange(false)
@@ -265,6 +248,67 @@ object FilterBlock extends Logging {
           case Some(view) =>
             view
         }
+    }
+  }
+  object Dialog {
+    @Loggable
+    def showSelectACLOrder(activity: FragmentActivity) =
+      SSHDResource.sessionSelectACLOrder.foreach(dialog =>
+        SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+          transaction(SSHDPreferences.defaultTransaction(dialog)).show())
+
+    class SelectACLOrder
+      extends SSHDAlertDialog(Some(android.R.drawable.ic_dialog_alert)) {
+      override protected lazy val positive = Some((android.R.string.ok, new XDialog.ButtonListener(new WeakReference(SelectACLOrder.this),
+        Some((dialog: SelectACLOrder) => {
+          defaultButtonCallback(dialog)
+          if (!adapter.isEmpty()) {
+            val item = adapter.getItem(0)
+            for {
+              container <- item.view.get
+              button <- Option(container.findViewById(android.R.id.icon1))
+            } {
+              val context = dialog.getSherlockActivity()
+              if (item.isFilterADA) {
+                IAmMumble("change ACL order to Deny, Allow, Implicit Deny")
+                FilterBlock.iconDAD.foreach(XAPI.setViewBackground(button, _))
+                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                val editor = pref.edit()
+                editor.putBoolean(DOption.ACLConnection.tag, false)
+                editor.commit()
+              } else {
+                IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
+                FilterBlock.iconADA.foreach(XAPI.setViewBackground(button, _))
+                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                val editor = pref.edit()
+                editor.putBoolean(DOption.ACLConnection.tag, true)
+                editor.commit()
+              }
+              item.updateUI
+              button.invalidate()
+              button.refreshDrawableState()
+              button.getRootView().postInvalidate()
+            }
+          }
+        }))))
+      override protected lazy val negative = Some((android.R.string.cancel, new XDialog.ButtonListener(new WeakReference(SelectACLOrder.this),
+        Some(defaultButtonCallback))))
+
+      def tag = "dialog_session_acl_order"
+      def title = Html.fromHtml(XResource.getString(getSherlockActivity, "session_acl_order_title").
+        getOrElse("Change ACL rules order"))
+      def message = Some(Html.fromHtml(if (!adapter.isEmpty() && adapter.getItem(0).isFilterADA)
+        XResource.getString(getSherlockActivity, "session_acl_order_ada_message").
+        getOrElse("Do you want to set ACL rules order to <font color=\'red\'>Deny</font>, " +
+          "<font color=\'green\'>Allow</font>, <font color=\'red\'>Implicit Deny</font>?")
+      else
+        XResource.getString(getSherlockActivity, "session_acl_order_dad_message").
+          getOrElse("Do you want to set ACL rules order to <font color=\'green\'>Allow</font>, " +
+            "<font color=\'red\'>Deny</font>, <font color=\'green\'>Implicit Allow</font>?")))
+      @Loggable
+      override def onDestroyView() {
+        super.onDestroyView
+      }
     }
   }
 }

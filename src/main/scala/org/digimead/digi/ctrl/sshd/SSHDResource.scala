@@ -78,6 +78,10 @@ class SSHDResource(activity: WeakReference[Activity]) {
     classOf[service.option.NetworkPort.Dialog.SelectPort].getName, null).asInstanceOf[service.option.NetworkPort.Dialog.SelectPort])
   lazy val serviceSelectAuth = activity.get.map(a => Fragment.instantiate(a,
     classOf[service.option.AuthentificationMode.Dialog.SelectAuth].getName, null).asInstanceOf[service.option.AuthentificationMode.Dialog.SelectAuth])
+  // session
+  lazy val sessionSelectACLOrder= activity.get.map(a => Fragment.instantiate(a,
+    classOf[session.FilterBlock.Dialog.SelectACLOrder].getName, null).asInstanceOf[session.FilterBlock.Dialog.SelectACLOrder])
+
 }
 
 object SSHDResource {
@@ -109,4 +113,6 @@ object SSHDResource {
   def serviceRootRequest = SSHDActivity.activity.flatMap(_.resources.serviceRootRequest)
   def serviceSelectPort = SSHDActivity.activity.flatMap(_.resources.serviceSelectPort)
   def serviceSelectAuth = SSHDActivity.activity.flatMap(_.resources.serviceSelectAuth)
+  // session
+  def sessionSelectACLOrder = SSHDActivity.activity.flatMap(_.resources.sessionSelectACLOrder)
 }

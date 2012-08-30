@@ -25,6 +25,7 @@ import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import android.content.Context
 
@@ -36,8 +37,11 @@ object AllowAdapter extends Logging {
   log.debug("alive")
 
   @Loggable
-  def update(context: Context) = adapter.foreach {
-    adapter =>
-      AnyBase.runOnUiThread { adapter.update }
+  def update(context: Context) = for {
+    adapter <- adapter
+    fragment <- AllowFragment.fragment
+  } {
+    var values = adapter.getFilters(context, SSHDPreferences.FilterConnection.Allow.get, true)
+    AnyBase.runOnUiThread { adapter.update(fragment.getListView(), values) }
   }
 }
