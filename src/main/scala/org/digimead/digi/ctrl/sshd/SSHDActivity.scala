@@ -25,6 +25,7 @@ import java.util.Locale
 
 import scala.actors.Actor
 import scala.collection.immutable.HashMap
+import scala.collection.mutable.Subscriber
 import scala.ref.WeakReference
 
 import org.digimead.digi.ctrl.lib.AnyBase
@@ -231,6 +232,11 @@ object SSHDActivity extends Logging {
     actor.start
     actor
   }
+  //AppComponent state subscriber
+  private val stateSubscriber = new Subscriber[AppComponent.State, AppComponent.StateContainer#Pub] {
+    def notify(pub: AppComponent.StateContainer#Pub, event: AppComponent.State) =
+      SSHDRunningStatus.update()
+  }
   ppLoading.stop()
   // TODO REMOVE
   AnyBase.initializeDebug()
@@ -330,6 +336,9 @@ object SSHDActivity extends Logging {
       SSHDPreferences.initActivityPersistentOptions(activity)
     SSHDTabAdapter.onCreate(activity)
     AnyBase.runOnUiThread { activity.findViewById(R.id.loadingProgressBar).setVisibility(View.GONE) }
+    AppComponent.Inner.state.subscribe(SSHDActivity.stateSubscriber)
+    SSHDRunningStatus.init(activity.findViewById(R.id.main_textStatusSmallDevices),
+      activity.findViewById(R.id.main_textStatusLargeDevices))
   }
   @Loggable
   def stateStart(activity: SSHDActivity) = ppGroup("SSHDActivity.stateStart") {
@@ -353,6 +362,8 @@ object SSHDActivity extends Logging {
   }
   @Loggable
   def stateDestroy(activity: SSHDActivity) = ppGroup("SSHDActivity.stateDestroy") {
+    SSHDRunningStatus.deinit
+    AppComponent.Inner.state.removeSubscriptions
     AnyBase.runOnUiThread { activity.findViewById(R.id.loadingProgressBar).setVisibility(View.VISIBLE) }
     activity.onDestroyExt(activity)
   }

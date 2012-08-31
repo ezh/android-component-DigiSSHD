@@ -78,12 +78,13 @@ class OptionBlock(context: Context) extends Logging {
   @Loggable
   def onOptionClick(item: OptionBlock.Item, lastState: Boolean) = item.option match {
     case _ =>
-      val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-      val editor = pref.edit()
-      editor.putBoolean(item.option.tag, !lastState)
-      editor.commit()
-      context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
-    //      SSHDCommon.optionChangedNotify(context, item.option, item.getState(context).toString)
+      Futures.future {
+        val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+        val editor = pref.edit()
+        editor.putBoolean(item.option.tag, !lastState)
+        editor.commit()
+        context.sendBroadcast(new Intent(DIntent.UpdateOption, Uri.parse("code://" + context.getPackageName + "/" + item.option)))
+      }
   }
 }
 

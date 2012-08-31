@@ -24,6 +24,7 @@ package org.digimead.digi.ctrl.sshd.ext
 import org.digimead.digi.ctrl.lib.AnyBase
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
+import org.digimead.digi.ctrl.sshd.SSHDConsoleFragment
 
 import com.actionbarsherlock.app.SherlockFragmentActivity
 
@@ -36,6 +37,8 @@ trait TabInterface extends Logging {
   def onTabSelected()
   def getSherlockActivity(): SherlockFragmentActivity
   def getTabDescriptionFragment(): Option[Fragment]
+  def showConsoleFragment() = if (isTopPanelAvailable)
+    SSHDConsoleFragment.show(this)
   def showTabDescriptionFragment() = if (isTopPanelAvailable)
     getTabDescriptionFragment.foreach {
       case fragment if !fragment.isAdded =>

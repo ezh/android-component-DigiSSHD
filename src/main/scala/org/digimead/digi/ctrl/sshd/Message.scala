@@ -22,22 +22,23 @@
 package org.digimead.digi.ctrl.sshd
 
 import java.util.concurrent.ConcurrentLinkedQueue
+
 import scala.Array.canBuildFrom
 import scala.annotation.tailrec
+
+import org.digimead.digi.ctrl.lib.androidext.XResource
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider
 import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider.value2uri
 import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
 import org.digimead.digi.ctrl.lib.log.Logging
 import org.digimead.digi.ctrl.lib.message.DMessage
 import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.message.IAmBusy
+
 import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
-import org.digimead.digi.ctrl.lib.androidext.XResource
 
 object Message extends Logging {
   private val flushLimit = 1000
@@ -71,12 +72,8 @@ object Message extends Logging {
   implicit val dispatcher: Dispatcher = new Dispatcher {
     def process(message: DMessage): Unit = {
       queue.offer(message)
-      
-/*        if (message.isInstanceOf[IAmBusy]) {
-          log.debug("send request IAmBusy")
-          SSHDActivity.actor !? (DTimeout.normal, message) orElse ({ log.fatal("request IAmBusy hang with timeout " + DTimeout.normal); None })
-        } else
-          SSHDActivity.actor ! message*/
+      SSHDConsoleFragment.queue += message
+      SSHDRunningStatus.actor ! message
     }
   }
 
@@ -102,7 +99,6 @@ object Message extends Logging {
            * [error] and  method put in class ContentValues of type (x$1: java.lang.String,x$2: java.lang.Float)Unit
            * [error] match argument types (java.lang.String,Long)
            * [error]     values.put(DHistoryProvider.Field.ActivityTS.toString, message.
-           * TODO submit Scala ticket
            */
           messages.foreach {
             message =>

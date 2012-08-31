@@ -133,7 +133,7 @@ object UserDialog extends Logging {
   @Loggable
   def enable(activity: FragmentActivity, user: UserInfo, callback: Option[UserInfo => Unit] = None) =
     SSHDResource.userEnable.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+      SafeDialog(activity, dialog, () => dialog).
         transaction(SSHDPreferences.defaultTransaction(dialog)).before {
           dialog =>
             dialog.user = Some(user)
@@ -142,7 +142,7 @@ object UserDialog extends Logging {
   @Loggable
   def disable(activity: FragmentActivity, user: UserInfo, callback: Option[UserInfo => Unit] = None) =
     SSHDResource.userDisable.foreach(dialog =>
-      SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+      SafeDialog(activity, dialog, () => dialog).
         transaction(SSHDPreferences.defaultTransaction(dialog)).before {
           dialog =>
             dialog.user = Some(user)

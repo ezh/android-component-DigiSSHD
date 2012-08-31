@@ -254,7 +254,7 @@ object FilterBlock extends Logging {
     @Loggable
     def showSelectACLOrder(activity: FragmentActivity) =
       SSHDResource.sessionSelectACLOrder.foreach(dialog =>
-        SafeDialog(activity, dialog, () => dialog).target(R.id.main_topPanel).
+        SafeDialog(activity, dialog, () => dialog).
           transaction(SSHDPreferences.defaultTransaction(dialog)).show())
 
     class SelectACLOrder
@@ -272,17 +272,21 @@ object FilterBlock extends Logging {
               if (item.isFilterADA) {
                 IAmMumble("change ACL order to Deny, Allow, Implicit Deny")
                 FilterBlock.iconDAD.foreach(XAPI.setViewBackground(button, _))
-                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                val editor = pref.edit()
-                editor.putBoolean(DOption.ACLConnection.tag, false)
-                editor.commit()
+                Futures.future {
+                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                  val editor = pref.edit()
+                  editor.putBoolean(DOption.ACLConnection.tag, false)
+                  editor.commit()
+                }
               } else {
                 IAmMumble("change ACL order to Allow, Deny, Implicit Allow")
                 FilterBlock.iconADA.foreach(XAPI.setViewBackground(button, _))
-                val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
-                val editor = pref.edit()
-                editor.putBoolean(DOption.ACLConnection.tag, true)
-                editor.commit()
+                Futures.future {
+                  val pref = context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE)
+                  val editor = pref.edit()
+                  editor.putBoolean(DOption.ACLConnection.tag, true)
+                  editor.commit()
+                }
               }
               item.updateUI
               button.invalidate()
@@ -297,7 +301,7 @@ object FilterBlock extends Logging {
       def tag = "dialog_session_acl_order"
       def title = Html.fromHtml(XResource.getString(getSherlockActivity, "session_acl_order_title").
         getOrElse("Change ACL rules order"))
-      def message = Some(Html.fromHtml(if (!adapter.isEmpty() && adapter.getItem(0).isFilterADA)
+      def message = Some(Html.fromHtml(if (!adapter.isEmpty() && adapter.getItem(0).isFilterADA())
         XResource.getString(getSherlockActivity, "session_acl_order_ada_message").
         getOrElse("Do you want to set ACL rules order to <font color=\'red\'>Deny</font>, " +
           "<font color=\'green\'>Allow</font>, <font color=\'red\'>Implicit Deny</font>?")
@@ -306,8 +310,12 @@ object FilterBlock extends Logging {
           getOrElse("Do you want to set ACL rules order to <font color=\'green\'>Allow</font>, " +
             "<font color=\'red\'>Deny</font>, <font color=\'green\'>Implicit Allow</font>?")))
       @Loggable
-      override def onDestroyView() {
-        super.onDestroyView
+      override def onResume() {
+        for {
+          content <- contentView.get
+          message <- message
+        } content.asInstanceOf[TextView].setText(message)
+        super.onResume
       }
     }
   }

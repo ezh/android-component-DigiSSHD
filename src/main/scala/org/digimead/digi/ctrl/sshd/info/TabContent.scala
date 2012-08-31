@@ -97,12 +97,16 @@ class TabContent extends SherlockListFragment with TabInterface with Logging {
   @Loggable
   override def onResume() {
     super.onResume
-    if (SSHDTabAdapter.getSelectedTab.clazz == getClass)
+    if (SSHDTabAdapter.getSelectedTab.clazz == getClass) {
       showTabDescriptionFragment()
+      showConsoleFragment()
+    }
   }
   @Loggable
-  def onTabSelected() = if (TabContent.fragment == Some(this) && getSherlockActivity != null)
+  def onTabSelected() = if (TabContent.fragment == Some(this) && getSherlockActivity != null) {
     showTabDescriptionFragment()
+    showConsoleFragment()
+  }
   @Loggable
   override def onDetach() {
     TabContent.fragment = None
