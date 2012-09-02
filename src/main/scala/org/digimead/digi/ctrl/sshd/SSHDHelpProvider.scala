@@ -38,22 +38,22 @@ class SSHDHelpProvider extends ZipFileProvider {
     var result: Option[ZipFile] = None
     var outputStream: OutputStream = null
     var inputStream: InputStream = null
-    Common.getDirectory(getContext(), "help", false, None, None, None) foreach {
+    val helpDirectory = "help"
+    val helpPrefix = "help-"
+    Common.getDirectory(getContext(), helpDirectory, false, None, None, None) foreach {
       helpDir =>
-        log.debug("check for latest help from DigiControl")
         try {
+          log.debug("check for help resources from DigiControl")
           val latestHelpName: Option[String] = None // get
           latestHelpName foreach {
             name =>
               val helpFile = new File(helpDir, name)
               if (helpFile.exists() && helpFile.length() != 0) {
                 log.debug("get latest help from DigiControl \"" + name + "\"")
-                result = Some(new ZipFile(helpFile))
               } else {
                 log.debug("update latest help from DigiControl to \"" + name + "\"")
                 // todo
                 log.debug("get latest help from DigiControl \"" + name + "\"")
-                result = Some(new ZipFile(helpFile))
               }
           }
         } catch {
@@ -69,34 +69,35 @@ class SSHDHelpProvider extends ZipFileProvider {
             outputStream = null
           }
         }
-        // fallback to default
-        if (result.isEmpty) {
-          try {
-            val assetHelp = "help.zip"
-            val helpFile = new File(helpDir, assetHelp)
-            log.debug("get help from assets")
-            if (helpFile.exists() && helpFile.length() != 0) {
-              result = Some(new ZipFile(helpFile))
-            } else {
-              log.debug("write help from assets to " + helpFile.getAbsolutePath())
-              outputStream = new BufferedOutputStream(new FileOutputStream(helpFile))
-              inputStream = getContext().getAssets().open(assetHelp)
-              Common.writeToStream(inputStream, outputStream)
-              result = Some(new ZipFile(helpFile))
-            }
-          } catch {
-            case e =>
-              log.error(e.getMessage(), e)
-          } finally {
-            if (inputStream != null) {
-              inputStream.close()
-              inputStream = null
-            }
-            if (outputStream != null) {
-              outputStream.close()
-              outputStream = null
-            }
+        try {
+          log.debug("check for help resources from assets")
+          getContext().getAssets().list(helpDirectory).filter(_.startsWith(helpPrefix)).foreach {
+            helpFileName =>
+              val helpFile = new File(helpDir, helpFileName)
+              if (!helpFile.exists()) {
+                log.debug("write help " + helpFileName + " from assets to " + helpFile.getAbsolutePath())
+                outputStream = new BufferedOutputStream(new FileOutputStream(helpFile))
+                inputStream = getContext().getAssets().open(helpDirectory + "/" + helpFileName)
+                Common.writeToStream(inputStream, outputStream)
+              }
           }
+        } catch {
+          case e =>
+            log.error(e.getMessage(), e)
+        } finally {
+          if (inputStream != null) {
+            inputStream.close()
+            inputStream = null
+          }
+          if (outputStream != null) {
+            outputStream.close()
+            outputStream = null
+          }
+        }
+        // search for result
+        helpDir.listFiles().filter(_.getName().startsWith(helpPrefix)).sortBy(_.getName).lastOption.foreach {
+          bestHelpFile =>
+            result = Some(new ZipFile(bestHelpFile))
         }
     }
     result

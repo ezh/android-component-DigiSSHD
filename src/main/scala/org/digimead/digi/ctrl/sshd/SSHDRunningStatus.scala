@@ -101,7 +101,6 @@ object SSHDRunningStatus extends Logging {
         log.fatal("unknown state " + state)
         None
     }
-    log.___glance("!!!" + text)
     text.foreach {
       text =>
         AnyBase.runOnUiThread {

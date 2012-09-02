@@ -23,27 +23,29 @@ package org.digimead.digi.ctrl.sshd
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+
 import scala.collection.mutable.SynchronizedMap
 import scala.collection.mutable.WeakHashMap
 import scala.ref.WeakReference
+
+import org.digimead.digi.ctrl.lib.androidext.gl.GLText
 import org.digimead.digi.ctrl.lib.aop.Loggable
 import org.digimead.digi.ctrl.lib.base.AppComponent
 import org.digimead.digi.ctrl.lib.log.Logging
+
 import android.content.Context
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.opengl.GLSurfaceView
 import android.opengl.GLU
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.webkit.WebView
+import android.widget.Button
+import android.widget.LinearLayout
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
-import java.util.zip.ZipException
-import java.io.IOException
-import android.view.ViewGroup
-import android.webkit.WebView
-import android.widget.LinearLayout
-import android.widget.Button
 
 class SSHDHelp(context: Context, attrs: AttributeSet) extends GLSurfaceView(context, attrs) with Logging {
   lazy val renderer = new SSHDHelp.Renderer(new WeakReference(this))
@@ -154,44 +156,32 @@ object SSHDHelp extends Logging {
     control.show
   }
   private[SSHDHelp] class Renderer(val container: WeakReference[View]) extends GLSurfaceView.Renderer with Logging {
-    private val indicesArray = Array[Short](0, 1, 2)
-    private val nrOfVertices = 3
-    private val (indexBuffer, vertexBuffer) = {
-      // float has 4 bytes
-      val vbb = ByteBuffer.allocateDirect(nrOfVertices * 3 * 4)
-      vbb.order(ByteOrder.nativeOrder())
-      val vertexBuffer = vbb.asFloatBuffer()
-      // short has 2 bytes
-      val ibb = ByteBuffer.allocateDirect(nrOfVertices * 2)
-      ibb.order(ByteOrder.nativeOrder())
-      val indexBuffer = ibb.asShortBuffer()
-      val coords = Array[Float](
-        -10f, -10f, 0f, // (x1, y1, z1)
-        10f, -10f, 0f, // (x2, y2, z2)
-        0f, 10f, 0f // (x3, y3, z3)
-        )
-      vertexBuffer.put(coords)
-      indexBuffer.put(indicesArray)
-      (indexBuffer.position(0), vertexBuffer.position(0))
-    }
-    private val location = new Array[Int](2)
     @volatile private var areas: Seq[Area] = Seq()
     private var viewScreenX = 0
     private var viewScreenY = 0
     private var viewWidth = 0
     private var viewHeight = 0
+    private var angle = 0f
+    var glText: Option[GLText] = None
 
     def onSurfaceCreated(gl: GL10, config: EGLConfig) {
-      gl.glClearColor(0, 0, 0, 0)
+      gl.glClearColor(0, 0, 0, 0.5f)
       gl.glDisable(GL10.GL_DEPTH_TEST)
+      gl.glDisable(GL10.GL_CULL_FACE)
       gl.glDisable(GL10.GL_DITHER)
       gl.glShadeModel(GL10.GL_SMOOTH)
       gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
       gl.glEnableClientState(GL10.GL_COLOR_ARRAY)
+      this.container.get.foreach {
+        container =>
+          glText = Some(new GLText(gl, container.getContext().getAssets()))
+          glText.get.load(Typeface.SANS_SERIF, 36, 2, 2) // Create Font (Height: 36 Pixels / X+Y Padding 2 Pixels)
+      }
     }
     def onSurfaceChanged(gl: GL10, w: Int, h: Int) {
       container.get.foreach {
         container =>
+          val location = new Array[Int](2)
           container.getLocationOnScreen(location)
           viewScreenX = location(0)
           viewScreenY = location(1)
@@ -202,34 +192,50 @@ object SSHDHelp extends Logging {
       deinit()
       init()
     }
-    def onDrawFrame(gl: GL10) {
-      Thread.sleep(20)
-      gl.glViewport(0, 0, viewWidth, viewHeight)
-      gl.glMatrixMode(GL10.GL_PROJECTION)
-      gl.glLoadIdentity()
-      GLU.gluOrtho2D(gl, 0f, viewWidth, viewHeight, 0f)
-      gl.glMatrixMode(GL10.GL_MODELVIEW)
-      gl.glLoadIdentity()
-      gl.glClear(GL10.GL_COLOR_BUFFER_BIT)
-      // set the color of our element
-      gl.glColor4f(0.5f, 0f, 0f, 0.5f)
-      // define the vertices we want to draw
-      gl.glVertexPointer(3, GL10.GL_FLOAT, 0, vertexBuffer)
-      // draw
-      var shiftx = 0
-      var shifty = 0
-      areas.foreach {
-        area =>
-          // relative shift from last xC.yC
-          shiftx = 0 - shiftx + area.xC
-          shifty = 0 - shifty + area.yC
-          // finally draw the vertices
-          gl.glTranslatef(shiftx, shifty, 0)
-          gl.glDrawElements(GL10.GL_TRIANGLES, nrOfVertices, GL10.GL_UNSIGNED_SHORT, indexBuffer)
-          // absolute shift from 0.0
-          shiftx = area.xC
-          shifty = area.yC
-      }
+    def onDrawFrame(gl: GL10) = glText.foreach {
+      glText =>
+        Thread.sleep(10)
+        gl.glViewport(0, 0, viewWidth, viewHeight)
+        gl.glMatrixMode(GL10.GL_PROJECTION)
+        gl.glLoadIdentity()
+        GLU.gluOrtho2D(gl, 0f, viewWidth, viewHeight, 0f)
+        gl.glMatrixMode(GL10.GL_MODELVIEW)
+        gl.glLoadIdentity()
+        gl.glClear(GL10.GL_COLOR_BUFFER_BIT)
+        // enable texture + alpha blending
+        // NOTE: this is required for text rendering! we could incorporate it into
+        // the GLText class, but then it would be called multiple times (which impacts performance).
+        gl.glEnable(GL10.GL_TEXTURE_2D) // Enable Texture Mapping
+        gl.glEnable(GL10.GL_BLEND) // Enable Alpha Blend
+        gl.glBlendFunc(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA) // Set Alpha Blend Function
+        gl.glColor4f(0.8f, 0.8f, 0.8f, 0.8f) // Set Color to Use
+        // draw
+        var shiftx = 0
+        var shifty = 0
+        areas.foreach {
+          area =>
+            // relative shift from last xC.yC
+            shiftx = 0 - shiftx + area.xC
+            shifty = 0 - shifty + area.yC
+            // finally draw the vertices
+            gl.glTranslatef(shiftx, shifty, 0)
+            gl.glRotatef(180, 1, 0, 0)
+            gl.glRotatef(angle, 0, 1, 0)
+            glText.begin()
+            glText.drawC("?", 0, 0)
+            glText.end
+            gl.glRotatef(-angle, 0, 1, 0)
+            gl.glRotatef(-180, 1, 0, 0)
+            // absolute shift from 0.0
+            shiftx = area.xC
+            shifty = area.yC
+        }
+        // disable texture + alpha
+        gl.glDisable(GL10.GL_BLEND) // Disable Alpha Blend
+        gl.glDisable(GL10.GL_TEXTURE_2D) // Disable Texture Mapping
+        angle = ((angle + 0.5).toFloat)
+        if (angle == 360)
+          angle = 0
     }
     @Loggable
     def findHelpID(event: MotionEvent): Option[Area] = areas.find {
@@ -246,6 +252,7 @@ object SSHDHelp extends Logging {
     @Loggable
     def init() = synchronized {
       if (areas.isEmpty) {
+        val location = new Array[Int](2)
         SSHDHelp.elements.foreach {
           case (element, id) =>
             if (element.isShown()) {
