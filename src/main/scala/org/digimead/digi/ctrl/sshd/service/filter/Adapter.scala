@@ -21,7 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.service.filter
 
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 
 import android.content.Context

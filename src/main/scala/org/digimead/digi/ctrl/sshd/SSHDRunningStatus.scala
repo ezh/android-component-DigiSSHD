@@ -23,15 +23,15 @@ package org.digimead.digi.ctrl.sshd
 
 import scala.actors.Actor
 import scala.ref.WeakReference
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmReady
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.IAmBusy
+import org.digimead.digi.lib.ctrl.message.IAmReady
 import android.view.View
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DState
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.AnyBase
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.declaration.DState
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.AnyBase
 import android.widget.TextView
 import scala.actors.Futures
 

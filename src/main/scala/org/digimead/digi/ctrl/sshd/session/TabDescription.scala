@@ -26,7 +26,7 @@ import scala.annotation.target.beanSetter
 import scala.annotation.target.getter
 import scala.annotation.target.setter
 
-import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.lib.ctrl.base.AppComponent
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import com.actionbarsherlock.app.SherlockFragment

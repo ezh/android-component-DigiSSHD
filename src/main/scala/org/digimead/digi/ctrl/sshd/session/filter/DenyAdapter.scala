@@ -21,10 +21,10 @@
 
 package org.digimead.digi.ctrl.sshd.session.filter
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 
 import android.content.Context

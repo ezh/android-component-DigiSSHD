@@ -27,21 +27,21 @@ import java.io.InputStreamReader
 
 import scala.Array.canBuildFrom
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.message.IAmWarn
-import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
-import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.base.AppControl
+import org.digimead.digi.lib.ctrl.declaration.DOption
+import org.digimead.digi.lib.ctrl.declaration.DTimeout
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.message.IAmBusy
+import org.digimead.digi.lib.ctrl.message.IAmMumble
+import org.digimead.digi.lib.ctrl.message.IAmReady
+import org.digimead.digi.lib.ctrl.message.IAmWarn
+import org.digimead.digi.lib.ctrl.message.Origin.anyRefToOrigin
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.util.FileUtil
+import org.digimead.digi.lib.util.SyncVar
 
 import android.app.Activity
 import android.content.Context
@@ -103,7 +103,7 @@ trait PublicKey extends Logging {
       IAmWarn("import " + kindOpt.toUpperCase + " from " + importFileFrom)
       val importTemplateName = "dropbear_" + kindOpt + "_host_key"
       val importFileTo = new File(enginePath, importTemplateName)
-      if (Common.copyFile(importFileFrom, importFileTo))
+      if (FileUtil.copyFile(importFileFrom, importFileTo))
         Toast.makeText(context, XResource.getString(context, "import_public_key_successful").
           getOrElse("import %s key succesful").format(option.tag.toUpperCase), Toast.LENGTH_SHORT).show
       else

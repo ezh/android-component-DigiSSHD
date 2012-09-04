@@ -29,20 +29,20 @@ import scala.actors.Futures
 import scala.collection.JavaConversions._
 import scala.collection.mutable.HashMap
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.block.Level
-import org.digimead.digi.ctrl.lib.block.SupportBlock
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.service.FilterBlock
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.CtrlUtil
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.base.AppControl
+import org.digimead.digi.lib.ctrl.block.Block
+import org.digimead.digi.lib.ctrl.block.Level
+import org.digimead.digi.lib.ctrl.block.SupportBlock
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.message.Dispatcher
+import org.digimead.digi.lib.log.Logging
 
 import com.commonsware.cwac.merge.MergeAdapter
 
@@ -123,7 +123,7 @@ object InterfaceBlock extends Logging {
         val context = fragment.getActivity
         val pref = context.getSharedPreferences(DPreference.FilterInterface, Context.MODE_PRIVATE)
         val acl = pref.getAll
-        val interfaces = HashMap[String, Option[Boolean]](Common.listInterfaces.map(i => i -> None): _*)
+        val interfaces = HashMap[String, Option[Boolean]](CtrlUtil.listInterfaces.map(i => i -> None): _*)
         log.debug("available interfaces: " + interfaces.keys.mkString(", "))
         // stage 1: set unused interfaces to passive
         if (acl.isEmpty) {
@@ -140,7 +140,7 @@ object InterfaceBlock extends Logging {
               // if aclMask enabled (true)
               if (pref.getBoolean(aclMask, false)) {
                 interfaces.filter(t => t._2 == None).keys.foreach(interface =>
-                  if (Common.checkInterfaceInUse(interface, aclMask))
+                  if (CtrlUtil.checkInterfaceInUse(interface, aclMask))
                     interfaces(interface) = Some(false))
               }
           }

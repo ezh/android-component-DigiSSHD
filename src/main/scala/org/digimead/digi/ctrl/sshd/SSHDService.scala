@@ -25,33 +25,9 @@ import java.io.File
 import java.io.FileNotFoundException
 
 import scala.actors.Futures
-import scala.collection.JavaConversions._
+import scala.collection.JavaConversions.seqAsJavaList
 import scala.xml.XML
 
-import org.digimead.digi.ctrl.ICtrlComponent
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.DService
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.declaration.DConstant
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.declaration.DState
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.dialog.Preferences
-import org.digimead.digi.ctrl.lib.info.ComponentInfo
-import org.digimead.digi.ctrl.lib.info.ExecutableInfo
-import org.digimead.digi.ctrl.lib.info.UserInfo
-import org.digimead.digi.ctrl.lib.log.FileLogger
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.message.IAmYell
-import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.util.Hash
-import org.digimead.digi.ctrl.lib.util.SyncVar
-import org.digimead.digi.ctrl.lib.util.Version
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.service.option.AuthentificationMode
 import org.digimead.digi.ctrl.sshd.service.option.DSAPublicKeyEncription
@@ -59,6 +35,29 @@ import org.digimead.digi.ctrl.sshd.service.option.NetworkPort
 import org.digimead.digi.ctrl.sshd.service.option.RSAPublicKeyEncription
 import org.digimead.digi.ctrl.sshd.user.UserAdapter
 import org.digimead.digi.ctrl.sshd.user.UserProfile
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.DService
+import org.digimead.digi.lib.ctrl.ICtrlComponent
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.base.AppControl
+import org.digimead.digi.lib.ctrl.declaration.DConstant
+import org.digimead.digi.lib.ctrl.declaration.DOption
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.ctrl.declaration.DState
+import org.digimead.digi.lib.ctrl.declaration.DTimeout
+import org.digimead.digi.lib.ctrl.dialog.Preferences
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.info.ComponentInfo
+import org.digimead.digi.lib.ctrl.info.ExecutableInfo
+import org.digimead.digi.lib.ctrl.info.UserInfo
+import org.digimead.digi.lib.ctrl.message.IAmMumble
+import org.digimead.digi.lib.ctrl.message.IAmYell
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.util.FileUtil
+import org.digimead.digi.lib.util.Hash
+import org.digimead.digi.lib.util.SyncVar
+import org.digimead.digi.lib.util.Version
 
 import android.app.Service
 import android.content.Context
@@ -131,7 +130,6 @@ class SSHDService extends Service with DService {
 
 object SSHDService extends Logging {
   @volatile private var service: Option[SSHDService] = None
-  Futures.future { Logging.addLogger(FileLogger) }
   log.debug("alive")
 
   def addLazyInit = AppComponent.LazyInit("SSHDService initialize onCreate", 50, DTimeout.longest) {
@@ -323,7 +321,7 @@ object SSHDService extends Logging {
             val groups = new File(path, "groups")
             if (!groups.exists) {
               log.debug("create groups stub for SCP")
-              Common.writeToFile(groups, "echo %d\n".format(android.os.Process.myUid))
+              FileUtil.writeToFile(groups, "echo %d\n".format(android.os.Process.myUid))
               groups.setReadable(true, false)
               groups.setExecutable(true, false)
             }
@@ -334,14 +332,14 @@ object SSHDService extends Logging {
               val rsa_key_destination = new File(path, "dropbear_rsa_host_key")
               if (rsa_key_source.exists && rsa_key_source.length > 0) {
                 IAmMumble("syncronize RSA key with origin")
-                Common.copyFile(rsa_key_source, rsa_key_destination) &&
+                FileUtil.copyFile(rsa_key_source, rsa_key_destination) &&
                   rsa_key_destination.setReadable(true, false)
               } else if (rsa_key_destination.exists && rsa_key_destination.length > 0) {
                 IAmMumble("restore RSA key from working copy")
-                Common.copyFile(rsa_key_destination, rsa_key_source)
+                FileUtil.copyFile(rsa_key_destination, rsa_key_source)
               } else {
                 if (RSAPublicKeyEncription.generateHostKey(context))
-                  Common.copyFile(rsa_key_source, rsa_key_destination) &&
+                  FileUtil.copyFile(rsa_key_source, rsa_key_destination) &&
                     rsa_key_destination.setReadable(true, false)
                 else
                   false
@@ -354,14 +352,14 @@ object SSHDService extends Logging {
                 val dss_key_destination = new File(path, "dropbear_dss_host_key")
                 if (dss_key_source.exists && dss_key_source.length > 0) {
                   IAmMumble("syncronize DSA key with origin")
-                  Common.copyFile(dss_key_source, dss_key_destination) &&
+                  FileUtil.copyFile(dss_key_source, dss_key_destination) &&
                     dss_key_destination.setReadable(true, false)
                 } else if (dss_key_destination.exists && dss_key_destination.length > 0) {
                   IAmMumble("restore DSA key from working copy")
-                  Common.copyFile(dss_key_destination, dss_key_source)
+                  FileUtil.copyFile(dss_key_destination, dss_key_source)
                 } else {
                   if (DSAPublicKeyEncription.generateHostKey(context))
-                    Common.copyFile(dss_key_source, dss_key_destination) &&
+                    FileUtil.copyFile(dss_key_source, dss_key_destination) &&
                       dss_key_destination.setReadable(true, false)
                   else
                     false
@@ -376,7 +374,7 @@ object SSHDService extends Logging {
             val profileFile = new File(path, ".profile")
             if (!profileFile.exists) {
               IAmMumble("Create default user profile")
-              Common.writeToFile(profileFile, UserProfile.content)
+              FileUtil.writeToFile(profileFile, UserProfile.content)
             }
           case _ =>
             false

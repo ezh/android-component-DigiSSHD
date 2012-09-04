@@ -24,14 +24,14 @@ package org.digimead.digi.ctrl.sshd.service.filter
 import scala.actors.Futures
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.SafeDialog
-import org.digimead.digi.ctrl.lib.androidext.XDialog
-import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.ext.SafeDialog
+import org.digimead.digi.lib.ctrl.ext.XDialog
+import org.digimead.digi.lib.ctrl.ext.XDialog.dialog2string
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.SSHDResource

@@ -21,7 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.service.option
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
+import org.digimead.digi.lib.ctrl.ext.XResource
 import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
 
 import android.content.Context

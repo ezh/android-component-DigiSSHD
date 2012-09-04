@@ -23,9 +23,9 @@ package org.digimead.digi.ctrl.sshd.session.filter
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
 import org.digimead.digi.ctrl.sshd.ext.SSHDFragment
 

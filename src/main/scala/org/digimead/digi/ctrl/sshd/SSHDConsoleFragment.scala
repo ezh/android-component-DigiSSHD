@@ -28,14 +28,14 @@ import scala.actors.Futures
 import scala.collection.mutable.SynchronizedQueue
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.DMessage
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.message.IAmWarn
-import org.digimead.digi.ctrl.lib.message.IAmYell
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.DMessage
+import org.digimead.digi.lib.ctrl.message.IAmBusy
+import org.digimead.digi.lib.ctrl.message.IAmReady
+import org.digimead.digi.lib.ctrl.message.IAmWarn
+import org.digimead.digi.lib.ctrl.message.IAmYell
 import org.digimead.digi.ctrl.sshd.ext.TabInterface
 
 import com.actionbarsherlock.app.SherlockFragment

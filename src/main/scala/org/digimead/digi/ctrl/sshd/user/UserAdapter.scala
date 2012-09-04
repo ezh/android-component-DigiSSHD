@@ -28,22 +28,22 @@ import scala.Option.option2Iterable
 import scala.actors.Futures
 import scala.collection.JavaConversions._
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XAPI
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.info.UserInfo
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmYell
-import org.digimead.digi.ctrl.lib.util.Common
-import org.digimead.digi.ctrl.lib.util.Passwords
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 import org.digimead.digi.ctrl.sshd.SSHDService
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.ctrl.declaration.DTimeout
+import org.digimead.digi.lib.ctrl.ext.XAPI
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.ext.XSerializarion
+import org.digimead.digi.lib.ctrl.info.UserInfo
+import org.digimead.digi.lib.ctrl.message.IAmYell
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.util.Passwords
 
 import android.content.Context
 import android.text.Html
@@ -62,7 +62,7 @@ object UserAdapter extends Logging with Passwords {
       val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
       val users = userPref.getAll.map({
         case (name, data) => try {
-          Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
+          XSerializarion.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT),
             UserInfo.getClass.getClassLoader)
         } catch {
           case e =>
@@ -98,7 +98,7 @@ object UserAdapter extends Logging with Passwords {
   def find(context: Context, name: String): Option[UserInfo] = {
     context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE).getString(name, null) match {
       case data: String =>
-        Common.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT), UserInfo.getClass.getClassLoader)
+        XSerializarion.unparcelFromArray[UserInfo](Base64.decode(data.asInstanceOf[String], Base64.DEFAULT), UserInfo.getClass.getClassLoader)
       case null if name == "android" =>
         checkAndroidUserInfo(List()).find(_.name == "android")
       case null =>
@@ -109,7 +109,7 @@ object UserAdapter extends Logging with Passwords {
   def save(context: Context, user: UserInfo) {
     val userPref = context.getSharedPreferences(DPreference.Users, Context.MODE_PRIVATE)
     val editor = userPref.edit
-    editor.putString(user.name, Base64.encodeToString(Common.parcelToArray(user), Base64.DEFAULT))
+    editor.putString(user.name, Base64.encodeToString(XSerializarion.parcelToArray(user), Base64.DEFAULT))
     editor.commit
   }
   @Loggable

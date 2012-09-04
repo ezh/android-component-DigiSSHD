@@ -27,13 +27,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.actors.Actor
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.IAmBusy
+import org.digimead.digi.lib.ctrl.message.IAmReady
+import org.digimead.digi.lib.util.SyncVar
 
 import android.app.ProgressDialog
 

@@ -23,8 +23,8 @@ package org.digimead.digi.ctrl.sshd
 
 import scala.annotation.implicitNotFound
 
-import org.digimead.digi.ctrl.lib.message.DMessage
-import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.lib.ctrl.message.DMessage
+import org.digimead.digi.lib.ctrl.message.Dispatcher
 
 object TestDispatcher {
   implicit val dispatcher: Dispatcher = new Dispatcher {

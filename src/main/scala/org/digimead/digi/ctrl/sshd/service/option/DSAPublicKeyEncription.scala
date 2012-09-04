@@ -23,12 +23,12 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppControl
+import org.digimead.digi.lib.ctrl.declaration.DOption
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.service.TabContent
 
 import android.content.Context

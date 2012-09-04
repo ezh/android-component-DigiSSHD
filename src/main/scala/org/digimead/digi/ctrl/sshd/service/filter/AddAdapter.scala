@@ -21,13 +21,13 @@
 
 package org.digimead.digi.ctrl.sshd.service.filter
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.service.FilterBlock
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.CtrlUtil
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.log.Logging
 
 import android.content.Context
 
@@ -63,7 +63,7 @@ object AddAdapter extends Logging {
   @Loggable
   private def predefinedFilters(): Seq[String] = {
     log.debug("predefinedFilters(...)")
-    Common.listInterfaces().map(entry => {
+    CtrlUtil.listInterfaces().map(entry => {
       val Array(interface, ip) = entry.split(":")
       if (ip == "0.0.0.0")
         Seq(interface + ":*.*.*.*")

@@ -25,8 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.actors.Actor
 
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.log.Logging
 
 import android.os.Bundle
 

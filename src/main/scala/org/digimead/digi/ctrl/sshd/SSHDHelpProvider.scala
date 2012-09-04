@@ -28,9 +28,10 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.ZipFile
 
-import org.digimead.digi.ctrl.lib.androidext.ZipFileProvider
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.CtrlUtil
+import org.digimead.digi.lib.ctrl.ext.ZipFileProvider
+import org.digimead.digi.lib.util.FileUtil
 
 class SSHDHelpProvider extends ZipFileProvider {
   @Loggable
@@ -40,7 +41,7 @@ class SSHDHelpProvider extends ZipFileProvider {
     var inputStream: InputStream = null
     val helpDirectory = "help"
     val helpPrefix = "help-"
-    Common.getDirectory(getContext(), helpDirectory, false, None, None, None) foreach {
+    CtrlUtil.getDirectory(getContext(), helpDirectory, false, None, None, None) foreach {
       helpDir =>
         try {
           log.debug("check for help resources from DigiControl")
@@ -78,7 +79,7 @@ class SSHDHelpProvider extends ZipFileProvider {
                 log.debug("write help " + helpFileName + " from assets to " + helpFile.getAbsolutePath())
                 outputStream = new BufferedOutputStream(new FileOutputStream(helpFile))
                 inputStream = getContext().getAssets().open(helpDirectory + "/" + helpFileName)
-                Common.writeToStream(inputStream, outputStream)
+                FileUtil.writeToStream(inputStream, outputStream)
               }
           }
         } catch {

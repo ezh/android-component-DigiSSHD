@@ -26,14 +26,14 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.Array.canBuildFrom
 import scala.annotation.tailrec
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider
-import org.digimead.digi.ctrl.lib.declaration.DHistoryProvider.value2uri
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.DMessage
-import org.digimead.digi.ctrl.lib.message.Dispatcher
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.declaration.DHistoryProvider
+import org.digimead.digi.lib.ctrl.declaration.DHistoryProvider.value2uri
+import org.digimead.digi.lib.ctrl.declaration.DIntent
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.DMessage
+import org.digimead.digi.lib.ctrl.message.Dispatcher
 
 import android.content.ContentValues
 import android.content.Intent

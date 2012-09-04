@@ -28,18 +28,18 @@ import scala.actors.Futures
 import scala.actors.Futures.future
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.block.Level
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.block.Block
+import org.digimead.digi.lib.ctrl.block.Level
+import org.digimead.digi.lib.ctrl.declaration.DIntent
+import org.digimead.digi.lib.ctrl.declaration.DOption
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.ctrl.declaration.DTimeout
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.util.SyncVar
 
 import com.commonsware.cwac.merge.MergeAdapter
 

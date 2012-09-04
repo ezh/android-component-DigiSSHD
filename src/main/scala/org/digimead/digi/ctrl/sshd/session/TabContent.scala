@@ -26,10 +26,10 @@ import scala.annotation.target.beanSetter
 import scala.annotation.target.getter
 import scala.annotation.target.setter
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter

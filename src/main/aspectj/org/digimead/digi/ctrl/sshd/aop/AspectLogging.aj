@@ -22,8 +22,8 @@
 package org.digimead.digi.ctrl.sshd.aop;
 
 import org.aspectj.lang.reflect.SourceLocation;
-import org.digimead.digi.ctrl.lib.aop.Loggable;
-import org.digimead.digi.ctrl.lib.log.Logging;
+import org.digimead.digi.lib.aop.Loggable;
+import org.digimead.digi.lib.log.Logging;
 
 privileged public final aspect AspectLogging {
 	public pointcut loggingNonVoid(Logging obj, Loggable loggable) : target(obj) && execution(@Loggable !void *(..)) && @annotation(loggable);
@@ -34,7 +34,7 @@ privileged public final aspect AspectLogging {
 
 	before(final Logging obj, final Loggable loggable) : logging(obj, loggable) {
 		SourceLocation location = thisJoinPointStaticPart.getSourceLocation();
-		org.digimead.digi.ctrl.lib.aop.Logging$.MODULE$.enteringMethod(
+		org.digimead.digi.lib.aop.Logging$.MODULE$.enteringMethod(
 				location.getFileName(), location.getLine(),
 				thisJoinPointStaticPart.getSignature(), obj);
 	}
@@ -42,25 +42,25 @@ privileged public final aspect AspectLogging {
 	after(final Logging obj, final Loggable loggable) returning(final Object result) : loggingNonVoid(obj, loggable) {
 		SourceLocation location = thisJoinPointStaticPart.getSourceLocation();
 		if (loggable != null && loggable.result())
-			org.digimead.digi.ctrl.lib.aop.Logging$.MODULE$.leavingMethod(
+			org.digimead.digi.lib.aop.Logging$.MODULE$.leavingMethod(
 					location.getFileName(), location.getLine(),
 					thisJoinPointStaticPart.getSignature(), obj, result);
 		else
-			org.digimead.digi.ctrl.lib.aop.Logging$.MODULE$.leavingMethod(
+			org.digimead.digi.lib.aop.Logging$.MODULE$.leavingMethod(
 					location.getFileName(), location.getLine(),
 					thisJoinPointStaticPart.getSignature(), obj);
 	}
 
 	after(final Logging obj, final Loggable loggable) returning() : loggingVoid(obj, loggable) {
 		SourceLocation location = thisJoinPointStaticPart.getSourceLocation();
-		org.digimead.digi.ctrl.lib.aop.Logging$.MODULE$.leavingMethod(
+		org.digimead.digi.lib.aop.Logging$.MODULE$.leavingMethod(
 				location.getFileName(), location.getLine(),
 				thisJoinPointStaticPart.getSignature(), obj);
 	}
 
 	after(final Logging obj, final Loggable loggable) throwing(final Exception ex) : logging(obj, loggable) {
 		SourceLocation location = thisJoinPointStaticPart.getSourceLocation();
-		org.digimead.digi.ctrl.lib.aop.Logging$.MODULE$.leavingMethodException(
+		org.digimead.digi.lib.aop.Logging$.MODULE$.leavingMethodException(
 				location.getFileName(), location.getLine(),
 				thisJoinPointStaticPart.getSignature(), obj, ex);
 	}

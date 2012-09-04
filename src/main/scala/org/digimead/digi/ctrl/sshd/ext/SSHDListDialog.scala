@@ -21,7 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.ext
 
-import org.digimead.digi.ctrl.lib.androidext.XListDialog
+import org.digimead.digi.lib.ctrl.ext.XListDialog
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 

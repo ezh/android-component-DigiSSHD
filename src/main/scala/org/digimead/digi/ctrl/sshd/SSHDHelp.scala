@@ -28,10 +28,10 @@ import scala.collection.mutable.SynchronizedMap
 import scala.collection.mutable.WeakHashMap
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.androidext.gl.GLText
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.opengl.GLText
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.log.Logging
 
 import android.content.Context
 import android.graphics.PixelFormat

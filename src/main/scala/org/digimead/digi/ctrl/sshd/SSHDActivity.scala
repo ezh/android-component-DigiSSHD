@@ -28,22 +28,23 @@ import scala.collection.immutable.HashMap
 import scala.collection.mutable.Subscriber
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.DActivity
-import org.digimead.digi.ctrl.lib.androidext.SafeDialog
-import org.digimead.digi.ctrl.lib.androidext.XAPI
-import org.digimead.digi.ctrl.lib.androidext.XAndroid
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.log.AndroidLogger
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.SyncVar
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.info.TabContent
 import org.digimead.digi.ctrl.sshd.service.TabContent
 import org.digimead.digi.ctrl.sshd.service.filter.AddFragment
 import org.digimead.digi.ctrl.sshd.session.TabContent
 import org.digimead.digi.ctrl.sshd.user.UserFragment
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.DActivity
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.ext.SafeDialog
+import org.digimead.digi.lib.ctrl.ext.XAPI
+import org.digimead.digi.lib.ctrl.ext.XAndroid
+import org.digimead.digi.lib.ctrl.log.AndroidFileLogger
+import org.digimead.digi.lib.ctrl.log.AndroidLogger
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.util.SyncVar
 
 import com.actionbarsherlock.app.ActionBar
 import com.actionbarsherlock.app.SherlockFragmentActivity
@@ -76,7 +77,7 @@ abstract class SSHDActivityBase extends SherlockFragmentActivity with DActivity 
 class SSHDActivity extends SSHDActivityMenu {
   /** profiling support */
   private val ppLoading = SSHDActivity.ppGroup.start("SSHDActivity")
-  /** org.digimead.digi.ctrl.lib.message dispatcher */
+  /** org.digimead.digi.lib.ctrl.message dispatcher */
   implicit val dispatcher = org.digimead.digi.ctrl.sshd.Message.dispatcher
   lazy val resources = new SSHDResource(new WeakReference(this))
   ppLoading.stop()
@@ -238,9 +239,6 @@ object SSHDActivity extends Logging {
       SSHDRunningStatus.update()
   }
   ppLoading.stop()
-  // TODO REMOVE
-  AnyBase.initializeDebug()
-  Logging.addLogger(AndroidLogger)
 
   def activity = appActivity
   def layoutVariant = appLayoutVariant
@@ -329,6 +327,11 @@ object SSHDActivity extends Logging {
   @Loggable
   def stateCreate(activity: SSHDActivity) = ppGroup("SSHDActivity.stateCreate") {
     activity.onCreateExt(activity)
+    // enable logging
+    Logging.addLogger(AndroidFileLogger)
+    Logging.addLogger(AndroidLogger)
+    Logging.resume
+    //
     val bar = SyncVar[ActionBar]()
     AnyBase.runOnUiThread { bar.set(activity.getSupportActionBar()) } // initialize ActionBar
     bar.get

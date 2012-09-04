@@ -23,7 +23,7 @@ package org.digimead.digi.ctrl.sshd.ext
 
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.androidext.XAlertDialog
+import org.digimead.digi.lib.ctrl.ext.XAlertDialog
 import org.digimead.digi.ctrl.sshd.SSHDTabAdapter
 
 import com.actionbarsherlock.app.SherlockDialogFragment

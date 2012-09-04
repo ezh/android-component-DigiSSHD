@@ -26,9 +26,9 @@ import scala.collection.mutable.ObservableSet
 import scala.collection.mutable.SynchronizedSet
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences
 

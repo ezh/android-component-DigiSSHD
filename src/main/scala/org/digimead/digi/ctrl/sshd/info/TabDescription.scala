@@ -21,7 +21,7 @@
 
 package org.digimead.digi.ctrl.sshd.info
 
-import org.digimead.digi.ctrl.lib.base.AppComponent
+import org.digimead.digi.lib.ctrl.base.AppComponent
 import org.digimead.digi.ctrl.sshd.SSHDActivity
 
 import android.os.Bundle

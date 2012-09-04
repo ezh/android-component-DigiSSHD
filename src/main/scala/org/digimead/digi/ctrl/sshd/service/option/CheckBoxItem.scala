@@ -23,9 +23,9 @@ package org.digimead.digi.ctrl.sshd.service.option
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.declaration.DPreference
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.declaration.DPreference
 import org.digimead.digi.ctrl.sshd.service.OptionBlock.Item
 
 import android.content.Context

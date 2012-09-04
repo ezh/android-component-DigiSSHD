@@ -24,11 +24,12 @@ package org.digimead.digi.ctrl.sshd
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.log.AndroidLogger
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.log.LoggingEvent
-import org.digimead.digi.ctrl.lib.util.SyncVar
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.log.AndroidLogger
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.log.LoggingEvent
+import org.digimead.digi.lib.log.Record
+import org.digimead.digi.lib.util.SyncVar
 import org.scalatest.junit.JUnitSuite
 import org.scalatest.junit.ShouldMatchersForJUnit
 
@@ -43,7 +44,7 @@ class Football
   @volatile private var solo: Solo = null
   @volatile private var activity: SSHDActivity = null
   @volatile var startupTime = System.currentTimeMillis
-  val logResult = new SyncVar[Logging.Record]()
+  val logResult = new SyncVar[Record]()
   val logSubscriber = new LogSubscriber
 
   def testFootball() {
@@ -65,7 +66,7 @@ class Football
     log.warn("testFootball END")
   }
 
-  def assertLog(s: String, f: (String, String) => Boolean, timeout: Long): Logging.Record = synchronized {
+  def assertLog(s: String, f: (String, String) => Boolean, timeout: Long): Record = synchronized {
     logSubscriber.want.set(s, f)
     Logging.resume
     logResult.unset()

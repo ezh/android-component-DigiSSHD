@@ -25,8 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.log.Logging
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.log.Logging
 import org.digimead.digi.ctrl.sshd.ext.SupportFragment
 import org.digimead.digi.ctrl.sshd.ext.TabInterface
 

@@ -27,10 +27,10 @@ import scala.collection.script.Message
 import scala.ref.WeakReference
 import scala.util.control.ControlThrowable
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.IAmMumble
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDPreferences

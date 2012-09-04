@@ -23,15 +23,15 @@ package org.digimead.digi.ctrl.sshd.info
 
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.block.CommunityBlock
-import org.digimead.digi.ctrl.lib.block.LegalBlock
-import org.digimead.digi.ctrl.lib.block.SupportBlock
-import org.digimead.digi.ctrl.lib.block.ThanksBlock
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmYell
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.block.CommunityBlock
+import org.digimead.digi.lib.ctrl.block.LegalBlock
+import org.digimead.digi.lib.ctrl.block.SupportBlock
+import org.digimead.digi.lib.ctrl.block.ThanksBlock
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.IAmYell
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 import org.digimead.digi.ctrl.sshd.SSHDActivity

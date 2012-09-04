@@ -24,9 +24,9 @@ package org.digimead.digi.ctrl.sshd.user
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.SynchronizedMap
 
-import org.digimead.digi.ctrl.lib.info.UserInfo
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.util.Common
+import org.digimead.digi.lib.ctrl.ext.XSerializarion
+import org.digimead.digi.lib.ctrl.info.UserInfo
+import org.digimead.digi.lib.log.Logging
 
 import android.content.Context
 import android.os.Parcel
@@ -77,7 +77,7 @@ object UserInfoExt extends Logging {
       return None
     val data = userPref.getString(user.name, "") // "" return UserInfoExt(false,Some(0),Some(0))
     try {
-      Common.unparcelFromArray[UserInfoExt](Base64.decode(data, Base64.DEFAULT),
+      XSerializarion.unparcelFromArray[UserInfoExt](Base64.decode(data, Base64.DEFAULT),
         UserInfo.getClass.getClassLoader) match {
           case result @ Some(info) =>
             cached(user.name) = info
@@ -96,7 +96,7 @@ object UserInfoExt extends Logging {
     cached(user.name) = ext
     val userPref = context.getSharedPreferences(namespace, Context.MODE_PRIVATE)
     val editor = userPref.edit
-    editor.putString(user.name, Base64.encodeToString(Common.parcelToArray(ext), Base64.DEFAULT))
+    editor.putString(user.name, Base64.encodeToString(XSerializarion.parcelToArray(ext), Base64.DEFAULT))
     editor.commit
   }
 }

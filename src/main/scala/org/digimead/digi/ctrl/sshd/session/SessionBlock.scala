@@ -25,17 +25,17 @@ import java.net.InetAddress
 
 import scala.ref.WeakReference
 
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.block.Block
-import org.digimead.digi.ctrl.lib.block.Level
-import org.digimead.digi.ctrl.lib.declaration.DConnection
-import org.digimead.digi.ctrl.lib.info.ComponentInfo
-import org.digimead.digi.ctrl.lib.info.ExecutableInfo
-import org.digimead.digi.ctrl.lib.info.UserInfo
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmMumble
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.block.Block
+import org.digimead.digi.lib.ctrl.block.Level
+import org.digimead.digi.lib.ctrl.declaration.DConnection
+import org.digimead.digi.lib.ctrl.info.ComponentInfo
+import org.digimead.digi.lib.ctrl.info.ExecutableInfo
+import org.digimead.digi.lib.ctrl.info.UserInfo
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.ctrl.message.IAmMumble
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.R
 

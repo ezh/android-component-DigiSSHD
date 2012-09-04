@@ -22,7 +22,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
     android:installLocation="preferExternal"
-    android:versionCode="1344045717"
+    android:versionCode="1346792252"
     android:versionName="0.3" >
 
     <uses-sdk
@@ -41,9 +41,9 @@
         android:required="false" />
 
     <application
-        android:debuggable="false"
+        android:debuggable="true"
         android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name" >
+        android:label="@string/app_name" android:name=".SSHDApplication">
         <activity
             android:name=".SSHDActivity"
             android:label="@string/app_name"
@@ -61,30 +61,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".service.TabActivity"
-            android:label="@string/app_name_service" >
-        </activity>
-        <activity
-            android:name=".session.TabActivity"
-            android:label="@string/app_name_sessions" >
-        </activity>
-        <activity
-            android:name=".session.FilterActivity"
-            android:label="@string/app_name_filter" >
-        </activity>
-        <activity
-            android:name=".info.TabActivity"
-            android:label="@string/app_name_information" >
-        </activity>
-        <activity
-            android:name=".service.FilterAddActivity"
-            android:label="@string/app_name_filter_add" >
-        </activity>
-        <activity
-            android:name=".service.FilterRemoveActivity"
-            android:label="@string/app_name_filter_remove" >
-        </activity>
 
         <service android:name=".SSHDService" >
             <intent-filter>
@@ -92,14 +68,61 @@
             </intent-filter>
         </service>
 
-        <activity
-            android:name=".SSHDUsers"
-            android:label="@string/app_name_users" >
-        </activity>
-        <activity
-            android:name=".SSHDPreferences"
-            android:label="@string/app_name_options" >
-        </activity>
+        <provider
+            android:name=".SSHDHelpProvider"
+            android:authorities="org.digimead.digi.ctrl.sshd.help"
+            android:enabled="true"
+            android:exported="false" >
+        </provider>
+
+        <uses-library
+            android:name="scala.actors"
+            android:required="true" />
+        <uses-library
+            android:name="scala.library"
+            android:required="true" />
+        <uses-library
+            android:name="scala.collection"
+            android:required="true" />
+        <uses-library
+            android:name="scala.collection.mutable"
+            android:required="true" />
+        <uses-library
+            android:name="scala.collection.immutable"
+            android:required="true" />
+        <uses-library
+            android:name="slf4j-api-1.6.4"
+            android:required="true" />
+        <uses-library
+            android:name="CWAC-MergeAdapter"
+            android:required="true" />
+        <uses-library
+            android:name="CWAC-SackOfViewsAdapter"
+            android:required="true" />
+        <uses-library
+            android:name="actionbarsherlock"
+            android:required="true" />
+        <uses-library
+            android:name="android-support-v4"
+            android:required="true" />
+        <uses-library
+            android:name="aspectjrt-1.6.12"
+            android:required="true" />
+        <uses-library
+            android:name="stopwatch-core_2.8.2-1.0-SNAPSHOT"
+            android:required="true" />
+        <uses-library
+            android:name="digi-lib-0.2-instrumented"
+            android:required="true" />
+        <uses-library
+            android:name="digi-lib-ctrl-0.2-instrumented"
+            android:required="true" />
+        <uses-library
+            android:name="digi-lib-opengl-0.2-instrumented"
+            android:required="true" />
+        <uses-library
+            android:name="digi-lib-util-0.2-instrumented"
+            android:required="true" />
     </application>
 
 </manifest>

@@ -31,23 +31,23 @@ import java.io.OutputStream
 import scala.Array.canBuildFrom
 import scala.actors.Futures
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.base.AppControl
-import org.digimead.digi.ctrl.lib.declaration.DTimeout
-import org.digimead.digi.ctrl.lib.info.UserInfo
-import org.digimead.digi.ctrl.lib.log.Logging
-import org.digimead.digi.ctrl.lib.message.IAmBusy
-import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.message.IAmReady
-import org.digimead.digi.ctrl.lib.message.IAmWarn
-import org.digimead.digi.ctrl.lib.message.IAmYell
-import org.digimead.digi.ctrl.lib.message.Origin.anyRefToOrigin
-import org.digimead.digi.ctrl.lib.util.Common
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDService
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.base.AppControl
+import org.digimead.digi.lib.ctrl.declaration.DTimeout
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.ctrl.info.UserInfo
+import org.digimead.digi.lib.ctrl.message.IAmBusy
+import org.digimead.digi.lib.ctrl.message.IAmMumble
+import org.digimead.digi.lib.ctrl.message.IAmReady
+import org.digimead.digi.lib.ctrl.message.IAmWarn
+import org.digimead.digi.lib.ctrl.message.IAmYell
+import org.digimead.digi.lib.ctrl.message.Origin.anyRefToOrigin
+import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.util.FileUtil
 
 import android.content.Context
 import android.content.Intent
@@ -103,7 +103,7 @@ object UserKeys extends Logging {
         importFileTo.delete()
       if (!importFileTo.getParentFile.exists)
         importFileTo.getParentFile.mkdirs
-      if (Common.copyFile(importFileFrom, importFileTo)) {
+      if (FileUtil.copyFile(importFileFrom, importFileTo)) {
         updateAuthorizedKeys(context, user)
         Toast.makeText(context, XResource.getString(context, "import_public_key_successful").
           getOrElse("import \"%s\" key succesful").format(importFileFrom.getName), Toast.LENGTH_SHORT).show
@@ -281,7 +281,7 @@ object UserKeys extends Logging {
             val source = scala.io.Source.fromInputStream(p.getInputStream())
             val lines = source.getLines.filter(_.startsWith("ssh-"))
             source.close
-            Common.writeToFile(keyPublic, lines.mkString("\n") + "\n")
+            FileUtil.writeToFile(keyPublic, lines.mkString("\n") + "\n")
             keyPublic.setReadable(true, false)
           } catch {
             case e =>

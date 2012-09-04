@@ -24,22 +24,22 @@ package org.digimead.digi.ctrl.sshd
 import scala.collection.JavaConversions._
 import scala.collection.mutable.Publisher
 
-import org.digimead.digi.ctrl.lib.AnyBase
-import org.digimead.digi.ctrl.lib.androidext.XDialog
-import org.digimead.digi.ctrl.lib.androidext.XDialog.dialog2string
-import org.digimead.digi.ctrl.lib.androidext.XResource
-import org.digimead.digi.ctrl.lib.aop.Loggable
-import org.digimead.digi.ctrl.lib.base.AppComponent
-import org.digimead.digi.ctrl.lib.block.Level
-import org.digimead.digi.ctrl.lib.declaration.DIntent
-import org.digimead.digi.ctrl.lib.declaration.DOption
-import org.digimead.digi.ctrl.lib.declaration.DPreference
-import org.digimead.digi.ctrl.lib.declaration.DState
-import org.digimead.digi.ctrl.lib.dialog.Preferences
-import org.digimead.digi.ctrl.lib.log.RichLogger
-import org.digimead.digi.ctrl.lib.message.Dispatcher
-import org.digimead.digi.ctrl.lib.message.IAmMumble
-import org.digimead.digi.ctrl.lib.util.PublicPreferences
+import org.digimead.digi.lib.ctrl.AnyBase
+import org.digimead.digi.lib.ctrl.ext.XDialog
+import org.digimead.digi.lib.ctrl.ext.XDialog.dialog2string
+import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.base.AppComponent
+import org.digimead.digi.lib.ctrl.block.Level
+import org.digimead.digi.lib.ctrl.declaration.DIntent
+import org.digimead.digi.lib.ctrl.declaration.DOption
+import org.digimead.digi.lib.ctrl.declaration.DPreference
+import org.digimead.digi.lib.ctrl.declaration.DState
+import org.digimead.digi.lib.ctrl.dialog.Preferences
+import org.digimead.digi.lib.log.RichLogger
+import org.digimead.digi.lib.ctrl.message.Dispatcher
+import org.digimead.digi.lib.ctrl.message.IAmMumble
+import org.digimead.digi.lib.ctrl.ext.PublicPreferences
 import org.digimead.digi.ctrl.sshd.Message.dispatcher
 import org.digimead.digi.ctrl.sshd.SSHDPreferences.FilterConnection.Changed
 
@@ -211,7 +211,7 @@ object SSHDPreferences {
     }
   }
   object AsRoot extends Preferences.Preference[Boolean, Boolean, Boolean] {
-    val option = org.digimead.digi.ctrl.lib.declaration.DOption.AsRoot
+    val option = org.digimead.digi.lib.ctrl.declaration.DOption.AsRoot
     def get(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): Boolean =
       context.getSharedPreferences(DPreference.Main, Context.MODE_PRIVATE).getBoolean(option.tag, default)
     def set(context: Context)(implicit logger: RichLogger, dispatcher: Dispatcher): Unit =
