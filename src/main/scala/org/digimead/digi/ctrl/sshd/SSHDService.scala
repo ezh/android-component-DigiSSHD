@@ -25,7 +25,7 @@ import java.io.File
 import java.io.FileNotFoundException
 
 import scala.actors.Futures
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 import scala.xml.XML
 
 import org.digimead.digi.ctrl.sshd.Message.dispatcher

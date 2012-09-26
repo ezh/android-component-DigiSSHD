@@ -54,7 +54,6 @@ case class UserInfoExt(passwordEnabled: Boolean, uid: Option[Int], gid: Option[I
 }
 
 object UserInfoExt extends Logging {
-  override val log = Logging.getRichLogger(this)
   val namespace = getClass.getPackage.getName + "@namespace.users.ext"
   final val CREATOR: Parcelable.Creator[UserInfoExt] = new Parcelable.Creator[UserInfoExt]() {
     def createFromParcel(in: Parcel): UserInfoExt = try {

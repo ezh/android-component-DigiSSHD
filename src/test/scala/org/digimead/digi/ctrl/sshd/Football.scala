@@ -25,10 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 import org.digimead.digi.lib.ctrl.AnyBase
-import org.digimead.digi.lib.ctrl.log.AndroidLogger
+import org.digimead.digi.lib.ctrl.log.appender.AndroidAppender
 import org.digimead.digi.lib.log.Logging
-import org.digimead.digi.lib.log.LoggingEvent
 import org.digimead.digi.lib.log.Record
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.digi.lib.util.SyncVar
 import org.scalatest.junit.JUnitSuite
 import org.scalatest.junit.ShouldMatchersForJUnit
@@ -77,9 +77,9 @@ class Football
   override def setUp() {
     super.setUp()
     Logging.reset()
-    Logging.subscribe(logSubscriber)
+    Logging.Event.subscribe(logSubscriber)
     Logging.resume()
-    Logging.addLogger(AndroidLogger)
+    Logging.addAppender(AndroidAppender)
     log.info("setUp")
     logResult.unset()
   }
@@ -87,7 +87,7 @@ class Football
     Logging.resume()
     logResult.unset()
     log.info("tearDown")
-    Logging.removeSubscriptions
+    Logging.Event.removeSubscriptions
     try {
       if (activity != null) {
         activity.finish()
@@ -104,10 +104,10 @@ class Football
     super.tearDown()
     Thread.sleep(1000)
   }
-  class LogSubscriber extends Logging.Sub {
+  class LogSubscriber extends Logging.Event.Sub {
     val lockAfterMatch = new AtomicBoolean(false)
     val want = new AtomicReference[(String, (String, String) => Boolean)](null)
-    def notify(pub: Logging.type#Pub, event: LoggingEvent) = {
+    def notify(pub: Logging.Event.Pub, event: Logging.Event) = {
       event match {
         case event: Logging.Event.Outgoing =>
           want.get match {

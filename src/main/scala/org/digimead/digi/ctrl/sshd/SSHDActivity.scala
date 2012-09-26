@@ -41,9 +41,10 @@ import org.digimead.digi.lib.ctrl.base.AppComponent
 import org.digimead.digi.lib.ctrl.ext.SafeDialog
 import org.digimead.digi.lib.ctrl.ext.XAPI
 import org.digimead.digi.lib.ctrl.ext.XAndroid
-import org.digimead.digi.lib.ctrl.log.AndroidFileLogger
-import org.digimead.digi.lib.ctrl.log.AndroidLogger
+import org.digimead.digi.lib.ctrl.log.AndroidFileAppender
+import org.digimead.digi.lib.ctrl.log.appender.AndroidAppender
 import org.digimead.digi.lib.log.Logging
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.digi.lib.util.SyncVar
 
 import com.actionbarsherlock.app.ActionBar
@@ -328,8 +329,8 @@ object SSHDActivity extends Logging {
   def stateCreate(activity: SSHDActivity) = ppGroup("SSHDActivity.stateCreate") {
     activity.onCreateExt(activity)
     // enable logging
-    Logging.addLogger(AndroidFileLogger)
-    Logging.addLogger(AndroidLogger)
+    Logging.addAppender(AndroidFileAppender)
+    Logging.addAppender(AndroidAppender)
     Logging.resume
     //
     val bar = SyncVar[ActionBar]()

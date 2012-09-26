@@ -22,7 +22,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.digimead.digi.ctrl.sshd"
     android:installLocation="preferExternal"
-    android:versionCode="1346792252"
+    android:versionCode="1348597743"
     android:versionName="0.3" >
 
     <uses-sdk
@@ -91,7 +91,7 @@
             android:name="scala.collection.immutable"
             android:required="true" />
         <uses-library
-            android:name="slf4j-api-1.6.4"
+            android:name="slf4j-api-1.7.1"
             android:required="true" />
         <uses-library
             android:name="CWAC-MergeAdapter"
@@ -112,16 +112,19 @@
             android:name="stopwatch-core_2.8.2-1.0-SNAPSHOT"
             android:required="true" />
         <uses-library
-            android:name="digi-lib-0.2-instrumented"
+            android:name="digi-lib-instrumented"
             android:required="true" />
         <uses-library
-            android:name="digi-lib-ctrl-0.2-instrumented"
+            android:name="digi-lib-slf4j-instrumented"
             android:required="true" />
         <uses-library
-            android:name="digi-lib-opengl-0.2-instrumented"
+            android:name="digi-lib-ctrl-instrumented"
             android:required="true" />
         <uses-library
-            android:name="digi-lib-util-0.2-instrumented"
+            android:name="digi-lib-opengl-instrumented"
+            android:required="true" />
+        <uses-library
+            android:name="digi-lib-util-instrumented"
             android:required="true" />
     </application>
 

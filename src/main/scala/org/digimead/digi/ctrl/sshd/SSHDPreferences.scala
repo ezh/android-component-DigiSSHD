@@ -24,11 +24,10 @@ package org.digimead.digi.ctrl.sshd
 import scala.collection.JavaConversions._
 import scala.collection.mutable.Publisher
 
-import org.digimead.digi.lib.ctrl.AnyBase
-import org.digimead.digi.lib.ctrl.ext.XDialog
-import org.digimead.digi.lib.ctrl.ext.XDialog.dialog2string
-import org.digimead.digi.lib.ctrl.ext.XResource
+import org.digimead.digi.ctrl.sshd.Message.dispatcher
+import org.digimead.digi.ctrl.sshd.SSHDPreferences.FilterConnection.Changed
 import org.digimead.digi.lib.aop.Loggable
+import org.digimead.digi.lib.ctrl.AnyBase
 import org.digimead.digi.lib.ctrl.base.AppComponent
 import org.digimead.digi.lib.ctrl.block.Level
 import org.digimead.digi.lib.ctrl.declaration.DIntent
@@ -36,12 +35,13 @@ import org.digimead.digi.lib.ctrl.declaration.DOption
 import org.digimead.digi.lib.ctrl.declaration.DPreference
 import org.digimead.digi.lib.ctrl.declaration.DState
 import org.digimead.digi.lib.ctrl.dialog.Preferences
-import org.digimead.digi.lib.log.RichLogger
+import org.digimead.digi.lib.ctrl.ext.PublicPreferences
+import org.digimead.digi.lib.ctrl.ext.XDialog
+import org.digimead.digi.lib.ctrl.ext.XDialog.dialog2string
+import org.digimead.digi.lib.ctrl.ext.XResource
 import org.digimead.digi.lib.ctrl.message.Dispatcher
 import org.digimead.digi.lib.ctrl.message.IAmMumble
-import org.digimead.digi.lib.ctrl.ext.PublicPreferences
-import org.digimead.digi.ctrl.sshd.Message.dispatcher
-import org.digimead.digi.ctrl.sshd.SSHDPreferences.FilterConnection.Changed
+import org.digimead.digi.lib.log.logger.RichLogger
 
 import android.content.Context
 import android.content.Intent
@@ -53,17 +53,16 @@ import android.support.v4.app.FragmentTransaction
 import android.widget.Toast
 
 class SSHDPreferences extends Preferences {
-  implicit val logger = log
   @Loggable
   override protected def updatePrefSummary(p: APreference, key: String, notify: Boolean = false) {
     p match {
       case p: ListPreference if key == SSHDPreferences.DOption.ControlsHighlight.tag =>
         if (shared.contains(SSHDPreferences.DOption.ControlsHighlight.tag))
           // DOption.ControlsHighlight.tag exists
-          SSHDPreferences.ControlsHighlight.set(p.getValue.toString, this, notify)(logger, dispatcher)
+          SSHDPreferences.ControlsHighlight.set(p.getValue.toString, this, notify)(log, dispatcher)
         else
           // DOption.ControlsHighlight.tag not exists
-          SSHDPreferences.ControlsHighlight.set(SSHDPreferences.ControlsHighlight.get(this).toString, this, notify)(logger, dispatcher)
+          SSHDPreferences.ControlsHighlight.set(SSHDPreferences.ControlsHighlight.get(this).toString, this, notify)(log, dispatcher)
       case _ =>
         super.updatePrefSummary(p, key, notify)
     }
